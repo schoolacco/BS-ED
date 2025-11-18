@@ -1,4 +1,5 @@
 from tkinter import *
+import math
 class Mantissa:
     def __init__(self, mantissa, exponent):
         self.num = mantissa
@@ -29,9 +30,10 @@ class Mantissa:
         a.exp += 1
       return Mantissa(new_mantissa, a.exp)
     def __round__(self, num):
+        self.num = round(self.num, num)
         return self
     def __ge__(self, other):
-        return True if self.exp > other.exp else False
+        return True if self.exp > other.exp else True if self.exp == other.exp and self.num >= other.num else False
     def __sub__(a,b):
         b.num = -b.num
         return a + b
@@ -53,7 +55,15 @@ class Mantissa:
     def to_float(self):
         """Convert the Mantissa to a regular float. Warning: may overflow for huge exponents."""
         return self.num * (10 ** self.exp) if self.exp < 300 else self
-
+def float_to_mantissa(value: float) -> Mantissa:
+      """Converts a float or int into a Mantissa representation."""
+      if isinstance(value, Mantissa):
+          return value
+      if value == 0:
+          return Mantissa(0, 0)
+      exponent = int(math.floor(math.log10(abs(value))))
+      mantissa = value / (10 ** exponent)
+      return Mantissa(mantissa, exponent)
 class tkinter_frames:
   def create_scrollable_area(parent, button_groups, bg="black", text_color="white"):
     """
@@ -139,10 +149,10 @@ class Geode:
 
     def open(self, file, luck=1.0):
       luck += (random.randint(100, 777) / 100) - 1
-  
-      if file["Main"][self.unit]["Value"] < self.cost:
-          return file
-      file["Main"][self.unit]["Value"] -= self.cost
+      if not isinstance(file["Main"][self.unit]["Value"],Mantissa): #Skips cost check as if value is a Mantissa cost is always negligible (prices will never be that high)
+        if file["Main"][self.unit]["Value"] < self.cost:
+            return file
+        file["Main"][self.unit]["Value"] -= self.cost
   
       adjusted_items = {}
   
@@ -169,7 +179,10 @@ class Geode:
       print(item)
       # Add item to inventory
       if file["Main"].get(item) is not None:
-          file["Main"][item]["Value"] += 2 if random.randint(1,500) == 1 else 1
+          val = 2 if random.randint(1,500) == 1 else 1
+          if isinstance(file["Main"][item]["Value"], Mantissa):
+              val = float_to_mantissa(val)
+          file["Main"][item]["Value"] += val
       elif file["Geode"].get(item) is not None:
           file["Geode"][item]["Value"] += 2 if random.randint(1,500) == 1 else 1
       else:

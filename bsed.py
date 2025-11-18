@@ -1,5 +1,6 @@
-from tkinter import *
-from tkinter import ttk
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
 import simpleaudio as sa
 import json
 from pydub import AudioSegment
@@ -9,9 +10,11 @@ import threading
 import math
 import os
 import random
+import sys
 from Module import Mantissa, tkinter_frames, Geode
 MANTISSA_THRESHOLD = 1e300
 luck = 6
+music = ["Catswing.mp3", "Ambrosia.mp3"]
 def Geode_roll(geode, luck=1):
     global stat_increment
     stat_increment = geode.open(stat_increment,luck)
@@ -28,6 +31,8 @@ def load_check(key, req, unit, buttons):
         container, canvas, frame, scrollbar, x_scrollbar = tkinter_frames.create_scrollable_area(root, buttons)
 def float_to_mantissa(value: float) -> Mantissa:
       """Converts a float or int into a Mantissa representation."""
+      if isinstance(value, Mantissa):
+          return value
       if value == 0:
           return Mantissa(0, 0)
       exponent = int(math.floor(math.log10(abs(value))))
@@ -83,9 +88,9 @@ def Save(collection):
             json.dump(serialize(collection), file)
         except json.JSONDecodeError: # If file is corrupted
            print("WARNING: Your back up file or main save file is CORRUPTED")
-def save():
+def save(event: QCloseEvent):
    Save(stat_increment)
-   root.destroy()
+   event.accept()
 def calculate_multi(unit):
     """Calculates total multiplier for a given unit, supporting Mantissa instances."""
     global stat_increment
@@ -153,8 +158,7 @@ def cash_increase():
         cash_scaling = 1
 
     # Increment cash
-    if isinstance(stat_increment["Main"]["Cash"]["Value"], Mantissa):
-       cash_scaling = float_to_mantissa(cash_scaling) if not isinstance(cash_scaling, Mantissa) else cash_scaling
+    cash_scaling = float_to_mantissa(cash_scaling) if not isinstance(cash_scaling, Mantissa) else cash_scaling
     cash_increment = Mantissa(1, 0) * multi * cash_scaling
     if isinstance(stat_increment["Main"]["Cash"]["Value"], Mantissa):
         stat_increment["Main"]["Cash"]["Value"] += cash_increment
@@ -195,10 +199,11 @@ def cost_button(key, unit, cost, unit_2, receive):
              receive = float_to_mantissa(receive)
         increment = Multi*receive
         # Add the increment
-        if not isinstance(stat_increment[key][unit_2]["Value"], Mantissa):
+        if not isinstance(stat_increment[key][unit_2]["Value"], Mantissa) and increment.exp < math.log(MANTISSA_THRESHOLD, 10):
             increment = increment.to_float()
+        if isinstance(increment, Mantissa) and not isinstance(stat_increment[key][unit_2]["Value"], Mantissa):
+          stat_increment[key][unit_2]["Value"] = float_to_mantissa(stat_increment[key][unit_2]["Value"])
         stat_increment[key][unit_2]["Value"] += increment
-
         # Update labels
         cash_val = stat_increment["Main"]["Cash"]["Value"]
         cash_text = cash_val.to_string() if isinstance(cash_val, Mantissa) else cash_val
@@ -215,22 +220,20 @@ def cost_button(key, unit, cost, unit_2, receive):
 def reset_button(key, cost, unit, reward, unit_2):
     global cash_l, multi_l, re_l, stone_l, stat_increment
 
-    cost_m = float_to_mantissa(cost)
-
     current_value = stat_increment[key][unit]['Value']
-    if isinstance(current_value, Mantissa):
-        current_number = current_value.to_float()
-    else:
-        current_number = current_value
     stat_list = list(stat_increment[key].keys())
-    if current_number >= cost:
+    if isinstance(current_value, Mantissa) and not isinstance(cost, Mantissa):
+        cost = float_to_mantissa(cost)
+    if not isinstance(current_value, Mantissa) and isinstance(cost, Mantissa):
+        current_value = float_to_mantissa(current_value)
+    if current_value >= cost:
         # Reset all lower-tier stats before unit_2
         for i in range(stat_list.index(unit_2)):
-            stat_increment[key][stat_list[i]]["Value"] = Mantissa(0, 0) if isinstance(stat_increment[key][stat_list[i]]["Value"], Mantissa) else 0
+            stat_increment[key][stat_list[i]]["Value"] = 0
 
         multi = calculate_multi(unit_2)
         if multi.exp < math.log(MANTISSA_THRESHOLD,10):
-            multi = multi.to_float()-1
+            multi = multi.to_float()
             if multi * reward < reward:
                 multi += 1
             multi = float_to_mantissa(multi)
@@ -239,21 +242,26 @@ def reset_button(key, cost, unit, reward, unit_2):
         if not isinstance(reward_m, Mantissa):
             reward_m = float_to_mantissa(reward_m)
 
-        if isinstance(stat_increment[key][unit_2]["Value"], Mantissa):
-            stat_increment[key][unit_2]["Value"] += reward_m
-        else:
-            stat_increment[key][unit_2]["Value"] += reward_m.to_float()
-
+        if isinstance(reward_m, Mantissa):
+            value = stat_increment[key][unit_2]["Value"]
+            value= float_to_mantissa(value)
+            value += reward_m
+            value = value.to_float() if value.exp < math.log(MANTISSA_THRESHOLD, 10) else value
+            stat_increment[key][unit_2]["Value"] = value
+        r_text = stat_increment['Main']['Rebirths']['Value'] if not isinstance(stat_increment['Main']['Rebirths']['Value'], Mantissa) else stat_increment['Main']['Rebirths']['Value'].to_string()
         # Update labels
         cash_l.config(text=f"Cash: {stat_increment['Main']['Cash']['Value']}")
         multi_l.config(text=f"Multiplier: {stat_increment['Main']['Multiplier']['Value']}")
-        re_l.config(text=f"Rebirths: {stat_increment['Main']['Rebirths']['Value']}")
+        re_l.config(text=f"Rebirth: {r_text}")
         stat_increment["Extra"]["Buttons Pressed"]["Value"] += 1
 
 def recovery_button_set(key, req, unit, Set, unit_2):
     global stat_increment
-
     amount = stat_increment[key][unit]["Value"]
+    if isinstance(amount, Mantissa) and not isinstance(req, Mantissa):
+        req = float_to_mantissa(req)
+    if not isinstance(amount, Mantissa) and isinstance(req, Mantissa):
+        amount = float_to_mantissa(amount)
     if amount >= req:
         if stat_increment[key][unit_2]["Value"] < Set:
           stat_increment[key][unit_2]["Value"] = Set
@@ -262,49 +270,64 @@ def recovery_button_set(key, req, unit, Set, unit_2):
 def recovery_button_fetch(key, req, unit, recovery, unit_2):
     global stat_increment
     amount = stat_increment[key][unit]["Value"]
+    if isinstance(amount, Mantissa) and not isinstance(req, Mantissa):
+        req = float_to_mantissa(req)
+    if not isinstance(amount, Mantissa) and isinstance(req, Mantissa):
+        amount = float_to_mantissa(amount)
     if amount >= req:
       multi = calculate_multi(unit_2)
       multi = multi.to_float() if isinstance(multi, Mantissa) else multi
       if multi == 0:
           multi = 1
+      if isinstance(multi, Mantissa):
+          recovery = float_to_mantissa(recovery)
+          stat_increment[key][unit_2]["Value"] = float_to_mantissa(stat_increment[key][unit_2]["Value"])
       stat_increment[key][unit_2]["Value"] += recovery*multi
-      cash_l.config(text=f"Cash: {stat_increment[key]['Cash']['Value']}")
-      multi_l.config(text=f"Multiplier: {stat_increment[key]['Multiplier']['Value']}")
-      re_l.config(text=f"Rebirths: {stat_increment[key]['Rebirths']['Value']}")
+
+      c_msg = cash if not isinstance(cash, Mantissa) else cash.to_string()
+      cash_l.config(text=f"Cash: {c_msg}", bg="black", fg="white")
+      multi = stat_increment['Main']['Multiplier']['Value']
+      m_msg = multi if not isinstance(multi, Mantissa) else multi.to_string()
+      multi_l.config(text=f"Multiplier: {m_msg}", bg="black", fg="white")
+      rebirths = stat_increment['Main']['Rebirths']['Value']
+      re_msg = rebirths if not isinstance(rebirths, Mantissa) else rebirths.to_string()
+      re_l.config(text=f"Rebirths: {re_msg}", bg="black", fg="white")
     else:
      pass
-root = Tk()
-cash_l = Label(root)
-multi_l = Label(root)
-re_l = Label(root)
-stone_l = Label(root)
+app = QApplication(sys.argv)
+
+root = QMainWindow()
+root.setWindowTitle("BS:ED but bad")
+#cash_l = Label(root)
+#multi_l = Label(root)
+#re_l = Label(root)
+#stone_l = Label(root)
 stat_increment = {"Main": {"Cash": {"Value": 0, "Multis": None}, "Multiplier":  {"Value": 0, "Multis": None}, "Rebirths":  {"Value": 0, "Multis": {"Multiplier": 2}}, "Stone": {"Value": 0, "Multis": {"Cash": 1.5, "Rebirths": 2}}, "White Gems": {"Value": 0, "Multis": {"Multiplier": 1.5, "Stone": 1.8}}, "Crystal": {"Value": 0, "Multis": {"Cash": 2, "White Gems": 3}}, "Iron": {"Value": 0, "Multis": {"Rebirths": 1.5, "Crystal": 2}}, "Gold": {"Value": 0, "Multis": {"Cash": 2, "Stone": 2, "Iron": 2}}, "Quartz": {"Value": 0, "Multis": {"Multiplier": 10, "Rebirths": 2, "Stone": 5, "White Gems": 3, "Crystal": 2, "Gold": 2}}, "Jade": {"Value": 0, "Multis": {"Cash": 3, "Rebirths": 10, "Stone": 4, "Crystal": 4, "Quartz": 3}}, "Obsidian": {"Value": 0, "Multis": {"Rebirths": 15, "Stone": 15,"White Gems": 15, "Crystal": 10, "Iron": 10, "Gold": 7.5, "Jade": 5}}, "Ruby": {"Value": 0, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2}}, "Emerald": {"Value": 0, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2}}, "Sapphire": {"Value": 0, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2}}, "Diamond": {"Value": 0, "Multis": {"Emerald": 3, "Sapphire": 2}}, "Starlight": {"Value": 0, "Multis": {"Ruby": 6, "Sapphire": 3, "Diamond": 3}}, "Ion": {"Value": 0, "Multis": {"Jade": 4, "Ruby": 2, "Emerald": 10, "Sapphire": 1.4, "Diamond": 5, "Starlight": 5}}, "Uranium": {"Value": 0, "Multis": {"Crystal": 100, "Sapphire": 60, "Starlight": 5, "Ion": 2.2}}, "Bismuth": {"Value": 0, "Multis": {"Ruby": 50, "Emerald": 25, "Sapphire": 12, "Diamond": 3, "Ion": 2.5, "Uranium": 2}} , "Boracite": {"Value": 0, "Multis": {"Starlight": 5, "Uranium": 3, "Bismuth": 1.5}}, "Nissonite": {"Value": 0, "Multis": {"Obsidian": 5, "Bismuth": 2.75, "Boracite": 2.25}}, "Orpiment": {"Value": 0, "Multis": {"Cash": 23, "Multiplier": 22, "Rebirths": 21, "Stone": 20, "White Gems": 19, "Crystal": 18, "Iron": 17, "Gold": 16, "Quartz": 15, "Jade": 14, "Obsidian": 13, "Ruby": 12, "Emerald": 11, "Sapphire": 10, "Diamond": 9, "Starlight": 8, "Ion": 7, "Uranium": 6, "Bismuth": 5, "Boracite": 4, "Nissonite": 3}}, "Tetra": {"Value": 0, "Multis": {"Diamond": 1e4, "Boracite": 30, "Nissonite": 10, "Orpiment": 2.5}}, "Volt": {"Value": 0, "Multis": {"Uranium": 100, "Nissonite": 4, "Tetra": 2}}, "Aquamarine": {"Value": 0, "Multis": {"Obsidian": 1e6, "Ion": 500, "Uranium": 400, "Nissonite": 5, "Volt": 2.1}}, "Lollipop": {"Value": 0, "Multis": {"Emerald": 8152, "Sapphire": 4096, "Diamond": 2048, "Starlight": 1024, "Ion": 512, "Uranium": 256, "Bismuth": 128, "Boracite": 64, "Nissonite": 32, "Orpiment": 16, "Tetra": 8, "Volt": 4, "Aquamarine": 2}}, "C0RR8PT10N": {"Value": 0, "Multis": {"Cash": 6, "Multiplier": 6, "Rebirths": 6, "Stone": 6, "White Gems": 6, "Crystal": 6, "Iron": 6, "Gold": 6, "Quartz": 6, "Jade": 6, "Obsidian": 6, "Ruby": 6, "Emerald": 6, "Sapphire": 6, "Diamond": 6, "Starlight": 6, "Ion": 6, "Uranium": 6, "Bismuth": 6, "Boracite": 6, "Nissonite": 6, "Orpiment": 2.3, "Tetra": 6, "Volt": 6, "Aquamarine": 4, "Lollipop": 3}}, "Stargazed Metal": {"Value": 0, "Multis": {"Cash": 1e100, "Multiplier": 1e100, "Rebirths": 1e100, "Stone": 1e100, "White Gems": 1e100, "Crystal": 1e100, "Iron": 1e100, "Gold": 1e100, "Quartz": 1e100, "Jade": 1e100, "Obsidian": 7.5, "Ruby": 7.5, "Emerald": 7.5, "Aquamarine": 2.25, "Lollipop": 2.25, "C0RR8PT10N": 3}}, "Gyge": {"Value": 0, "Multis": {"Ruby": 1e25, "Emerald": 1e25, "Sapphire": 1e25, "Diamond": 1e25, "Starlight": 1e25, "Ion": 1e25, "Uranium": 1e25, "Bismuth": 1e25, "Boracite": 1e25, "Nissonite": 1e25, "Volt": 18, "Lollipop": 7, "C0RR8PT10N": 10, "Stargazed Metal": 2}}, "Auly Plate": {"Value": 0, "Multis": {"Cash": Mantissa(1,288290), "Orpiment": 1.61, "Tetra": 3.12, "Volt": 6.25, "Aquamarine": 12.5, "Lollipop": 18, "C0RR8PT10N": 50, "Stargazed Metal": 5, "Gyge": 2}}, "Shell Piece": {"Value": 0, "Multis": {"Cash": 1e75, "Multiplier": 1e75, "Rebirths": 1e75, "Stone": 1e75, "White Gems": 1e75, "Crystal": 1e75, "Iron": 1e75, "Gold": 1e75, "Quartz": 1e75, "Jade": 1e75, "Obsidian": 1e75, "Ruby": 1e75, "Emerald": 1e75, "Sapphire": 1e75, "Diamond": 1e75, "Starlight": 1e75, "Ion": 1e75, "Uranium": 1e75, "Bismuth": 1e75, "Boracite": 1e75, "Nissonite": 1e75, "Orpiment": 1e75, "Tetra": 100, "Volt": 100, "Aquamarine": 100, "Lollipop": 100, "C0RR8PT10N": 100, "Mint": 100, "Gems": 20, "Metal": 100, "Press": 100, "Microparticles": 100, "Star": 100, "Robot": 100, "Prototype": 100}}, "Singularity": {"Value": 0, "Multis": {"Cash": Mantissa(1,987654321), "Volt": 1200, "C0RR8PT10N": 150, "Gyge": 4, "Auly Plate": 2.5, "Gems": 75}}, "Capsuled Singularity": {"Value": 0, "Multis": {"Cash": Mantissa(1,303030303), "Ruby": Mantissa(1,266664), "Emerald": Mantissa(1,266664), "Sapphire": Mantissa(1,266664), "Diamond": Mantissa(1,266664), "Starlight": Mantissa(1,133337), "Ion": Mantissa(1,666666), "Uranium": Mantissa(1,333333), "Bismuth": Mantissa(1,12555), "Boracite": Mantissa(1,5555), "Nissonite": Mantissa(1,2222), "Orpiment": Mantissa(1,1000), "Tetra": Mantissa(1,500), "Volt": 1e150, "Aquamarine": 1e75, "Lollipop": 1e25, "C0RR8PT10N": 1e6, "Stargazed Metal": 2500, "Gyge": 500, "Auly Plate": 25, "Shell Piece": 2.5, "Prototype": 1240, "Gems": 300}}, "Gems": {"Value": 0, "Multis": None}}, "Extra": {"Buttons Pressed": {"Value": 0, "Multis": None}, "Geodes Opened": {"Value": 0, "Multis": None}}, "Geode": {}} # Gems technically aren't part of main progression, they're just placed here for temporary convenience
 stat_list = list(stat_increment["Main"].keys())
-root.title("BS:ED but bad")
-root.configure(bg="black")
-root.config(width=1000,height=1000)
-root.minsize(100,100)
-root.maxsize(5000,5000)
-root.geometry("500x500+20+120")
-photo = PhotoImage(file="Quant.png")
-root.wm_iconphoto(False, photo) 
-Nb = ttk.Notebook(root, cursor="circle") # Insert notebook and change cursor
-s = ttk.Style()
-s.configure('TFrame', background="black") #Change Style() to create bgs for frames
+#root.setWindowTitle("BS:ED but bad")
+#root.configure(bg="black")
+#root.config(width=1000,height=1000)
+root.setMinimumSize(QSize(100,100))
+#root.geometry("500x500+20+120")
+root.setWindowIcon(QIcon("Quant.png"))
+layout = QGridLayout()
+central = QWidget()
+central.setLayout(layout)
 temp = Load()
 if temp != None:
    stat_increment = temp
-root.protocol("WM_DELETE_WINDOW", save)
 cash = stat_increment['Main']['Cash']['Value']
 c_msg = cash if not isinstance(cash, Mantissa) else cash.to_string()
-cash_l.config(text=f"Cash: {c_msg}", bg="black", fg="white")
-cash_l.pack()
+#cash_l.config(text=f"Cash: {c_msg}", bg="black", fg="white")
+#cash_l.pack()
 multi = stat_increment['Main']['Multiplier']['Value']
 m_msg = multi if not isinstance(multi, Mantissa) else multi.to_string()
-multi_l.config(text=f"Multiplier: {m_msg}", bg="black", fg="white")
-multi_l.pack()
-re_l.config(text=f"Rebirths: {stat_increment['Main']['Rebirths']['Value']}", bg="black", fg="white")
-re_l.pack()
+#multi_l.config(text=f"Multiplier: {m_msg}", bg="black", fg="white")
+#multi_l.pack()
+rebirths = stat_increment['Main']['Rebirths']['Value']
+re_msg = rebirths if not isinstance(rebirths, Mantissa) else rebirths.to_string()
+#re_l.config(text=f"Rebirths: {re_msg}", bg="black", fg="white")
+#re_l.pack()
 stone_geode = Geode({"Multiplier": {"Chance": 3},
                      "Rebirths": {"Chance": 10},
                      "Stone": {"Chance": 20},
@@ -338,6 +361,50 @@ iron_geode = Geode({"Iron": {"Chance": 5},
                     "Platinum": {"Chance": 32000, "Multis": {"White Gems": 10, "Crystal": 20, "Iron": 15, "Gold": 3, "Quartz": 2}},
                     "Mythril": {"Chance": 2000000, "Multis": {"Cash": 999, "Crystal": 5, "Iron": 10, "Gold": 50, "Quartz": 100}}},
                     25, "Iron")
+gold_geode = Geode({"Gold": {"Chance": 4},
+                    "Iron": {"Chance": 6},
+                    "Quartz": {"Chance": 33},
+                    #"Mushroom": {"Chance": 100},
+                    #"Pumpkin" {"Chance": 125},
+                    "Yellow Beryl": {"Chance": 6666, "Multis": {"Crystal": 15, "Gold": 3}},
+                    "Opal": {"Chance": 51000, "Multis": {"Cash": 8, "Multiplier": 8, "Rebirths": 8, "Crystal": 8, "Gold": 8, "Jade": 8, "Ruby": 1.3, "Sapphire": 1.3, "Diamond": 1.3}},
+                    "Holeyum": {"Chance": 2750000, "Multis": {"Rebirths": 1000, "White Gems": 1000, "Crystal": 500, "Iron": 500, "Gold": 300}}},
+                    60, "Gold")
+quartz_geode = Geode({"Quartz": {"Chance": 5},
+                      "Gold": {"Chance": 8},
+                      "Jade": {"Chance": 16},
+                      "Pink Quartz": {"Chance": 50, "Multis": {"Crystal": 10, "Quartz": 3}},
+                      "Cyan Quartz": {"Chance": 166, "Multis": {"Rebirths": 10, "Crystal": 10, "Quartz": 4}},
+                      "Black Quartz": {"Chance": 2500, "Multis": {"Stone": 10, "White Gems": 10, "Iron": 10, "Quartz": 5}},
+                      "Garnet": {"Chance": 23000, "Multis": {"Gold": 30, "Quartz": 15, "Jade": 10, "Obsidian": 5}},
+                      "Milky Quartz": {"Chance": 800000, "Multis": {"Cash": 10, "Multiplier": 10, "Rebirths": 10, "Stone": 100, "White Gems": 100, "Crystal": 10, "Iron": 100, "Gold": 10, "Quartz": 100, "Jade": 10, "Obsidian": 100}}},
+                      30, "Quartz")
+jade_geode = Geode({"Gold": {"Chance": 2},
+                    "Quartz": {"Chance": 4},
+                    "Jade": {"Chance": 10},
+                    "Jurite": {"Chance": 20, "Multis": {"Iron": 3, "Gold": 3, "Quartz": 3, "Jade": 3}},
+                    "Obsidian": {"Chance": 1000},
+                    "Molybendum": {"Chance": 23000, "Multis": {"Stone": 1000, "White Gems": 1000, "Iron": 1000, "Quartz": 1000}},
+                    "Rbadam's Smokestackite": {"Chance": 100000, "Multis": {"Gold": 44,"Quartz": 33," Jade": 22, "Obsidian": 11, "Ruby": 1.1}}},
+                    500, "Jade")
+emoji_geode = Geode({":3": {"Chance": 2, "Multis": {"Quartz": 2}},
+                     "O_O": {"Chance": 100, "Multis": {"Quartz": 5, "Jade": 2}},
+                     "^_^": {"Chance": 2000, "Multis": {"Multiplier": 1.1, "Rebirths": 2.2, "Stone": 3.3, "White Gems": 4.4, "Crystal": 5.5, "Iron": 6.6, "Gold": 7.7, "Quartz": 8.8}},
+                     "'-'": {"Chance": 12000, "Multis": {"Iron": 1.1, "Gold": 1.1, "Quartz": 1.1, "Jade": 1.1, "Obsidian": 1.1}},
+                     ":D": {"Chance": 35000, "Multis": {"Jade": 5, "Obsidian": 3, "Ruby": 2}},
+                     "OwO": {"Chance": 150000, "Multis": {"Gold": 5.5, "Emerald": 5.5}},
+                     "UwU": {"Chance": 1000000, "Multis": {"Gold": 6.5, "Quartz": 6.5, "Jade": 6.5, "Obsidian": 6.5, "Ruby": 5.4, "Emerald": 4.3, "Sapphire": 3.2, "Diamond": 2.1}}},
+                     1000, "Gems")
+obsidian_geode = Geode({"Obsidian": {"Chance": 5},
+                        "Jade": {"Chance": 10},
+                        "Ruby": {"Chance": 20},
+                        "Draconite": {"Chance": 100, "Multis": {"Crystal": 10, "Obsidian": 2}},
+                        "Burneite": {"Chance": 400, "Multis": {"Cash": 7, "Multiplier": 7, "Rebirths": 7, "Stone": 7, "White Gems": 7, "Crystal": 7, "Iron": 7, "Gold": 7, "Quartz": 7, "Jade": 7}},
+                        "Dragonglass": {"Chance": 6666, "Multis": {"Crystal": 25, "Quartz": 15, "Jade": 10, "Obsidian": 5}},
+                        "Hellyerite": {"Chance": 47000, "Multis": {"Obsidian": 10, "Ruby": 3}},
+                        "Palladium": {"Chance": 350000, "Multis": {"Cash": 6, "Multiplier": 6, "Rebirths": 6, "Stone": 6, "White Gems": 6, "Crystal": 6, "Iron": 6, "Gold": 6, "Jade": 6, "Obsidian": 6, "Ruby": 6, "Gems": 1.5}},
+                        "Osumillite": {"Chance": 4200000, "Multipliers": {"Cash": 6544, "Gold": 50, "Quartz": 40, "Jade": 30, "Obsidian": 20, "Ruby": 10}}},
+                        1, "Obsidian")
 Spawn_Buttons = {
     "Multiplier": [
         ("12 Cash: 1 Multiplier", lambda: cost_button("Main","Cash",12,"Multiplier", 1)),
@@ -396,13 +463,17 @@ Spawn_Buttons = {
     ],
     "Geodes": [
        ("Stone Geode: 1M Stone", lambda: Geode_roll(stone_geode, luck)),
-       ("White Gems Geode: 30 White Gems", lambda: Geode_roll(gems_geode, luck))
+       ("White Gems Geode: 30 White Gems", lambda: Geode_roll(gems_geode, luck)),
+       ("Jade Geode: 500 Jade", lambda: Geode_roll(jade_geode, luck)),
     ],
     "Area Teleports": [
        ("Caves (req: 10 Stone)", lambda: load_check("Main",10, "Stone", Cave_Buttons)),
        ("Crystal Beneaths (req: 300 White Gems)", lambda: load_check("Main",300, "White Gems", Crystal_Buttons)),
        ("Iron Shafts (req: 100 Crystal)", lambda: load_check("Main",100, "Crystal", Iron_Buttons)),
        ("Golden Quarry (req: 750 Iron)", lambda: load_check("Main",750,"Iron",Gold_Buttons)),
+       ("Quartz Walkway (req: 75 Gold)", lambda: load_check("Main",75,"Gold", Quartz_Buttons)),
+       ("Jade Forest (req: 450 Quartz)", lambda: load_check("Main",450,"Quartz", Jade_Buttons)),
+       ("Obsidian Abyss (req: 80 Jade)", lambda: load_check("Main", 80, "Jade", Obsidian_Buttons)),
        ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
    ]
 }
@@ -628,7 +699,10 @@ Recover_Hall_Buttons = {
         ("Caves (req: 10 Stone)", lambda: load_check("Main",10, "Stone", Cave_Buttons)),
         ("Crystal Beneaths (req: 300 White Gems)", lambda: load_check("Main",300, "White Gems", Crystal_Buttons)),
         ("Iron Shafts (req: 100 Crystal)", lambda: load_check("Main",100, "Crystal", Iron_Buttons)),
-        ("Golden Quarry (req: 750 Iron)", lambda: load_check("Main",750,"Iron",Gold_Buttons))
+        ("Golden Quarry (req: 750 Iron)", lambda: load_check("Main",750,"Iron",Gold_Buttons)),
+        ("Quartz Walkway (req: 75 Gold)", lambda: load_check("Main",75,"Gold", Quartz_Buttons)),
+        ("Jade Forest (req: 450 Quartz)", lambda: load_check("Main",450,"Quartz", Jade_Buttons)),
+        ("Obsidian Abyss (req: 80 Jade)", lambda: load_check("Main", 80, "Jade", Obsidian_Buttons)),
     ]
 }
 Crystal_Buttons = {
@@ -873,13 +947,333 @@ Gold_Buttons = {
         ("1e172 Multiplier: 750 Gems", lambda: cost_button("Main","Multiplier",1e172, "Gems", 750)),
         ("1e47 Stone: 800 Gems", lambda: cost_button("Main","Stone",1e47, "Gems", 800)),
     ],
+    "Geodes": [
+        ("Gold Geode: 60 Gold", lambda: Geode_roll(gold_geode, luck)),
+    ],
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ]
+}
+Quartz_Buttons = {
+    "Multiplier": [
+        ("1e143 Cash: 3e54 Multiplier", lambda: cost_button("Main","Cash",1e143,"Multiplier", 3e54)),
+        ("6e145 Cash: 1.5e55 Multiplier", lambda: cost_button("Main","Cash",6e145,"Multiplier", 1.5e55)),
+        ("2e147 Cash: 4e55 Multiplier", lambda: cost_button("Main","Cash",2e147,"Multiplier", 4e55)),
+        ("5e148 Cash: 1.2e56 Multiplier", lambda: cost_button("Main","Cash",5e148,"Multiplier", 1.2e56)),
+        ("6e149 Cash: 2.3e56 Multiplier", lambda: cost_button("Main","Cash",6e149,"Multiplier", 2.3e56)),
+        ("1.25e151 Cash: 6e56 Multiplier", lambda: cost_button("Main","Cash",1.25e151,"Multiplier", 6e56)),
+        ("3e151 Cash: 3.5e58 Multiplier", lambda: cost_button("Main","Cash",3e151,"Multiplier", 3.5e58)),
+        ("5.2e152 Cash: 6e58 Multiplier", lambda: cost_button("Main","Cash",5.2e152,"Multiplier", 6e58)),
+        ("3e153 Cash: 1.25e59 Multiplier", lambda: cost_button("Main","Cash",3e153,"Multiplier", 1.25e59)),
+        ("2e155 Cash: 3e59 Multiplier", lambda: cost_button("Main","Cash",2e155,"Multiplier", 3e59)),
+        ("5e156 Cash: 1e60 Multiplier", lambda: cost_button("Main","Cash",5e156,"Multiplier", 1e60)),
+    ],
+    "Rebirths": [
+        ("2.5e135 Multiplier: 1e51 Rebirths", lambda: reset_button("Main",2.5e135,"Multiplier",1e51, "Rebirths")),
+        ("7.5e137 Multiplier: 7.5e52 Rebirths", lambda: reset_button("Main",7.5e137,"Multiplier",7.5e52, "Rebirths")),
+        ("8e139 Multiplier: 3e53 Rebirths", lambda: reset_button("Main",8e139,"Multiplier",3e53, "Rebirths")),
+        ("5e141 Multiplier: 7.5e53 Rebirths", lambda: reset_button("Main",5e141,"Multiplier",7.5e53, "Rebirths")),
+        ("7.25e142 Multiplier: 1e55 Rebirths", lambda: reset_button("Main",7.25e142,"Multiplier",1e55, "Rebirths")),
+        ("8e144 Multiplier: 5e55 Rebirths", lambda: reset_button("Main",8e144,"Multiplier",5e55, "Rebirths")),
+        ("6e145 Multiplier: 1.2e56 Rebirths", lambda: reset_button("Main",6e145,"Multiplier",1.2e56, "Rebirths")),
+        ("5e171 Multiplier: 1e59 Rebirths", lambda: reset_button("Main",5e171,"Multiplier",1e59, "Rebirths")),
+        ("3e187 Multiplier: 1e62 Rebirths", lambda: reset_button("Main",3e187,"Multiplier",1e62, "Rebirths")),
+        ("1e206 Multiplier: 1e65 Rebirths", lambda: reset_button("Main",1e206,"Multiplier",1e65, "Rebirths")),
+    ],
+    "Stone": [
+        ("1e148 Rebirths: 1De Stone", lambda: reset_button("Main",1e148, "Rebirths", 1e33, "Stone")),
+        ("1.5e154 Rebirths: 50De Stone", lambda: reset_button("Main",1.5e154, "Rebirths", 5e34, "Stone")),
+        ("8.5e155 Rebirths: 2e37 Stone", lambda: reset_button("Main",8.5e155, "Rebirths", 2e37, "Stone")),
+        ("3e159 Rebirths: 8e37 Stone", lambda: reset_button("Main",3e159, "Rebirths", 8e37, "Stone")),
+        ("1.5e164 Rebirths: 6e38 Stone", lambda: reset_button("Main",1.5e164, "Rebirths", 6e38, "Stone")),
+        ("1e166 Rebirths: 5e39 Stone", lambda: reset_button("Main",1e166, "Rebirths", 5e39, "Stone")),
+        ("7.5e167 Rebirths: 6e40 Stone", lambda: reset_button("Main",7.5e167, "Rebirths", 6e40, "Stone")),
+        ("6e169 Rebirths: 2.5e41 Stone", lambda: reset_button("Main",6e169, "Rebirths", 2.5e41, "Stone")),
+    ],
+    "White Gems": [
+        ("1e60 Stone: 1Qd White Gems", lambda: reset_button("Main",1e60, "Stone", 1e15,"White Gems")),
+        ("5e62 Stone: 25Qd White Gems", lambda: reset_button("Main",5e62, "Stone", 2.5e16,"White Gems")),
+        ("2e64 Stone: 70Qd White Gems", lambda: reset_button("Main",2e64, "Stone", 7e16,"White Gems")),
+        ("4.8e65 Stone: 160Qd White Gems", lambda: reset_button("Main",4.8e65, "Stone", 1.6e17,"White Gems")),
+        ("6e67 Stone: 300Qd White Gems", lambda: reset_button("Main",6e67, "Stone", 3e17,"White Gems")),
+        ("8e68 Stone: 650Qd White Gems", lambda: reset_button("Main",8e68, "Stone", 6.5e17,"White Gems")),
+        ("3e70 Stone: 3Qn White Gems", lambda: reset_button("Main",3e70, "Stone", 3e18,"White Gems")),
+        ("1.5e73 Stone: 45Qn White Gems", lambda: reset_button("Main",1.5e73, "Stone", 4.5e19,"White Gems")),
+        ("8e74 Stone: 125Qn White Gems", lambda: reset_button("Main",8e74, "Stone", 1.25e20,"White Gems")),
+        ("8e76 Stone: 600Qn White Gems", lambda: reset_button("Main",8e76, "Stone", 6e20,"White Gems")),
+        ("9.5e77 Stone: 3Sx White Gems", lambda: reset_button("Main",9.5e77, "Stone", 3e21,"White Gems")),
+    ],
+    "Crystal": [
+        ("3e37 White Gems: 1T Crystal", lambda: reset_button("Main",3e37, "White Gems", 1e12,"Crystal")),
+        ("2e39 White Gems: 15T Crystal", lambda: reset_button("Main",2e39, "White Gems", 1.5e13,"Crystal")),
+        ("4e44 White Gems: 75T Crystal", lambda: reset_button("Main",4e44, "White Gems", 7.5e13,"Crystal")),
+        ("8e46 White Gems: 200T Crystal", lambda: reset_button("Main",8e46, "White Gems", 2e14,"Crystal")),
+        ("5e51 White Gems: 750T Crystal", lambda: reset_button("Main",5e51, "White Gems", 7.5e14,"Crystal")),
+        ("7.6e53 White Gems: 3Qd Crystal", lambda: reset_button("Main",7.6e53, "White Gems", 3e15,"Crystal")),
+        ("2.5e55 White Gems: 50Qd Crystal", lambda: reset_button("Main",2.5e55, "White Gems", 5e16,"Crystal")),
+        ("3.17e56 White Gems: 125Qd Crystal", lambda: reset_button("Main",3.17e56, "White Gems", 1.25e17,"Crystal")),
+        ("4.2e58 White Gems: 417Qd Crystal", lambda: reset_button("Main",4.2e58, "White Gems", 4.17e17,"Crystal")),
+        ("2.2e61 White Gems: 926Qd Crystal", lambda: reset_button("Main",2.2e61, "White Gems", 9.26e17,"Crystal")),
+        ("7.23e62 White Gems: 11Qn Crystal", lambda: reset_button("Main",7.23e62, "White Gems", 1.1e19,"Crystal")),
+        ("8.2e64 White Gems: 64Qn Crystal", lambda: reset_button("Main",8.2e64, "White Gems", 6.4e19,"Crystal")),
+        ("9.22e65 White Gems: 265Qn Crystal", lambda: reset_button("Main",9.22e65, "White Gems", 2.65e20,"Crystal")),
+    ],
+    "Iron": [
+        ("3Qd Crystal: 600k Iron", lambda: reset_button("Main",3e15, "Crystal", 6e5,"Iron")),
+        ("600Qd Crystal: 5M Iron", lambda: reset_button("Main",6e17, "Crystal", 5e6,"Iron")),
+        ("25Qn Crystal: 30M Iron", lambda: reset_button("Main",2.5e19, "Crystal", 3e7,"Iron")),
+        ("500Qn Crystal: 100M Iron", lambda: reset_button("Main",5e20, "Crystal", 1e8,"Iron")),
+        ("21Sx Crystal: 500M Iron", lambda: reset_button("Main",2.1e22, "Crystal", 5e8,"Iron")),
+        ("450Sx Crystal: 3B Iron", lambda: reset_button("Main",4.5e23, "Crystal", 3e9,"Iron")),
+        ("12Sp Crystal: 15B Iron", lambda: reset_button("Main",1.2e25, "Crystal", 1.5e10,"Iron")),
+        ("210Sp Crystal: 40B Iron", lambda: reset_button("Main",2.1e26, "Crystal", 4e10,"Iron")),
+        ("4Oc Crystal: 150B Iron", lambda: reset_button("Main",4e27, "Crystal", 1.5e11,"Iron")),
+        ("300Oc Crystal: 300B Iron", lambda: reset_button("Main",3e29, "Crystal", 3e11,"Iron")),
+        ("5No Crystal: 2T Iron", lambda: reset_button("Main",5e30, "Crystal", 2e12,"Iron")),
+        ("250No Crystal: 36T Iron", lambda: reset_button("Main",2.5e32, "Crystal", 3.6e13,"Iron")),
+    ],
+    "Gold": [
+        ("1M Iron: 75 Gold", lambda: reset_button("Main",1e6, "Iron", 75,"Gold")),
+        ("50M Iron: 300 Gold", lambda: reset_button("Main",5e7, "Iron", 300,"Gold")),
+        ("200M Iron: 800 Gold", lambda: reset_button("Main",2e8, "Iron", 800,"Gold")),
+        ("1B Iron: 1.5k Gold", lambda: reset_button("Main",1e9, "Iron", 1500,"Gold")),
+        ("45B Iron: 6k Gold", lambda: reset_button("Main",4.5e10, "Iron", 6000,"Gold")),
+    ],
+    "Quartz": [
+        ("2.5k Gold: 1 Quartz", lambda: reset_button("Main",2.5e3, "Gold", 1,"Quartz")),
+        ("7k Gold: 3 Quartz", lambda: reset_button("Main",7e3, "Gold", 3,"Quartz")),
+        ("20k Gold: 10 Quartz", lambda: reset_button("Main",2e4, "Gold", 10,"Quartz")),
+        ("55k Gold: 75 Quartz", lambda: reset_button("Main",5.5e4, "Gold", 75,"Quartz")),
+    ],
+    "Gem Buttons": [
+        ("3 Quartz: 70 Gems", lambda: cost_button("Main","Quartz",3, "Gems", 75)),
+        ("10 Quartz: 200 Gems", lambda: cost_button("Main","Quartz",10, "Gems", 200)),
+        ("50 Quartz: 950 Gems", lambda: cost_button("Main","Quartz",50, "Gems", 950)),
+        ("250 Quartz: 2200 Gems", lambda: cost_button("Main","Quartz",250, "Gems", 2200)),
+    ],
+    "Recovery": [
+        ("7k Gems: 1e45 Multiplier (Fetch)", lambda: recovery_button_fetch("Main",7000, "Gems", 1e45, "Multiplier")),
+        ("1k Gold: 5M White Gems (Fetch)", lambda: recovery_button_fetch("Main",1000, "Gold", 5e6, "White Gems")),
+        ("15 Quartz: 100 Iron (Fetch)", lambda: recovery_button_fetch("Main",15, "Quartz", 100, "Iron")),
+    ],
+    "Geodes": [
+        ("Quartz Geode: 30 Quartz", lambda: Geode_roll(quartz_geode, luck)),
+    ],
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ]
+}
+Jade_Buttons = {
+    "Multiplier": [
+        ("1e301 Cash: 1e75 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,301),"Multiplier", 1e75)),
+        ("5e308 Cash: 5e81 Multiplier", lambda: cost_button("Main","Cash",Mantissa(5,308),"Multiplier", 5e81)),
+        ("1e316 Cash: 3e83 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,316),"Multiplier", 3e83)),
+        ("4e320 Cash: 2.5e85 Multiplier", lambda: cost_button("Main","Cash",Mantissa(4,320),"Multiplier", 2.5e85)),
+        ("3e322 Cash: 1.6e86 Multiplier", lambda: cost_button("Main","Cash",Mantissa(3,322),"Multiplier", 1.6e86)),
+        ("2.2e323 Cash: 4.5e86 Multiplier", lambda: cost_button("Main","Cash",Mantissa(2.2,323),"Multiplier", 4.5e86)),
+        ("1.6e325 Cash: 1e88 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1.6,325),"Multiplier", 1e88)),
+        ("3e326 Cash: 2.5e88 Multiplier", lambda: cost_button("Main","Cash",Mantissa(3,326),"Multiplier", 2.5e88)),
+        ("8e326 Cash: 6.6e88 Multiplier", lambda: cost_button("Main","Cash",Mantissa(8,326),"Multiplier", 6.6e88)),
+        ("1.2e328 Cash: 1.4e89 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1.2,328),"Multiplier", 1.4e89)),
+        ("7.2e328 Cash: 4.1e89 Multiplier", lambda: cost_button("Main","Cash",Mantissa(7.2,328),"Multiplier", 4.1e89)),
+        ("2.8e329 Cash: 2e90 Multiplier", lambda: cost_button("Main","Cash",Mantissa(2.8,329),"Multiplier", 2e90)),
+        ("7.5e329 Cash: 3.6e91 Multiplier", lambda: cost_button("Main","Cash",Mantissa(7.5,329),"Multiplier", 3.6e91)),
+        ("1e331 Cash: 9e91 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,331),"Multiplier", 9e91)),
+        ("8e331 Cash: 3.1e92 Multiplier", lambda: cost_button("Main","Cash",Mantissa(8,331),"Multiplier", 3.1e92)),
+        ("4.5e332 Cash: 7.2e92 Multiplier", lambda: cost_button("Main","Cash",Mantissa(4.5,332),"Multiplier", 7.2e92)),
+        ("1e333 Cash: 2e93 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,333),"Multiplier", 2e93)),
+    ],
+    "Rebirths": [
+        ("1e269 Multiplier: 3e70 Rebirths", lambda: reset_button("Main",1e269,"Multiplier",3e70, "Rebirths")),
+        ("3e285 Multiplier: 1.5e74 Rebirths", lambda: reset_button("Main",3e285,"Multiplier",1.5e74, "Rebirths")),
+        ("1e295 Multiplier: 4e76 Rebirths", lambda: reset_button("Main",1e295,"Multiplier",4e76, "Rebirths")),
+        ("4e299 Multiplier: 5e77 Rebirths", lambda: reset_button("Main",4e299,"Multiplier",5e77, "Rebirths")),
+        ("5e301 Multiplier: 3e79 Rebirths", lambda: reset_button("Main",Mantissa(5,301),"Multiplier",3e79, "Rebirths")),
+        ("2e305 Multiplier: 2e80 Rebirths", lambda: reset_button("Main",Mantissa(2,305),"Multiplier",2e80, "Rebirths")),
+        ("1e307 Multiplier: 7e80 Rebirths", lambda: reset_button("Main",Mantissa(1,307),"Multiplier",7e80, "Rebirths")),
+        ("6e308 Multiplier: 1e82 Rebirths", lambda: reset_button("Main",Mantissa(6,308),"Multiplier",1e82, "Rebirths")),
+        ("4e310 Multiplier: 6e82 Rebirths", lambda: reset_button("Main",Mantissa(4,310),"Multiplier",6e82, "Rebirths")),
+        ("2e311 Multiplier: 2e83 Rebirths", lambda: reset_button("Main",Mantissa(2,311),"Multiplier",2e83, "Rebirths")),
+        ("1e312 Multiplier: 1e84 Rebirths", lambda: reset_button("Main",Mantissa(1,312),"Multiplier",1e84, "Rebirths")),
+    ],
+    "Stone": [
+        ("1e181 Rebirths: 2e46 Stone", lambda: reset_button("Main",1e181, "Rebirths", 2e46, "Stone")),
+        ("1.6e185 Rebirths: 5.3e46 Stone", lambda: reset_button("Main",1.6e185, "Rebirths", 5.3e46, "Stone")),
+        ("6e188 Rebirths: 1.75e47 Stone", lambda: reset_button("Main",6e188, "Rebirths", 1.75e47, "Stone")),
+        ("1.5e191 Rebirths: 5e47 Stone", lambda: reset_button("Main",1.5e191, "Rebirths", 5e47, "Stone")),
+        ("9e191 Rebirths: 3e48 Stone", lambda: reset_button("Main",9e191, "Rebirths", 3e48, "Stone")),
+        ("1e193 Rebirths: 2.4e49 Stone", lambda: reset_button("Main",1e193, "Rebirths", 2.4e49, "Stone")),
+        ("1.75e194 Rebirths: 7.5e49 Stone", lambda: reset_button("Main",1.75e194, "Rebirths", 7.5e49, "Stone")),
+        ("8.5e194 Rebirths: 3e50 Stone", lambda: reset_button("Main",8.5e194, "Rebirths", 3e50, "Stone")),
+    ],
+    "White Gems": [
+        ("1e82 Stone: 15Sx White Gems", lambda: reset_button("Main",1e82, "Stone", 1.5e22,"White Gems")),
+        ("2.5e83 Stone: 60Sx White Gems", lambda: reset_button("Main",2.5e83, "Stone", 6e22,"White Gems")),
+        ("8e83 Stone: 300Sx White Gems", lambda: reset_button("Main",8e83, "Stone", 3e23,"White Gems")),
+        ("5e85 Stone: 750Sx White Gems", lambda: reset_button("Main",5e85, "Stone", 7.5e23,"White Gems")),
+        ("2.5e86 Stone: 25Sp White Gems", lambda: reset_button("Main",2.5e86, "Stone", 2.5e25,"White Gems")),
+        ("7.7e86 Stone: 150Sp White Gems", lambda: reset_button("Main",7.7e86, "Stone", 1.5e26,"White Gems")),
+        ("8e88 Stone: 500Sp White Gems", lambda: reset_button("Main",8e88, "Stone", 5e26,"White Gems")),
+        ("3e89 Stone: 10Oc White Gems", lambda: reset_button("Main",3e89, "Stone", 1e28,"White Gems")),
+        ("1e90 Stone: 75Oc White Gems", lambda: reset_button("Main",1e90, "Stone", 7.5e28,"White Gems")),
+    ],
+    "Crystal": [
+        ("4.2e70 White Gems: 5Sx Crystal", lambda: reset_button("Main",4.2e70, "White Gems", 5e21,"Crystal")),
+        ("3.5e71 White Gems: 30Sx Crystal", lambda: reset_button("Main",3.5e71, "White Gems", 3e22,"Crystal")),
+        ("9e71 White Gems: 70Sx Crystal", lambda: reset_button("Main",9e71, "White Gems", 7e22,"Crystal")),
+        ("3e73 White Gems: 400Sx Crystal", lambda: reset_button("Main",3e73, "White Gems", 4e23,"Crystal")),
+        ("2e74 White Gems: 750Sx Crystal", lambda: reset_button("Main",2e74, "White Gems", 7.5e23,"Crystal")),
+        ("6.5e74 White Gems: 15Sp Crystal", lambda: reset_button("Main",6.5e74, "White Gems", 1.5e25,"Crystal")),
+        ("2.5e76 White Gems: 50Sp Crystal", lambda: reset_button("Main",2.5e76, "White Gems", 5e25,"Crystal")),
+        ("3e77 White Gems: 120Sp Crystal", lambda: reset_button("Main",3e77, "White Gems", 1.2e26,"Crystal")),
+        ("1e79 White Gems: 500Sp Crystal", lambda: reset_button("Main",1e79, "White Gems", 5e26,"Crystal")),
+        ("2.5e80 White Gems: 30Oc Crystal", lambda: reset_button("Main",2.5e80, "White Gems", 3e28,"Crystal")),
+    ],
+    "Iron": [
+        ("10De Crystal: 250T Iron", lambda: reset_button("Main",1e34, "Crystal", 2.5e14,"Iron")),
+        ("200De Crystal: 725T Iron", lambda: reset_button("Main",2e35, "Crystal", 7.25e14,"Iron")),
+        ("1e37 Crystal: 15Qd Iron", lambda: reset_button("Main",1e37, "Crystal", 1.5e16,"Iron")),
+        ("1.75e38 Crystal: 40Qd Iron", lambda: reset_button("Main",1.75e38, "Crystal", 4e16,"Iron")),
+        ("3e40 Crystal: 250Qd Iron", lambda: reset_button("Main",3e40, "Crystal", 2.5e17,"Iron")),
+        ("1.5e41 Crystal: 800Qd Iron", lambda: reset_button("Main",1.5e41, "Crystal", 8e17,"Iron")),
+        ("7.5e41 Crystal: 10Qn Iron", lambda: reset_button("Main",7.5e41, "Crystal", 1e19,"Iron")),
+        ("3e43 Crystal: 60Qn Iron", lambda: reset_button("Main",3e43, "Crystal", 6e19,"Iron")),
+        ("5e44 Crystal: 200Qn Iron", lambda: reset_button("Main",5e44, "Crystal", 2e20,"Iron")),
+        ("2e46 Crystal: 800Qn Iron", lambda: reset_button("Main",2e46, "Crystal", 8e20,"Iron")),
+        ("1.2e47 Crystal: 50Sx Iron", lambda: reset_button("Main",1.2e47, "Crystal", 5e22,"Iron")),
+        ("6e47 Crystal: 120Sx Iron", lambda: reset_button("Main",6e47, "Crystal", 1.2e23,"Iron")),
+        ("3e48 Crystal: 550Sx Iron", lambda: reset_button("Main",3e48, "Crystal", 5.5e23,"Iron")),
+    ],
+    "Gold": [
+        ("300B Iron: 100k Gold", lambda: reset_button("Main",3e11, "Iron", 1e5,"Gold")),
+        ("900T Iron: 500k Gold", lambda: reset_button("Main",9e14, "Iron", 5e5,"Gold")),
+        ("10Qd Iron: 3M Gold", lambda: reset_button("Main",1e16, "Iron", 3e6,"Gold")),
+        ("50Qn Iron: 20M Gold", lambda: reset_button("Main",5e19, "Iron", 2e7,"Gold")),
+        ("300Sx Iron: 100M Gold", lambda: reset_button("Main",3e23, "Iron", 1e8,"Gold")),
+        ("1Sp Iron: 750M Gold", lambda: reset_button("Main",1e24, "Iron", 7.5e8,"Gold")),
+    ],
+    "Quartz": [
+        ("400k Gold: 200 Quartz", lambda: reset_button("Main",4e5, "Gold", 200,"Quartz")),
+        ("15M Gold: 1k Quartz", lambda: reset_button("Main",1.5e7, "Gold", 1000,"Quartz")),
+        ("250M Gold: 5k Quartz", lambda: reset_button("Main",2.5e8, "Gold", 5000,"Quartz")),
+        ("5B Gold: 30k Quartz", lambda: reset_button("Main",5e9, "Gold", 3e4,"Quartz")),
+    ],
+    "Jade": [
+        ("1k Quartz: 1 Jade", lambda: reset_button("Main",1000, "Quartz", 1,"Jade")),
+        ("20k Quartz: 5 Jade", lambda: reset_button("Main",2e4, "Quartz", 5,"Jade")),
+        ("500k Quartz: 24 Jade", lambda: reset_button("Main",5e5, "Quartz", 24,"Jade")),
+    ],
+    "Gem Buttons": [
+        ("10 Jade: 1k Gems", lambda: cost_button("Main","Jade",10, "Gems", 1000)),
+    ],
+    "Recovery": [
+        ("300 Quartz: 1e67 Rebirths (Fetch)", lambda: recovery_button_fetch("Main",300, "Quartz", 1e67, "Rebirths")),
+        ("1M Gold: 1No Stone (Fetch)", lambda: recovery_button_fetch("Main",1e6, "Gold", 1e30, "Stone")),
+        ("2 Jade: 15Sx Crystal (Fetch)", lambda: recovery_button_fetch("Main",2, "Jade", 1.5e22, "Crystal")),
+    ],
+    "Geodes": [
+         ("Emoji Geode: 1k Gems", lambda: Geode_roll(emoji_geode, luck)),
+    ],
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ]
+}
+Obsidian_Buttons = {
+    "Multiplier": [
+        ("1e360 Cash: 1e96 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,360),"Multiplier", 1e96)),
+        ("1e378 Cash: 2e104 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,378),"Multiplier", 2e104)),
+        ("1e399 Cash: 1.2e110 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,399),"Multiplier", 1.2e110)),
+        ("1e432 Cash: 5e122 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,432),"Multiplier", 5e122)),
+    ],
+    "Rebirths": [
+        ("3e324 Multiplier: 2e93 Rebirths", lambda: reset_button("Main",Mantissa(3,324),"Multiplier",2e93, "Rebirths")),
+        ("1.5e340 Multiplier: 8e99 Rebirths", lambda: reset_button("Main",Mantissa(1.5,340),"Multiplier",8e99, "Rebirths")),
+        ("5e365 Multiplier: 1e108 Rebirths", lambda: reset_button("Main",Mantissa(5,365),"Multiplier",1e108, "Rebirths")),
+        ("2e398 Multiplier: 6e124 Rebirths", lambda: reset_button("Main",Mantissa(2,398),"Multiplier",6e124, "Rebirths")),
+        ("4e412 Multiplier: 1e141 Rebirths", lambda: reset_button("Main",Mantissa(4,412),"Multiplier",1e141, "Rebirths")),
+    ],
+    "Stone": [
+        ("6e213 Rebirths: 1e68 Stone", lambda: reset_button("Main",6e213, "Rebirths", 1e68, "Stone")),
+        ("7e224 Rebirths: 2e76 Stone", lambda: reset_button("Main",7e224, "Rebirths", 2e76, "Stone")),
+        ("2e245 Rebirths: 1.5e98 Stone", lambda: reset_button("Main",2e245, "Rebirths", 1.5e98, "Stone")),
+        ("6.5e258 Rebirths: 5e106 Stone", lambda: reset_button("Main",6.5e258, "Rebirths", 5e106, "Stone")),
+        ("2.1e265 Rebirths: 7e110 Stone", lambda: reset_button("Main",2.1e265, "Rebirths", 7e110, "Stone")),
+        ("1e274 Rebirths: 3.5e117 Stone", lambda: reset_button("Main",1e274, "Rebirths", 3.5e117, "Stone")),
+        ("8.2e292 Rebirths: 1e127 Stone", lambda: reset_button("Main",8.2e292, "Rebirths", 1e127, "Stone")),
+    ],
+    "White Gems": [
+        ("1.5e110 Stone: 210No White Gems", lambda: reset_button("Main",1.5e110, "Stone", 2.1e32,"White Gems")),
+        ("3.2e118 Stone: 52De White Gems", lambda: reset_button("Main",3.2e118, "Stone", 5.2e34,"White Gems")),
+        ("5e126 Stone: 6e38 White Gems", lambda: reset_button("Main",5e126, "Stone", 6e38,"White Gems")),
+        ("8.2e136 Stone: 2.5e42 White Gems", lambda: reset_button("Main",8.2e136, "Stone", 2.5e42,"White Gems")),
+        ("5.1e140 Stone: 3.2e46 White Gems", lambda: reset_button("Main",5.1e140, "Stone", 3.2e46,"White Gems")),
+        ("1.3e146 Stone: 7.5e51 White Gems", lambda: reset_button("Main",1.3e146, "Stone", 7.5e51,"White Gems")),
+        ("5.2e152 Stone: 2.1e57 White Gems", lambda: reset_button("Main",5.2e152, "Stone", 2.1e57,"White Gems")),
+        ("1.3e176 Stone: 1e60 White Gems", lambda: reset_button("Main",1.3e176, "Stone", 1e60,"White Gems")),
+    ],
+    "Crystal": [
+        ("3.2e90 White Gems: 210Oc Crystal", lambda: reset_button("Main",3.2e90, "White Gems", 2.1e29,"Crystal")),
+        ("3.2e90 White Gems: 210Oc Crystal", lambda: reset_button("Main",3.2e90, "White Gems", 2.1e29,"Crystal")),
+        ("7.1e112 White Gems: 42No Crystal", lambda: reset_button("Main",7.1e112, "White Gems", 4.2e30,"Crystal")),
+        ("4.2e123 White Gems: 6.2e36 Crystal", lambda: reset_button("Main",4.2e123, "White Gems", 6.2e36,"Crystal")),
+        ("3.3e131 White Gems: 5.3e41 Crystal", lambda: reset_button("Main",3.3e131, "White Gems", 5.3e41,"Crystal")),
+        ("7.2e139 White Gems: 9.1e48 Crystal", lambda: reset_button("Main",7.2e139, "White Gems", 9.1e48,"Crystal")),
+        ("5.6e143 White Gems: 2e49 Crystal", lambda: reset_button("Main",5.6e143, "White Gems", 2e49,"Crystal")),
+        ("6.2e150 White Gems: 1.5e57 Crystal", lambda: reset_button("Main",6.2e150, "White Gems", 1.5e57,"Crystal")),
+        ("1e180 White Gems: 5e65 Crystal", lambda: reset_button("Main",1e180, "White Gems", 5e65,"Crystal")),
+    ],
+    "Iron": [
+        ("3.2e51 Crystal: 120Sx Iron", lambda: reset_button("Main",3.2e51, "Crystal", 1.2e23,"Iron")),
+        ("1.3e55 Crystal: 35Sp Iron", lambda: reset_button("Main",1.3e55, "Crystal", 3.5e25,"Iron")),
+        ("7.2e60 Crystal: 16Oc Iron", lambda: reset_button("Main",7.2e60, "Crystal", 1.6e28,"Iron")),
+        ("2.1e67 Crystal: 32No Iron", lambda: reset_button("Main",2.1e67, "Crystal", 3.2e31,"Iron")),
+        ("1e74 Crystal: 500De Iron", lambda: reset_button("Main",1e74, "Crystal", 5e35,"Iron")),
+    ],
+    "Gold": [
+        ("300Sp Iron: 2.1B Gold", lambda: reset_button("Main",3e26, "Iron", 2.1e9,"Gold")),
+        ("6.2No Iron: 62B Gold", lambda: reset_button("Main",6.2e30, "Iron", 6.2e10,"Gold")),
+        ("150De Iron: 210B Gold", lambda: reset_button("Main",1.5e35, "Iron", 2.1e11,"Gold")),
+        ("6.2e38 Iron: 15T Gold", lambda: reset_button("Main",6.2e38, "Iron", 1.5e13,"Gold")),
+    ],
+    "Quartz": [
+        ("230B Gold: 70k Quartz", lambda: reset_button("Main",2.3e11, "Gold", 7e4,"Quartz")),
+        ("4.2T Gold: 230k Quartz", lambda: reset_button("Main",4.2e12, "Gold", 2.3e5,"Quartz")),
+        ("84T Gold: 750k Quartz", lambda: reset_button("Main",8.4e13, "Gold", 7.5e5,"Quartz")),
+        ("1.1Qd Gold: 3M Quartz", lambda: reset_button("Main",1.1e15, "Gold", 3e6,"Quartz")),
+        ("750Qd Gold: 8M Quartz", lambda: reset_button("Main",7.5e17, "Gold", 8e6,"Quartz")),
+        ("3.2Sx Gold: 300M Quartz", lambda: reset_button("Main",3.2e21, "Gold", 3e8,"Quartz")),
+        ("710Sx Gold: 5B Quartz", lambda: reset_button("Main",7.1e23, "Gold", 5e9,"Quartz")),
+    ],
+    "Jade": [
+        ("10M Quartz: 80 Jade", lambda: reset_button("Main",1e7, "Quartz", 80,"Jade")),
+        ("200M Quartz: 300 Jade", lambda: reset_button("Main",2e8, "Quartz", 300,"Jade")),
+        ("5B Quartz: 1k Jade", lambda: reset_button("Main",5e9, "Quartz", 1000,"Jade")),
+        ("400B Quartz: 7.5k Jade", lambda: reset_button("Main",4e11, "Quartz", 7500,"Jade")),
+        ("69T Quartz: 75.42k Jade", lambda: reset_button("Main",6.9e13, "Quartz", 7.542e4,"Jade")),
+    ],
+    "Obsidian": [
+        ("75k Jade: 1 Obsidian", lambda: reset_button("Main",7.5e5, "Jade", 1,"Obsidian")),
+    ],
+    "Gem Buttons": [
+        ("150 Jade: 17.5k Gems", lambda: cost_button("Main","Jade", 150, "Gems", 17500)),
+        ("25M Quartz: 50k Gems", lambda: cost_button("Main","Quartz", 2.5e7, "Gems", 5e4)),
+    ],
+    "Recovery": [
+        ("100 Jade: 5.2T White Gems (Fetch)", lambda: recovery_button_fetch("Main",100, "Jade", 5.2e12, "White Gems")),
+    ],
+    "Geodes": [
+        ("Obsidian Geode: 1 Obsidian", lambda: Geode_roll(obsidian_geode, luck)),
+    ],
     "Area Teleports": [
        ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
        ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
     ]
 }
 def open_stat_menu():
-    global stat_increment, root
+    '''global stat_increment, root
 
     # If the window already exists, bring it to front
     if hasattr(open_stat_menu, "window") and open_stat_menu.window.winfo_exists():
@@ -953,28 +1347,81 @@ def open_stat_menu():
                 lbl.config(text=value_str)
             except KeyError:
                 lbl.config(text="N/A")  # fallback if stat is removed dynamically
-        stat_window.after(25, update_labels)  # update every 0.25s for efficiency
 
-    update_labels()
+        # 2. Detect new stats dynamically
+        for category, stats in stat_increment.items():
+            for stat_name, stat_data in stats.items():
+    
+                if (category, stat_name) not in stat_labels:
+                    # Create the new row automatically
+                    add_new_stat_row(category, stat_name, stat_data)
+    
+        stat_window.after(25,update_labels)
+    def add_new_stat_row(category, stat_name, stat_data):
+      nonlocal current_row
+  
+      # Stat name (column 0)
+      name_label = Label(
+          scroll_frame,
+          text=stat_name,
+          bg="black",
+          fg="white"
+      )
+      name_label.grid(row=current_row, column=0, padx=10, pady=2, sticky="w")
+  
+      # Format value properly
+      value = stat_data["Value"]
+      if isinstance(value, Mantissa):
+          value_str = value.to_string()
+      else:
+          if isinstance(value, (int, float)):
+              value_str = str(round(value, 6))
+          else:
+              value_str = str(value)
+  
+      # Stat value (column 1)
+      value_label = Label(
+          scroll_frame,
+          text=value_str,
+          bg="black",
+          fg="white"
+      )
+      value_label.grid(row=current_row, column=1, padx=10, pady=2, sticky="e")
+  
+      # Store reference so we can update it later
+      stat_labels[(category, stat_name)] = value_label
+  
+      current_row += 1
+    update_labels()'''
+    print("pass")
 
 
-Button(text="Open Stat Menu", bg="black", fg="white", command= lambda: open_stat_menu()).pack()
-container, canvas, frame, scrollbar, x_scrollbar = tkinter_frames.create_scrollable_area(root, Spawn_Buttons)
+stat_menu = QPushButton("Open Stat Menu")
+stat_menu.clicked.connect(open_stat_menu)
+stylesheet = open("general.qss", "r")
+stat_menu.setStyleSheet(stylesheet.read())
+layout.addWidget(stat_menu)
+root.setCentralWidget(central)
+#container, canvas, frame, scrollbar, x_scrollbar = tkinter_frames.create_scrollable_area(root, Spawn_Buttons)
 def play_music():
     '''This constantly loops background music'''
-    # Export to raw data
+    i = 0
     while True:
-      song = AudioSegment.from_mp3("Catswing.mp3")
-      playback = sa.play_buffer( #I'm not going to act like I understand what these are used for
+      song = AudioSegment.from_mp3(music[i%2])
+      playback = sa.play_buffer( #Copy and paste
             song.raw_data,
             num_channels=song.channels,
             bytes_per_sample=song.sample_width,
             sample_rate=song.frame_rate
         )
+      i += 1
       playback.wait_done() # This waits until the song is finished before continuing
 
 # Run in a thread
 threading.Thread(target=play_music, daemon=True).start()
-cash_increase()
-gem_increase()
-root.mainloop()
+#cash_increase()
+#gem_increase()
+
+root.show()
+
+app.exec()
