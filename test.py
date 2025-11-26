@@ -1,20 +1,11 @@
 from PySide6.QtWidgets import *
-from PySide6.QtCore import *
-import sys
+from Module import GradientLabel
+app = QApplication()
 
-app = QApplication(sys.argv)
+window = QMainWindow()
 
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-
-        self.setWindowTitle("BS:ED but less bad")
-
-        button = QPushButton("Press Me!")
-        self.setFixedSize(QSize(400,300))
-        self.setCentralWidget(button)
-
-window = MainWindow()
+label = GradientLabel("Test", ["#ffffff","#00ffff" "#000000"], 6, parent=window)
+label.repaint()
+window.setCentralWidget(label)
 window.show()
-
 app.exec()
