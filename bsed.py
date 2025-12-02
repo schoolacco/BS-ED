@@ -9,16 +9,23 @@ import datetime
 import threading
 import math
 import os
+import ctypes
 import random
 import sys
 import sqlalchemy
 import werkzeug
+import warnings
+from pathlib import Path
+import colorama
+import webbrowser
+import re
 from Module import Mantissa, tkinter_frames, Geode, GradientLabel
+warnings.filterwarnings("ignore")
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
     def closeEvent(self, event: QCloseEvent):
-      Save(stat_increment, upgrades)
+      Save(stat_increment, upgrades, secrets)
       event.accept()
 def_upgrades = {
     "cash_speed": {
@@ -95,12 +102,92 @@ def_upgrades = {
     }
 }
 upgrades = def_upgrades
+def_secrets = {
+    "Darkmatter_1": False,
+    "Darkmatter_2": False,
+    "Darkmatter_3": False,
+    "Darkmatter_4": False,
+    "Darkmatter_5": False,
+    "Galaxite_1": False,
+    "Galaxite_2": False,
+    "Galaxite_3": False
+}
+secrets = def_secrets
 MANTISSA_THRESHOLD = 1e300
-luck = 1
-crit_luck = 1
+luck = 6
+crit_luck = 6
 geode_speed= 1
-bulk_roll= 1
+bulk_roll= 4
+voltaic_radar = True
 music = ["Catswing.mp3", "Flamewall.mp3", "Ambrosia.mp3"]
+# Source - https://stackoverflow.com/a
+# Posted by luke, modified by community. See post 'Timeline' for change history
+# Retrieved 2025-11-30, License - CC BY-SA 3.0
+FILE_ATTRIBUTE_HIDDEN = 0x02
+FILE_ATTRIBUTE_SYSTEM = 0x04
+def write_hidden(file_name, data):
+    # Find user's Documents folder
+    docs = Path.home() / "Documents"
+
+    # For *nix, prefix with .
+    final_name = file_name
+    if os.name != 'nt':
+        final_name = "." + file_name
+
+    file_path = docs / final_name
+
+    # Write the file normally
+    with open(file_path, 'w') as f:
+        f.write(data)
+
+    # Windows: set Hidden attribute
+    if os.name == 'nt':
+        ret = ctypes.windll.kernel32.SetFileAttributesW(
+            str(file_path),
+            FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM
+        )
+        if not ret:
+            raise ctypes.WinError()
+#End of atrributions stuff
+def trig_check(input):
+    input = input.lower()
+    required = ["sin", "cos", "tan", "cot", "sec", "csc"]
+    def present(text):
+        return re.search(rf"(?<![a-z]){text}(?![a-z])", input)
+    return all(present(text) for text in required)
+def blinded():
+    if not os.path.exists(Path.home()/"Documents"/"toodarktosee"):
+      print("Traceback (most recent call last):")
+      print('  File "Module.py", line 128, in <module>')
+      print("    test_function()")
+      print("RuntimeError: Unexpected internal failure")
+      print(colorama.Fore.BLACK + "YOU'RE JUST TOO BLIND TO SEE IT.")
+      write_hidden(Path.home()/"Documents"/"toodarktosee", "Are you not afraid of what cannot be seen? \n You search for the impossible, what has never been found \n Yet you wish to harness its energy, the energy of DARKMATTER.")
+      root.close()
+def secret_input(area):
+    INPUT = input("Input: ").title()
+    if INPUT == "Totality" and os.path.exists(Path.home()/"Documents"/"toodarktosee"):
+        print("You're own the right track!")
+        secrets["Darkmatter_1"] = True
+        print(colorama.Fore.BLACK, "RGltZW5zaW9uIGJyZWFr")
+    if area == "Wormhole":
+      if INPUT == "Andromeda":
+          print("You feel as if the wormhole was beginning to reopen")
+          secrets["Galaxite_1"] = True
+      elif INPUT == "Cassiopeia":
+          print("You feel the fabric of spacetime shift")
+          secrets["Galaxite_2"] = True
+      elif INPUT == "Defractured":
+          print("You feel the wormhole begin to stabilise")
+          secrets["Galaxite_3"] = True
+      elif INPUT == "Endless Night" and secrets["Darkmatter_1"]:
+          secrets["Darkmatter_2"] = True
+      if all((secrets["Galaxite_1"], secrets["Galaxite_2"], secrets["Galaxite_3"], stat_increment["Secret"]["Galaxite"]["Value"] == 0)):
+          print("An exit has opened, congratulations on your escape.")
+          stat_increment["Secret"]["Galaxite"]["Value"] = 1
+    elif area == "Tetratum":
+        if trig_check(INPUT):
+            stat_increment["Secret"]["Graphite"]["Value"] = 1
 def Geode_roll(btn, geode, luck=1, geode_speed=1, bulk_roll=1):
     global stat_increment
     local_crit = crit_luck + upgrades["crit_luck"]["effect"]*upgrades["crit_luck"]["current_lvl"]
@@ -114,7 +201,7 @@ def load_check(key, req, unit, buttons):
     req = float_to_mantissa(req) if isinstance(amount, Mantissa) else req
     if amount >= req:
       container.deleteLater()  # remove old scroll area
-      container, scroll_area, content = tkinter_frames.create_scrollable_area(root, buttons)
+      container, scroll_area, content = tkinter_frames.create_scrollable_area(root, buttons, voltaic_radar=voltaic_radar)
       layout.addWidget(container, 2, 1, 3, 3)
 def float_to_mantissa(value: float) -> Mantissa:
       """Converts a float or int into a Mantissa representation."""
@@ -147,7 +234,7 @@ def deserialize(obj):
         return obj
 def Load():
        '''Load your data from your savefile'''
-       global upgrades
+       global upgrades, secrets
        if os.path.exists("savefile.json"): # If you have saved before
         with open("savefile.json", "r")  as file: # Read the file
           try:
@@ -158,6 +245,14 @@ def Load():
                 upgrades = def_upgrades
             try:
                 del data["Upgrades"]
+            except:
+                pass
+            try:
+                secrets = data["Keys"]
+            except:
+                secrets = def_secrets
+            try:
+                del data["Keys"]
             except:
                 pass
             return data
@@ -185,9 +280,10 @@ def Load():
        else:
           print("You have never saved before.")
           return None # Return your empty collection
-def Save(collection, upgrades):
+def Save(collection, upgrades, secrets):
         '''Saves your data to a json file, and makes the previous file a backup'''
         collection["Upgrades"] = upgrades
+        collection["Keys"] = secrets
         try:
           if os.path.exists("savefile.json") and collection != {}: # If there is a savefile and your collection isn't empty
             with open("savefile.json", "r") as file: # Read the file
@@ -207,8 +303,11 @@ def calculate_multi(unit):
     for key in keys:
       stat_list = list(stat_increment[key].keys())
       for item in stat_list:
-          amount = stat_increment[key][item].get("Value", 0)
-          multis = stat_increment[key][item].get("Multis")
+          try:
+            amount = stat_increment[key][item].get("Value", 0)
+            multis = stat_increment[key][item].get("Multis")
+          except AttributeError:
+              pass
           if multis is None:
             multis = {}
   
@@ -372,8 +471,43 @@ def reset_button(key, cost, unit, reward, unit_2):
         multi_l.setText(f"Multiplier: {stat_increment['Main']['Multiplier']['Value']}")
         re_l.setText(f"Rebirth: {r_text}")
         stat_increment["Extra"]["Buttons Pressed"]["Value"] += 1
+def reset_button_special(key, cost, unit, reward, unit_2, key_2, resets):
+    global cash_l, multi_l, re_l, stat_increment
 
-def recovery_button_set(key, req, unit, Set, unit_2):
+    current_value = stat_increment[key][unit]['Value']
+    if isinstance(current_value, Mantissa) and not isinstance(cost, Mantissa):
+        cost = float_to_mantissa(cost)
+    if not isinstance(current_value, Mantissa) and isinstance(cost, Mantissa):
+        current_value = float_to_mantissa(current_value)
+    if current_value >= cost:
+        # Reset all lower-tier stats before unit_2
+        for i in range(len(resets)):
+            stat_increment[key][resets[i]]["Value"] = 0
+
+        multi = calculate_multi(unit_2)
+        if multi.exp < math.log(MANTISSA_THRESHOLD,10):
+            multi = multi.to_float()
+            if multi * reward < reward:
+                multi += 1
+            multi = float_to_mantissa(multi)
+        reward_m = float_to_mantissa(reward) * multi
+
+        if not isinstance(reward_m, Mantissa):
+            reward_m = float_to_mantissa(reward_m)
+
+        if isinstance(reward_m, Mantissa):
+            value = stat_increment[key_2][unit_2]["Value"]
+            value= float_to_mantissa(value)
+            value += reward_m
+            value = value.to_float() if value.exp < math.log(MANTISSA_THRESHOLD, 10) else value
+            stat_increment[key_2][unit_2]["Value"] = value
+        r_text = stat_increment['Main']['Rebirths']['Value'] if not isinstance(stat_increment['Main']['Rebirths']['Value'], Mantissa) else stat_increment['Main']['Rebirths']['Value'].to_string()
+        # Update labels
+        cash_l.setText(f"Cash: {stat_increment['Main']['Cash']['Value']}")
+        multi_l.setText(f"Multiplier: {stat_increment['Main']['Multiplier']['Value']}")
+        re_l.setText(f"Rebirth: {r_text}")
+        stat_increment["Extra"]["Buttons Pressed"]["Value"] += 1
+def recovery_button_set(key, req, unit, Set, unit_2, key_2="Main"):
     global stat_increment
     amount = stat_increment[key][unit]["Value"]
     if isinstance(amount, Mantissa) and not isinstance(req, Mantissa):
@@ -381,8 +515,8 @@ def recovery_button_set(key, req, unit, Set, unit_2):
     if not isinstance(amount, Mantissa) and isinstance(req, Mantissa):
         amount = float_to_mantissa(amount)
     if amount >= req:
-        if stat_increment[key][unit_2]["Value"] < Set:
-          stat_increment[key][unit_2]["Value"] = Set
+        if stat_increment[key_2][unit_2]["Value"] < Set:
+          stat_increment[key_2][unit_2]["Value"] = Set
     else:
      pass
 def recovery_button_fetch(key, req, unit, recovery, unit_2):
@@ -415,6 +549,9 @@ def recovery_button_fetch(key, req, unit, recovery, unit_2):
       re_l.setText(f"Rebirths: {re_msg}")
     else:
      pass
+def image_load(path):
+    path = os.path.abspath(path)
+    webbrowser.open(f"file://{path}")
 app = QApplication(sys.argv)
 
 root = Window()
@@ -422,7 +559,54 @@ root.setWindowTitle("BS:ED but bad")
 cash_l = QLabel()
 multi_l = QLabel()
 re_l = QLabel()
-stat_increment = {"Main": {"Cash": {"Value": 0, "Multis": None}, "Multiplier":  {"Value": 0, "Multis": None}, "Rebirths":  {"Value": 0, "Multis": {"Multiplier": 2}}, "Stone": {"Value": 0, "Multis": {"Cash": 1.5, "Rebirths": 2}}, "White Gems": {"Value": 0, "Multis": {"Multiplier": 1.5, "Stone": 1.8}}, "Crystal": {"Value": 0, "Multis": {"Cash": 2, "White Gems": 3}}, "Iron": {"Value": 0, "Multis": {"Rebirths": 1.5, "Crystal": 2}}, "Gold": {"Value": 0, "Multis": {"Cash": 2, "Stone": 2, "Iron": 2}}, "Quartz": {"Value": 0, "Multis": {"Multiplier": 10, "Rebirths": 2, "Stone": 5, "White Gems": 3, "Crystal": 2, "Gold": 2}}, "Jade": {"Value": 0, "Multis": {"Cash": 3, "Rebirths": 10, "Stone": 4, "Crystal": 4, "Quartz": 3}}, "Obsidian": {"Value": 0, "Multis": {"Rebirths": 15, "Stone": 15,"White Gems": 15, "Crystal": 10, "Iron": 10, "Gold": 7.5, "Jade": 5}}, "Ruby": {"Value": 0, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2}}, "Emerald": {"Value": 0, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2}}, "Sapphire": {"Value": 0, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2}}, "Diamond": {"Value": 0, "Multis": {"Emerald": 3, "Sapphire": 2}}, "Starlight": {"Value": 0, "Multis": {"Ruby": 6, "Sapphire": 3, "Diamond": 3}}, "Ion": {"Value": 0, "Multis": {"Jade": 4, "Ruby": 2, "Emerald": 10, "Sapphire": 1.4, "Diamond": 5, "Starlight": 5}}, "Uranium": {"Value": 0, "Multis": {"Crystal": 100, "Sapphire": 60, "Starlight": 5, "Ion": 2.2}}, "Bismuth": {"Value": 0, "Multis": {"Ruby": 50, "Emerald": 25, "Sapphire": 12, "Diamond": 3, "Ion": 2.5, "Uranium": 2}} , "Boracite": {"Value": 0, "Multis": {"Starlight": 5, "Uranium": 3, "Bismuth": 1.5}}, "Nissonite": {"Value": 0, "Multis": {"Obsidian": 5, "Bismuth": 2.75, "Boracite": 2.25}}, "Orpiment": {"Value": 0, "Multis": {"Cash": 23, "Multiplier": 22, "Rebirths": 21, "Stone": 20, "White Gems": 19, "Crystal": 18, "Iron": 17, "Gold": 16, "Quartz": 15, "Jade": 14, "Obsidian": 13, "Ruby": 12, "Emerald": 11, "Sapphire": 10, "Diamond": 9, "Starlight": 8, "Ion": 7, "Uranium": 6, "Bismuth": 5, "Boracite": 4, "Nissonite": 3}}, "Tetra": {"Value": 0, "Multis": {"Diamond": 1e4, "Boracite": 30, "Nissonite": 10, "Orpiment": 2.5}}, "Volt": {"Value": 0, "Multis": {"Uranium": 100, "Nissonite": 4, "Tetra": 2}}, "Aquamarine": {"Value": 0, "Multis": {"Obsidian": 1e6, "Ion": 500, "Uranium": 400, "Nissonite": 5, "Volt": 2.1}}, "Lollipop": {"Value": 0, "Multis": {"Emerald": 8152, "Sapphire": 4096, "Diamond": 2048, "Starlight": 1024, "Ion": 512, "Uranium": 256, "Bismuth": 128, "Boracite": 64, "Nissonite": 32, "Orpiment": 16, "Tetra": 8, "Volt": 4, "Aquamarine": 2}}, "C0RR8PT10N": {"Value": 0, "Multis": {"Cash": 6, "Multiplier": 6, "Rebirths": 6, "Stone": 6, "White Gems": 6, "Crystal": 6, "Iron": 6, "Gold": 6, "Quartz": 6, "Jade": 6, "Obsidian": 6, "Ruby": 6, "Emerald": 6, "Sapphire": 6, "Diamond": 6, "Starlight": 6, "Ion": 6, "Uranium": 6, "Bismuth": 6, "Boracite": 6, "Nissonite": 6, "Orpiment": 2.3, "Tetra": 6, "Volt": 6, "Aquamarine": 4, "Lollipop": 3}}, "Stargazed Metal": {"Value": 0, "Multis": {"Cash": 1e100, "Multiplier": 1e100, "Rebirths": 1e100, "Stone": 1e100, "White Gems": 1e100, "Crystal": 1e100, "Iron": 1e100, "Gold": 1e100, "Quartz": 1e100, "Jade": 1e100, "Obsidian": 7.5, "Ruby": 7.5, "Emerald": 7.5, "Aquamarine": 2.25, "Lollipop": 2.25, "C0RR8PT10N": 3}}, "Gyge": {"Value": 0, "Multis": {"Ruby": 1e25, "Emerald": 1e25, "Sapphire": 1e25, "Diamond": 1e25, "Starlight": 1e25, "Ion": 1e25, "Uranium": 1e25, "Bismuth": 1e25, "Boracite": 1e25, "Nissonite": 1e25, "Volt": 18, "Lollipop": 7, "C0RR8PT10N": 10, "Stargazed Metal": 2}}, "Auly Plate": {"Value": 0, "Multis": {"Cash": Mantissa(1,288290), "Orpiment": 1.61, "Tetra": 3.12, "Volt": 6.25, "Aquamarine": 12.5, "Lollipop": 18, "C0RR8PT10N": 50, "Stargazed Metal": 5, "Gyge": 2}}, "Shell Piece": {"Value": 0, "Multis": {"Cash": 1e75, "Multiplier": 1e75, "Rebirths": 1e75, "Stone": 1e75, "White Gems": 1e75, "Crystal": 1e75, "Iron": 1e75, "Gold": 1e75, "Quartz": 1e75, "Jade": 1e75, "Obsidian": 1e75, "Ruby": 1e75, "Emerald": 1e75, "Sapphire": 1e75, "Diamond": 1e75, "Starlight": 1e75, "Ion": 1e75, "Uranium": 1e75, "Bismuth": 1e75, "Boracite": 1e75, "Nissonite": 1e75, "Orpiment": 1e75, "Tetra": 100, "Volt": 100, "Aquamarine": 100, "Lollipop": 100, "C0RR8PT10N": 100, "Mint": 100, "Gems": 20, "Metal": 100, "Press": 100, "Microparticles": 100, "Star": 100, "Robot": 100, "Prototype": 100}}, "Singularity": {"Value": 0, "Multis": {"Cash": Mantissa(1,987654321), "Volt": 1200, "C0RR8PT10N": 150, "Gyge": 4, "Auly Plate": 2.5, "Gems": 75}}, "Capsuled Singularity": {"Value": 0, "Multis": {"Cash": Mantissa(1,303030303), "Ruby": Mantissa(1,266664), "Emerald": Mantissa(1,266664), "Sapphire": Mantissa(1,266664), "Diamond": Mantissa(1,266664), "Starlight": Mantissa(1,133337), "Ion": Mantissa(1,666666), "Uranium": Mantissa(1,333333), "Bismuth": Mantissa(1,12555), "Boracite": Mantissa(1,5555), "Nissonite": Mantissa(1,2222), "Orpiment": Mantissa(1,1000), "Tetra": Mantissa(1,500), "Volt": 1e150, "Aquamarine": 1e75, "Lollipop": 1e25, "C0RR8PT10N": 1e6, "Stargazed Metal": 2500, "Gyge": 500, "Auly Plate": 25, "Shell Piece": 2.5, "Prototype": 1240, "Gems": 300}}, "Gems": {"Value": 0, "Multis": None}}, "Extra": {"Buttons Pressed": {"Value": 0, "Multis": None}, "Geodes Opened": {"Value": 0, "Multis": None}}, "Geode": {}} # Gems technically aren't part of main progression, they're just placed here for temporary convenience
+stat_increment = {"Main": 
+    {"Cash":  {"Value": 0, "Multis": None}, 
+     "Multiplier":  {"Value": 0, "Multis": None}, 
+     "Rebirths":  {"Value": 0, "Multis": {"Multiplier": 2}}, 
+     "Stone": {"Value": 0, "Multis": {"Cash": 1.5, "Rebirths": 2}}, 
+     "White Gems": {"Value": 0, "Multis": {"Multiplier": 1.5, "Stone": 1.8}}, 
+     "Crystal": {"Value": 0, "Multis": {"Cash": 2, "White Gems": 3}}, 
+     "Iron": {"Value": 0, "Multis": {"Rebirths": 1.5, "Crystal": 2}}, 
+     "Gold": {"Value": 0, "Multis": {"Cash": 2, "Stone": 2, "Iron": 2}}, 
+     "Quartz": {"Value": 0, "Multis": {"Multiplier": 10, "Rebirths": 2, "Stone": 5, "White Gems": 3, "Crystal": 2, "Gold": 2}}, 
+     "Jade": {"Value": 0, "Multis": {"Cash": 3, "Rebirths": 10, "Stone": 4, "Crystal": 4, "Quartz": 3}}, 
+     "Obsidian": {"Value": 0, "Multis": {"Rebirths": 15, "Stone": 15,"White Gems": 15, "Crystal": 10, "Iron": 10, "Gold": 7.5, "Jade": 5}}, 
+     "Ruby": {"Value": 0, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2}}, 
+     "Emerald": {"Value": 0, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2}}, 
+     "Sapphire": {"Value": 0, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2}}, 
+     "Diamond": {"Value": 0, "Multis": {"Emerald": 3, "Sapphire": 2}}, 
+     "Starlight": {"Value": 0, "Multis": {"Ruby": 6, "Sapphire": 3, "Diamond": 3}}, 
+     "Ion": {"Value": 0, "Multis": {"Jade": 4, "Ruby": 2, "Emerald": 10, "Sapphire": 1.4, "Diamond": 5, "Starlight": 5}}, 
+     "Uranium": {"Value": 0, "Multis": {"Crystal": 100, "Sapphire": 60, "Starlight": 5, "Ion": 2.2}}, 
+     "Bismuth": {"Value": 0, "Multis": {"Ruby": 50, "Emerald": 25, "Sapphire": 12, "Diamond": 3, "Ion": 2.5, "Uranium": 2}} , 
+     "Boracite": {"Value": 0, "Multis": {"Starlight": 5, "Uranium": 3, "Bismuth": 1.5}}, 
+     "Nissonite": {"Value": 0, "Multis": {"Obsidian": 5, "Bismuth": 2.75, "Boracite": 2.25}}, 
+     "Orpiment": {"Value": 0, "Multis": {"Cash": 23, "Multiplier": 22, "Rebirths": 21, "Stone": 20, "White Gems": 19, "Crystal": 18, "Iron": 17, "Gold": 16, "Quartz": 15, "Jade": 14, "Obsidian": 13, "Ruby": 12, "Emerald": 11, "Sapphire": 10, "Diamond": 9, "Starlight": 8, "Ion": 7, "Uranium": 6, "Bismuth": 5, "Boracite": 4, "Nissonite": 3}}, 
+     "Tetra": {"Value": 0, "Multis": {"Diamond": 1e4, "Boracite": 30, "Nissonite": 10, "Orpiment": 2.5}}, 
+     "Volt": {"Value": 0, "Multis": {"Uranium": 100, "Nissonite": 4, "Tetra": 2}}, 
+     "Aquamarine": {"Value": 0, "Multis": {"Obsidian": 1e6, "Ion": 500, "Uranium": 400, "Nissonite": 5, "Volt": 2.1}}, 
+     "Lollipop": {"Value": 0, "Multis": {"Emerald": 8152, "Sapphire": 4096, "Diamond": 2048, "Starlight": 1024, "Ion": 512, "Uranium": 256, "Bismuth": 128, "Boracite": 64, "Nissonite": 32, "Orpiment": 16, "Tetra": 8, "Volt": 4, "Aquamarine": 2}}, 
+     "C0RR8PT10N": {"Value": 0, "Multis": {"Cash": 6, "Multiplier": 6, "Rebirths": 6, "Stone": 6, "White Gems": 6, "Crystal": 6, "Iron": 6, "Gold": 6, "Quartz": 6, "Jade": 6, "Obsidian": 6, "Ruby": 6, "Emerald": 6, "Sapphire": 6, "Diamond": 6, "Starlight": 6, "Ion": 6, "Uranium": 6, "Bismuth": 6, "Boracite": 6, "Nissonite": 6, "Orpiment": 2.3, "Tetra": 6, "Volt": 6, "Aquamarine": 4, "Lollipop": 3}}, 
+     "Stargazed Metal": {"Value": 0, "Multis": {"Cash": 1e100, "Multiplier": 1e100, "Rebirths": 1e100, "Stone": 1e100, "White Gems": 1e100, "Crystal": 1e100, "Iron": 1e100, "Gold": 1e100, "Quartz": 1e100, "Jade": 1e100, "Obsidian": 7.5, "Ruby": 7.5, "Emerald": 7.5, "Aquamarine": 2.25, "Lollipop": 2.25, "C0RR8PT10N": 3}}, 
+     "Gyge": {"Value": 0, "Multis": {"Ruby": 1e25, "Emerald": 1e25, "Sapphire": 1e25, "Diamond": 1e25, "Starlight": 1e25, "Ion": 1e25, "Uranium": 1e25, "Bismuth": 1e25, "Boracite": 1e25, "Nissonite": 1e25, "Volt": 18, "Lollipop": 7, "C0RR8PT10N": 10, "Stargazed Metal": 2}}, 
+     "Auly Plate": {"Value": 0, "Multis": {"Cash": Mantissa(1,288290), "Orpiment": 1.61, "Tetra": 3.12, "Volt": 6.25, "Aquamarine": 12.5, "Lollipop": 18, "C0RR8PT10N": 50, "Stargazed Metal": 5, "Gyge": 2}}, 
+     "Shell Piece": {"Value": 0, "Multis": {"Cash": 1e75, "Multiplier": 1e75, "Rebirths": 1e75, "Stone": 1e75, "White Gems": 1e75, "Crystal": 1e75, "Iron": 1e75, "Gold": 1e75, "Quartz": 1e75, "Jade": 1e75, "Obsidian": 1e75, "Ruby": 1e75, "Emerald": 1e75, "Sapphire": 1e75, "Diamond": 1e75, "Starlight": 1e75, "Ion": 1e75, "Uranium": 1e75, "Bismuth": 1e75, "Boracite": 1e75, "Nissonite": 1e75, "Orpiment": 1e75, "Tetra": 100, "Volt": 100, "Aquamarine": 100, "Lollipop": 100, "C0RR8PT10N": 100, "Mint": 100, "Gems": 20, "Metal": 100, "Press": 100, "Microparticles": 100, "Star": 100, "Robot": 100, "Prototype": 100}}, 
+     "Singularity": {"Value": 0, "Multis": {"Cash": Mantissa(1,987654321), "Volt": 1200, "C0RR8PT10N": 150, "Gyge": 4, "Auly Plate": 2.5, "Gems": 75}}, 
+     "Capsuled Singularity": {"Value": 0, "Multis": {"Cash": Mantissa(1,303030303), "Ruby": Mantissa(1,266664), "Emerald": Mantissa(1,266664), "Sapphire": Mantissa(1,266664), "Diamond": Mantissa(1,266664), "Starlight": Mantissa(1,133337), "Ion": Mantissa(1,666666), "Uranium": Mantissa(1,333333), "Bismuth": Mantissa(1,12555), "Boracite": Mantissa(1,5555), "Nissonite": Mantissa(1,2222), "Orpiment": Mantissa(1,1000), "Tetra": Mantissa(1,500), "Volt": 1e150, "Aquamarine": 1e75, "Lollipop": 1e25, "C0RR8PT10N": 1e6, "Stargazed Metal": 2500, "Gyge": 500, "Auly Plate": 25, "Shell Piece": 2.5, "Prototype": 1240, "Gems": 300}}, 
+     "Gems": {"Value": 0, "Multis": None}, 
+     "Mint": {"Value": 0, "Multis": {"Multiplier": 1.5, "Rebirths": 1.3}}},
+    "Extra": {
+        "Buttons Pressed": {"Value": 0, "Multis": None}, 
+        "Geodes Opened": {"Value": 0, "Multis": None}},
+    "Exclusive": {"Testium": {"Value": 0, "Multis": None}},
+    "Secret": {
+        "Graphite": { "Value": 0, "Multis": { "Orpiment": 4, "Tetra": 2 } },
+        "Stellarite": {"Value": 0,"Multis": { "Ruby": 2, "Emerald": 2, "Sapphire": 2, "Diamond": 2.5 }},
+        "Galaxite": {"Value": 0,"Multis": {"Obsidian": 2.75,"Ruby": 5,"Emerald": 5,"Sapphire": 5,"Diamond": 2,"Starlight": 2}},
+        "Starglass": {"Value": 0, "Multis": {"Cash": Mantissa(1,303)}},
+        "Darkmatter": {"Value": 0,"Multis": {"Obsidian": Mantissa(1,303), "Tetra": 1000000.0, "Volt": 10000, "Aquamarine": 100,  "Lollipop": 10,  "C0RR8PT10N": 1.2}}
+        }, 
+    "Geode": {}} # Gems technically aren't part of main progression, they're just placed here for temporary convenience
 stat_list = list(stat_increment["Main"].keys())
 geode_list = {"Stone Geode": {
         "Dezyp": {"Chance": 12000, "Multis": {"Cash": 15, "Rebirths": 20, "Stone": 2, "White Gems": 2}},
@@ -509,10 +693,45 @@ geode_list = {"Stone Geode": {
         "Antimatter": {"Chance": 45000, "Multis": {"Rebirths": 10, "Gold": 10, "Quartz": 10, "Sapphire": 10, "Diamond": 10, "Starlight": 10, "Ion": 10}}
     },
     "Uranium Geode": {
+        "Sphene": {"Chance": 3, "Multis": {"Diamond": 5}},
         "Acid": {"Chance": 20, "Multis": {"Uranium": 1.4, "Starlight": 2}},
         "Niflhemite": {"Chance": 100, "Multis": {"Multiplier": 3, "Rebirths": 3, "White Gems": 3, "Quartz": 3, "Obsidian": 3, "Ruby": 3, "Diamond": 3, "Uranium": 3}},
         "Reactivite": {"Chance": 27500, "Multis": {"Starlight": 12, "Ion": 8, "Uranium": 5}},
         "Plutonerite": {"Chance": 125000, "Multis": {"Diamond": 80, "Starlight": 40, "Ion": 20, "Uranium": 10}}
+    },
+    "Sacred Geode": {
+        "Grail": {"Chance": 2, "Multis": {"Starlight": 2, "Ion": 2, "Uranium": 2}},
+        "Box": {"Chance": 3500000, "Multis": {"Obsidian": 3, "Ruby": 3, "Emerald": 3, "Sapphire": 3, "Bismuth": 3, "Boracite": 3}}
+    },
+    "Bismuth Geode": {
+        "Lead": {"Chance": 2, "Multis": {"Iron": 10000, "Obsidian": 5, "Ruby": 5, "Emerald": 5, "Sapphire": 5, "Diamond": 5}},
+        "Pseudomalachite": {"Chance": 10, "Multis": {"Diamond": 6, "Uranium": 2, "Bismuth": 1.15}},
+        "Osmium": {"Chance": 1428, "Multis": {"Bismuth": 5}},
+        "Yhed": {"Chance": 45000, "Multis": {"Cash": 80000, "Rebirths": 80000, "White Gems": 80000, "Iron": 80000, "Quartz": 800, "Obsidian": 800, "Emerald": 8, "Diamond": 8, "Ion": 8, "Bismuth": 8}},
+        "Hexaferrum": {"Chance": 300000, "Multis": {"Ruby": 3000, "Emerald": 2000, "Sapphire": 1000, "Diamond": 160, "Uranium": 40, "Bismuth": 15, "Boracite": 3}}
+    },
+    "Boracite Geode": {
+        "Spectrolite": {"Chance": 4000, "Multis": {"Starlight": 5, "Ion": 5, "Bismuth": 5, "Boracite": 3}},
+        "Hectam": {"Chance": 25000, "Multis": {"Crystal": 100, "Quartz": 100, "Jade": 100, "Ruby": 100, "Emerald": 100, "Diamond": 100, "Boracite": 10}}
+    },
+    "Nissonite Geode": {
+        "Frostone": {"Chance": 1250, "Multis": {"Rebirths": 15, "Crystal": 15, "Quartz": 15, "Sapphire": 15, "Diamond": 15, "Boracite": 15, "Nissonite": 4, "Mint": 1.04}},
+        "Neptunian": {"Chance": 6666, "Multis": {"Cash": 2, "Multiplier": 3, "Rebirths": 30, "Ion": 1.5, "Uranium": 2, "Bismuth": 3, "Boracite": 30, "Nissonite": 10}},
+        "Clouminance": {"Chance": 19000, "Multis": {"Diamond": 100, "Starlight": 100, "Ion": 100, "Boracite": 100, "Nissonite": 20}},
+        "Galarium": {"Chance": 600000, "Multis": {"Diamond": 300, "Starlight": 300, "Nissonite": 45}},
+        "Unova": {"Chance": 5000000, "Multis": {"Cash": 1111, "Multiplier": 1111, "Rebirths": 1111, "Stone": 1111, "White Gems": 1111, "Crystal": 1111, "Iron": 1111, "Gold": 1111, "Quartz": 1111, "Jade": 1111, "Obsidian": 1111, "Ruby": 1111, "Emerald": 1111, "Sapphire": 1111, "Diamond": 1111, "Starlight": 1111, "Ion": 1111, "Uranium": 1111, "Bismuth": 1111, "Boracite": 1111, "Nissonite": 111, "Orpiment": 7, "Mint": 11.1, "Gems": 1.1}}
+    },
+    "Orpiment Geode": {
+        "Borax": {"Chance": 3, "Multis": {"Boracite": 20}},
+        "Axiom": {"Chance": 10, "Multis": {"Boracite": 15, "Nissonite": 10}},
+        "Vergemite": {"Chance": 33, "Multis": {"Bismuth": 25, "Orpiment": 1.01}},
+        "Zanyte": {"Chance": 13000, "Multis": {"Iron": 10, "Gold": 10, "Quartz": 10, "Jade": 10, "Obsidian": 10, "Ruby": 10, "Emerald": 10, "Sapphire": 10, "Diamond": 10, "Starlight": 10, "Ion": 10, "Uranium": 10, "Bismuth": 10, "Boracite": 10, "Nissonite": 10, "Orpiment": 4}},
+        "Secretum": {"Chance": 100000, "Multis": {"Orpiment": 12}},
+        "Mortalstone": {"Chance": 750000, "Multis": {"Cash": 999, "Multiplier": 999, "Rebirths": 999, "Stone": 999, "White Gems": 999, "Crystal": 999, "Iron": 999, "Gold": 999, "Quartz": 999, "Jade": 999, "Obsidian": 999, "Ruby": 999, "Emerald": 999, "Sapphire": 999, "Diamond": 999, "Starlight": 999, "Ion": 999, "Uranium": 999, "Bismuth": 999, "Boracite": 100, "Nissonite": 100, "Orpiment": 15, "Gems": 10}}
+    },
+    "Mint Geode": {
+        "Uzik": {"Chance": 69420, "Multis": {"Jade": 10, "Mint": 5}},
+        "Omet": {"Chance": 133371, "Multis": {"Cash": 100000, "Mint": 20}}
     }
 }
 stat_gradients = {
@@ -550,6 +769,7 @@ stat_gradients = {
     "Shell Piece": {"Colours": ["#2b2e2f", "#b5b8b8"], "Angle": 180},
     "Singularity": {"Colours": ["#ffffff","#ffffff","#6a6a6a","#000000","#6a6a6a","#ffffff","#6a6a6a","#000000","#6a6a6a","#ffffff","#6a6a6a","#000000","#6a6a6a","#ffffff","#ffffff"], "Angle": 100},
     "Capsuled Singularity": {"Colours": ["#323232", "#323232", "#323232", "#000000", "#9e9e9e", "#ffffff", "#9e9e9e", "#000000", "#323232", "#323232", "#323232"], "Angle": 135},
+    "Mint": {"Colours": ["#c6ffd0", "#58fbd7"], "Angle": 90},
     "Buttons Pressed": {"Colours": ["#3e87a7", "#1b9fa2"], "Angle": 90},
     "Geodes Opened": {"Colours": ["#bc682d", "#d76d13"], "Angle": 90},
     "Dezyp": {"Colours": ["#333833", "#2e382d"], "Angle": 90},
@@ -611,6 +831,28 @@ stat_gradients = {
     "Niflhemite": {"Colours": ["#61006c", "#c20029"], "Angle": 90},
     "Reactivite": {"Colours": ["#8aff93", "#aeff71"], "Angle": 990},
     "Plutonerite": {"Colours": ["#ff6400", "#fffc00", "#ff5900"], "Angle": 135},
+    "Grail": {"Colours": ["#faa701", "#f3f37a"], "Angle": 90},
+    "Box": {"Colours": ["#a25320", "#aa555c"], "Angle": 90},
+    "Lead": {"Colours": ["#1e2020", "#191b1c"], "Angle": 90},
+    "Pseudomalachite": {"Colours": ["#00b995", "#00f1ea"], "Angle": 90},
+    "Osmium": {"Colours": ["#a9cec7", "#7fc4b6"], "Angle": 90},
+    "Yhed": {"Colours": ["#2c251b", "#2c251b"], "Angle": 90},
+    "Hexaferrum": {"Colours": ["#8ee2fd", "#d5ffc7"], "Angle": 90},
+    "Spectrolite": {"Colours": ["#1f1c3f", "#d5ffcf"], "Angle": 180},
+    "Hectam": {"Colours": ["#5510ff", "#5544ff"], "Angle": 180},
+    "Frostone": {"Colours": ["#00d6db", "#005a6d"], "Angle": 180},
+    "Neptunian": {"Colours": ["#0015ff", "#0050ff"], "Angle": 180},
+    "Clouminance": {"Colours": ["#6dded0", "#2a565f"], "Angle": 180},
+    "Galarium": {"Colours": ["#7700ff", "#090088", "#7700ff"], "Angle": 145},
+    "Unova": {"Colours": ["#00ffff", "#000000", "#00ffff"], "Angle": 145},
+    "Borax": {"Colours": ["#ac5353", "#52adad"], "Angle": 90},
+    "Axiom": {"Colours": ["#1d72ff", "#388dff"], "Angle": 90},
+    "Vergemite": {"Colours": ["#cd3d00", "#7e1900"], "Angle": 90},
+    "Zanyte": {"Colours": ["#cb4eb1", "#5af609"], "Angle": 90},
+    "Secretum": {"Colours": ["#ff7700", "#ff6161"], "Angle": 180},
+    "Mortalstone": {"Colours": ["#ff00ff", "#ff00ff", "#000000", "#000000"], "Angle": 145},
+    "Uzik": {"Colours": ["#269069", "#2cb196"], "Angle": 90},
+    "Omet": {"Colours": ["#55D946", "#55D946"], "Angle": 0},
     "Badges": {"Colours":
     ["#b50202",
         "#b50202",
@@ -619,6 +861,23 @@ stat_gradients = {
         "#a356ef",
         "#a356ef"],
         "Angle": 9},
+    "Stellarite": {"Colours": ["#094887", "#015e8c"], "Angle": 90},
+    "Galaxite": {"Colours": ["#821ced", "#2f2f2f", "#6e2eea"], "Angle": 180},
+    "Graphite": {"Colours": ["#ed3636", "#757780", "#4866d0"], "Angle": 90},
+    "Darkmatter": {"Colours": ["#000000", "#000000"], "Angle": 90},
+    "Starglass": {"Colours": ["#1b74ff", "#4226ff"], "Angle": 90},
+    "Testium": {"Colours": ["#4747f3", "#34348c", "#0000ff"], "Angle": 145},
+    "Alpha Point": {"Colours": ["#ff7fff", "#d935e6"], "Angle": 90},
+    "Leaf": {"Colours": ["#ffdc7f", "#ffdc7f"], "Angle": 0},
+    "Acorn": {"Colours": ["#787822", "#787822"], "Angle": 0},
+    "Pine": {"Colours": ["#6d3800", "#6d3800"], "Angle": 0},
+    "Chestnut": {"Colours": ["#643920", "#724a33"], "Angle": 135},
+    "Candy": {"Colours": ["#ffffff", "#ffaa01", "#ffffff", "#ffaa01", "#edca86"], "Angle": 90},
+    "Bat": {"Colours": ["#000000", "#18181e"], "Angle": 135},
+    "Wicked Branch": {"Colours": ["#0a1f28", "#1d1811"], "Angle": 135},
+    "Bone": {"Colours": ["#e0e0e0", "#8c8c8c"], "Angle": 180},
+    "Mushroom": {"Colours": ["#ff8a8a", "#ff0c0c", "#ffffff", "#ff0c0c", "#ffffff", "#ff5959"], "Angle": 90},
+    "Pumpkin": {"Colours": ["#ffff00", "#ffbc63"], "Angle": 135},
     "Default": {"Colours": ["#ffffff", "#ffffff"], "Angle": 0}
 }
 root.setWindowTitle("BS:ED but bad")
@@ -654,7 +913,7 @@ gems_geode = Geode({"Stone": {"Chance": 6},
                     "Oneillite": {"Chance": 500, "Multis": {"Cash": 15, "Multiplier": 15, "Rebirths": 4, "Stone": 2, "White Gems": 1.25}},
                     "Alum": {"Chance": 13000, "Multis": {"Stone": 12, "White Gems": 1.8, "Crystal": 1.14}},
                     "Chaoite": {"Chance": 273000, "Multis": {"Cash": 6, "Multiplier": 6, "Rebirths": 6, "Stone": 6, "White Gems": 6, "Crystal": 6, "Iron": 6}},
-                    #"Starglass": {"Chance": 929221841},
+                    "Starglass": {"Chance": 929221841},
                     "Shell Piece": {"Chance": 1650000000}}, 30, "White Gems")
 crystal_geode = Geode({"White Gems": {"Chance": 4},
                        "Stone": {"Chance": 5},
@@ -675,8 +934,8 @@ iron_geode = Geode({"Iron": {"Chance": 5},
 gold_geode = Geode({"Gold": {"Chance": 4},
                     "Iron": {"Chance": 6},
                     "Quartz": {"Chance": 33},
-                    #"Mushroom": {"Chance": 100},
-                    #"Pumpkin" {"Chance": 125},
+                    "Mushroom": {"Chance": 100},
+                    "Pumpkin": {"Chance": 125},
                     "Yellow Beryl": {"Chance": 6666, "Multis": {"Crystal": 15, "Gold": 3}},
                     "Opal": {"Chance": 51000, "Multis": {"Cash": 8, "Multiplier": 8, "Rebirths": 8, "Crystal": 8, "Gold": 8, "Jade": 8, "Ruby": 1.3, "Sapphire": 1.3, "Diamond": 1.3}},
                     "Holeyum": {"Chance": 2750000, "Multis": {"Rebirths": 1000, "White Gems": 1000, "Crystal": 500, "Iron": 500, "Gold": 300}}},
@@ -770,6 +1029,50 @@ uranium_geode = Geode({"Sphene": {"Chance": 3, "Multis": {"Diamond": 5}},
                        "Reactivite": {"Chance": 27500, "Multis": {"Starlight": 12, "Ion": 8, "Uranium": 5}},
                        "Plutonerite": {"Chance": 125000, "Multis": {"Diamond": 80, "Starlight": 40, "Ion": 20, "Uranium": 10}}},
                       12, "Uranium")
+sacred_geode = Geode({"Grail": {"Chance": 2, "Multis": {"Starlight": 2, "Ion": 2, "Uranium": 2}},
+                      "Box": {"Chance": 3500000, "Multis": {"Obsidian": 3, "Ruby": 3, "Emerald": 3, "Sapphire": 3, "Bismuth": 3, "Boracite": 3}}},
+                     1e9, "Gems")
+bismuth_geode = Geode({"Lead": {"Chance": 2, "Multis": {"Iron": 10000, "Obsidian": 5, "Ruby": 5, "Emerald": 5, "Sapphire": 5, "Diamond": 5}},
+                       "Bismuth": {"Chance": 4},
+                       "Pseudomalachite": {"Chance": 10, "Multis": {"Diamond": 6, "Uranium": 2, "Bismuth": 1.15}},
+                       "Boracite": {"Chance": 100},
+                       "Osmium": {"Chance": 1428, "Multis": {"Bismuth": 5}},
+                       "Yhed": {"Chance": 45000, "Multis": {"Cash": 80000, "Rebirths": 80000, "White Gems": 80000, "Iron": 80000, "Quartz": 800, "Obsidian": 800, "Emerald": 8, "Diamond": 8, "Ion": 8, "Bismuth": 8}},
+                       "Hexaferrum": {"Chance": 300000, "Multis": {"Ruby": 3000, "Emerald": 2000, "Sapphire": 1000, "Diamond": 160, "Uranium": 40, "Bismuth": 15, "Boracite": 3}}},
+                      50, "Bismuth")
+boracite_geode = Geode({"Boracite": {"Chance": 5},
+                        "Bismuth": {"Chance": 10},
+                        "Uranium": {"Chance": 20},
+                        "Nissonite": {"Chance": 150},
+                        "Spectrolite": {"Chance": 4000, "Multis": {"Starlight": 5, "Ion": 5, "Bismuth": 5, "Boracite": 3}},
+                        "Hectam": {"Chance": 25000, "Multis": {"Crystal": 100, "Quartz": 100, "Jade": 100, "Ruby": 100, "Emerald": 100, "Diamond": 100, "Boracite": 10}}},
+                       1000, "Boracite")
+nissonite_geode = Geode({"Nissonite": {"Chance": 5},
+                         "Boracite": {"Chance": 10},
+                         "Bismuth": {"Chance": 20},
+                         "Frostone": {"Chance": 1250, "Multis": {"Rebirths": 15, "Crystal": 15, "Quartz": 15, "Sapphire": 15, "Diamond": 15, "Boracite": 15, "Nissonite": 4, "Mint": 1.04}},
+                         "Neptunian": {"Chance": 6666, "Multis": {"Cash": 2, "Multiplier": 3, "Rebirths": 30, "Ion": 1.5, "Uranium": 2, "Bismuth": 3, "Boracite": 30, "Nissonite": 10}},
+                         "Clouminance": {"Chance": 19000, "Multis": {"Diamond": 100, "Starlight": 100, "Ion": 100, "Boracite": 100, "Nissonite": 20}},
+                         "Galarium": {"Chance": 600000, "Multis": {"Diamond": 300, "Starlight": 300, "Nissonite": 45}},
+                         "Unova": {"Chance": 5000000, "Multis": {"Cash": 1111, "Multiplier": 1111, "Rebirths": 1111, "Stone": 1111, "White Gems": 1111, "Crystal": 1111, "Iron": 1111, "Gold": 1111, "Quartz": 1111, "Jade": 1111, "Obsidian": 1111, "Ruby": 1111, "Emerald": 1111, "Sapphire": 1111, "Diamond": 1111, "Starlight": 1111, "Ion": 1111, "Uranium": 1111, "Bismuth": 1111, "Boracite": 1111, "Nissonite": 111, "Orpiment": 7, "Mint": 11.1, "Gems": 1.1}}},
+                        5, "Nissonite")
+orpiment_geode = Geode({"Borax": {"Chance": 3, "Multis": {"Boracite": 20}},
+                        "Axiom": {"Chance": 10, "Multis": {"Boracite": 15, "Nissonite": 10}},
+                        "Orpiment": {"Chance": 20},
+                        "Vergemite": {"Chance": 33, "Multis": {"Bismuth": 25, "Orpiment": 1.01}},
+                        "Nissonite": {"Chance": 100},
+                        "Zanyte": {"Chance": 13000, "Multis": {"Iron": 10, "Gold": 10, "Quartz": 10, "Jade": 10, "Obsidian": 10, "Ruby": 10, "Emerald": 10, "Sapphire": 10, "Diamond": 10, "Starlight": 10, "Ion": 10, "Uranium": 10, "Bismuth": 10, "Boracite": 10, "Nissonite": 10, "Orpiment": 4}},
+                        "Secretum": {"Chance": 100000, "Multis": {"Orpiment": 12}},
+                        "Mortalstone": {"Chance": 750000, "Multis": {"Cash": 999, "Multiplier": 999, "Rebirths": 999, "Stone": 999, "White Gems": 999, "Crystal": 999, "Iron": 999, "Gold": 999, "Quartz": 999, "Jade": 999, "Obsidian": 999, "Ruby": 999, "Emerald": 999, "Sapphire": 999, "Diamond": 999, "Starlight": 999, "Ion": 999, "Uranium": 999, "Bismuth": 999, "Boracite": 100, "Nissonite": 100, "Orpiment": 15, "Gems": 10}}},
+                       2, "Orpiment")
+mint_geode = Geode({"Mint": {"Chance": 2},
+                    "Alpha Point": {"Chance": 2},
+                    "Chestnut": {"Chance": 5},
+                    "Bat": {"Chance": 8},
+                    "Wicked Branch": {"Chance": 33},
+                    "Bone": {"Chance": 80},
+                    "Uzik": {"Chance": 69420, "Multis": {"Jade": 10, "Mint": 5}},
+                    "Omet": {"Chance": 133371, "Multis": {"Cash": 100000, "Mint": 20}}}, 2000, "Mint")
 Spawn_Buttons = {
     "Multiplier": [
         ("12 Cash: 1 Multiplier", lambda: cost_button("Main","Cash",12,"Multiplier", 1)),
@@ -843,7 +1146,19 @@ Spawn_Buttons = {
        ("Colour Temple (req: 5 Obsidian)", lambda: load_check("Main", 5, "Obsidian", Colour_Buttons)),
        ("Extraterrestrial Orbits (req: 50k Sapphire)", lambda: load_check("Main", 5e4, "Sapphire", ET_Buttons)),
        ("Empyrean Island (req: 100 Starlight)", lambda: load_check("Main", 100, "Starlight", Ion_Buttons)),
+       ("Uranium Wastelands (req: 3 Ion)", lambda: load_check("Main", 3, "Ion", Uranium_Buttons)),
+       ("Smooth Depths (req: 15 Uranium)", lambda: load_check("Main", 15, "Uranium", Bismuth_Buttons)),
+       ("Icy Palace (req: 50 Bismuth)", lambda: load_check("Main", 50, "Bismuth", Icy_Buttons)),
+       ("Floating Purgatory (req: 10 Nissonite)", lambda: load_check("Main", 10, "Nissonite", Orpiment_Buttons)),
+       ("Tetratum (req: 500 Orpiment)", lambda: load_check("Main", 500, "Orpiment", Tetra_Buttons)),
+       ("Voltaic Sector (req: 50 Tetra)", lambda: load_check("Main", 50, "Tetra", Volt_Buttons)),
+       ("Abyssal Trenches (req: 3 Volt)", lambda: load_check("Main", 3, "Volt", Aquamarine_Buttons)),
+       ("Flourish Candylands (req: 25 Aquamarine)", lambda: load_check("Main", 25, "Aquamarine", Lollipop_Buttons)),
+       ("Minty Grooves (req: 5 Rebirths)", lambda: load_check("Main", 5, "Rebirths", Mint_Buttons)),
        ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+   ],
+   "Extra": [
+       ("Console inputs", lambda: secret_input("Spawn"))
    ]
 }
 Cave_Buttons = {
@@ -1005,6 +1320,7 @@ Recover_Hall_Buttons = {
     "Floating Purgatory": [
         ("666 Nissonite: 1k Uranium (Fetch)", lambda: recovery_button_fetch("Main",666, "Nissonite", 1000, "Uranium")),
         ("1 Orpiment: 60 Boracite (Sets)", lambda: recovery_button_set("Main",1, "Orpiment", 60, "Boracite")),
+        ("Orpiment Geode: 2 Orpiment", lambda btn: Geode_roll(btn, orpiment_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll)),
     ],
     "Tetratum": [
         ("10k Orpiment: 1k Bismuth (Fetch)", lambda: recovery_button_fetch("Main",1e4, "Orpiment", 1000, "Bismuth")),
@@ -1027,7 +1343,7 @@ Recover_Hall_Buttons = {
         ("4 Lollipop: 100 Tetra (Fetch)", lambda: recovery_button_fetch("Main",4, "Lollipop", 100, "Tetra")),
     ],
     "Ω1": [
-
+        ("Anticovery Hall (req: 1 Testium)", lambda: load_check("Exclusive", 1, "Testium", Anticovery_Buttons)),
     ],
     "???3Δ8???": [
         ("1 Stargazed Metal: 1M Gold (Sets)", lambda: recovery_button_set("Main",1, "Stargazed Metal", 1e6, "Gold")),
@@ -1075,6 +1391,16 @@ Recover_Hall_Buttons = {
         ("Colour Temple (req: 5 Obsidian)", lambda: load_check("Main", 5, "Obsidian", Colour_Buttons)),
         ("Extraterrestrial Orbits (req: 50k Sapphire)", lambda: load_check("Main", 5e4, "Sapphire", ET_Buttons)),
         ("Empyrean Island (req: 100 Starlight)", lambda: load_check("Main", 100, "Starlight", Ion_Buttons)),
+        ("Uranium Wastelands (req: 3 Ion)", lambda: load_check("Main", 3, "Ion", Uranium_Buttons)),
+        ("Smooth Depths (req: 15 Uranium)", lambda: load_check("Main", 15, "Uranium", Bismuth_Buttons)),
+        ("Icy Palace (req: 50 Bismuth)", lambda: load_check("Main", 50, "Bismuth", Icy_Buttons)),
+        ("Icy Palace (req: 1 Nissonite)", lambda: load_check("Main", 1, "Nissonite", Icy_Buttons)),
+        ("Floating Purgatory (req: 10 Nissonite)", lambda: load_check("Main", 10, "Nissonite", Orpiment_Buttons)),
+        ("Tetratum (req: 500 Orpiment)", lambda: load_check("Main", 500, "Orpiment", Tetra_Buttons)),
+        ("Voltaic Sector (req: 50 Tetra)", lambda: load_check("Main", 50, "Tetra", Volt_Buttons)),
+        ("Abyssal Trenches (req: 3 Volt)", lambda: load_check("Main", 3, "Volt", Aquamarine_Buttons)),
+        ("Flourish Candylands (req: 25 Aquamarine)", lambda: load_check("Main", 25, "Aquamarine", Lollipop_Buttons)),
+        ("Minty Grooves (req: 5 Rebirths)", lambda: load_check("Main", 5, "Rebirths", Mint_Buttons)),
     ]
 }
 Crystal_Buttons = {
@@ -1705,9 +2031,9 @@ Colour_Buttons = {
         ("100k Emerald: 4 Sapphire", lambda: cost_button("Main", "Emerald", 100000, "Sapphire", 4)),
     ],
     "Discount": [
-        ("1Qn Starlight: 1 Neuron", lambda: cost_button("Main", "Starlight", 1e12, "Neuron", 1, "Geode")),
+        ("100 Boracite: 1 Hexaferrum", lambda: cost_button("Main", "Boracite", 100, "Hexaferrum", 1, "Geode")),
         ("15 Yrnote: 1 Antimatter", lambda: cost_button("Geode", "Yrnote", 15, "Antimatter", 1, "Geode")),
-        ("100k Ion: 0.1 Uranium", lambda: cost_button("Main", "Ion", 1e5, "Uranium", 0.1)),
+        ("100 Pseudomalachite: 1 Yhed", lambda: cost_button("Geode", "Pseudomalachite", 100, "Yhed", 1, "Geode")),
         ("1e3030 Stone: 1 Dezyp", lambda: cost_button("Main", "Stone", Mantissa(1,3030), "Dezyp", 1, "Geode")),
         ("10M Dezyp: 1 Podrillium", lambda: cost_button("Geode", "Dezyp", 1e7, "Podrillium", 1, "Geode")),
     ],
@@ -1758,7 +2084,11 @@ ET_Buttons = {
     "Area Teleports": [
        ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
        ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
-    ]
+    ],
+    "                                                                                                                                                                              ": [],
+    "???": [("1 Stellarite (req: 300k Sapphire)", lambda: recovery_button_set("Main", 300000, "Sapphire", 1, "Stellarite", "Secret")),
+            ("Wormhole's Breech (req: 1 Stellarite)", lambda: load_check("Secret", 1, "Stellarite", Wormhole_Buttons))],
+    "                                                                                                                                            ": []
 }
 Ion_Buttons = {
     "Diamond": [
@@ -1779,6 +2109,777 @@ Ion_Buttons = {
     "Area Teleports": [
        ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
        ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ]
+}
+Uranium_Buttons = {
+    "Multiplier": [
+        ("1e9832 Cash: 1e1500 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,9832),"Multiplier", Mantissa(1,1500))),
+        ("1e16423 Cash: 1e2000 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,16423),"Multiplier", Mantissa(1,2000))),
+        ("1e22547 Cash: 1e2600 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,22547),"Multiplier", Mantissa(1,2600))),
+        ("1e30000 Cash: 1e3400 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,30000),"Multiplier", Mantissa(1,3400))),
+        ("1e50000 Cash: 1e5000 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,50000),"Multiplier", Mantissa(1,5000))),
+    ],
+    "Rebirths": [
+        ("3e12239 Multiplier: 2e630 Rebirths", lambda: reset_button("Main",Mantissa(3,12239),"Multiplier",Mantissa(2,630), "Rebirths")),
+        ("1e19451 Multiplier: 4e825 Rebirths", lambda: reset_button("Main",Mantissa(1,19451),"Multiplier",Mantissa(4,825), "Rebirths")),
+        ("6e21534 Multiplier: 5e1004 Rebirths", lambda: reset_button("Main",Mantissa(6,21534),"Multiplier",Mantissa(5,1004), "Rebirths")),
+        ("7e27327 Multiplier: 2e3206 Rebirths", lambda: reset_button("Main",Mantissa(7,27327),"Multiplier",Mantissa(2,3206), "Rebirths")),
+        ("4e32569 Multiplier: 8e4153 Rebirths", lambda: reset_button("Main",Mantissa(4,32569),"Multiplier",Mantissa(8,4153), "Rebirths")),
+    ],
+    "Stone": [
+        ("3e4533 Rebirths: 2e421 Stone", lambda: reset_button("Main",Mantissa(3,4533), "Rebirths", Mantissa(2,421), "Stone")),
+        ("8e6841 Rebirths: 2e482 Stone", lambda: reset_button("Main",Mantissa(8,6841), "Rebirths", Mantissa(2,482), "Stone")),
+        ("2e12532 Rebirths: 2e578 Stone", lambda: reset_button("Main",Mantissa(2,12532), "Rebirths", Mantissa(2,578), "Stone")),
+        ("8e17627 Rebirths: 3e634 Stone", lambda: reset_button("Main",Mantissa(8,17627), "Rebirths", Mantissa(3,634), "Stone")),
+        ("6e26518 Rebirths: 5e752 Stone", lambda: reset_button("Main",Mantissa(6,26518), "Rebirths", Mantissa(5,752), "Stone"))
+    ],
+    "White Gems": [
+        ("4e736 Stone: 8e200 White Gems", lambda: reset_button("Main",Mantissa(4,736), "Stone", 8e200,"White Gems")),
+        ("7e958 Stone: 5e273 White Gems", lambda: reset_button("Main",Mantissa(7,958), "Stone", 5e273,"White Gems")),
+        ("5e1383 Stone: 2e305 White Gems", lambda: reset_button("Main",Mantissa(5,1383), "Stone", Mantissa(2,305),"White Gems")),
+        ("2e1736 Stone: 6e353 White Gems", lambda: reset_button("Main",Mantissa(2,1736), "Stone", Mantissa(6,353),"White Gems")),
+        ("7e2484 Stone: 4e436 White Gems", lambda: reset_button("Main",Mantissa(7,2484), "Stone", Mantissa(4,436),"White Gems")),
+    ],
+    "Crystal": [
+        ("9e485 White Gems: 3e211 Crystal", lambda: reset_button("Main",Mantissa(9,485), "White Gems", 3e211,"Crystal")),
+        ("6e674 White Gems: 5e236 Crystal", lambda: reset_button("Main",Mantissa(6,674), "White Gems", 5e236,"Crystal")),
+        ("2e935 White Gems: 2e254 Crystal", lambda: reset_button("Main",Mantissa(2,935), "White Gems", 2e254,"Crystal")),
+        ("4e1335 White Gems: 1e323 Crystal", lambda: reset_button("Main",Mantissa(4,1335), "White Gems", Mantissa(1,323),"Crystal")),
+        ("8e2003 White Gems: 1e346 Crystal", lambda: reset_button("Main",Mantissa(8,2003), "White Gems", Mantissa(1,346),"Crystal")),
+    ],
+    "Iron": [
+        ("3e575 Crystal: 5e122 Iron", lambda: reset_button("Main",Mantissa(3,575), "Crystal", 5e122,"Iron")),
+        ("6e643 Crystal: 8e150 Iron", lambda: reset_button("Main",Mantissa(6,643), "Crystal", 8e150,"Iron")),
+        ("2e721 Crystal: 2e179 Iron", lambda: reset_button("Main",Mantissa(2,721), "Crystal", 2e179,"Iron")),
+        ("5e783 Crystal: 6e215 Iron", lambda: reset_button("Main",Mantissa(5,783), "Crystal", 6e215,"Iron")),
+        ("8e859 Crystal: 3e249 Iron", lambda: reset_button("Main",Mantissa(8,859), "Crystal", 3e249,"Iron")),
+    ],
+    "Gold": [
+        ("2e303 Iron: 15Qn Gold", lambda: reset_button("Main",Mantissa(2,303), "Iron", 1.5e19,"Gold")),
+        ("8e754 Iron: 60Qn Gold", lambda: reset_button("Main",Mantissa(8,754), "Iron", 6e19,"Gold")),
+        ("2e1536 Iron: 200Qn Gold", lambda: reset_button("Main",Mantissa(2,1536), "Iron", 2e20,"Gold")),
+        ("5e1935 Iron: 4Sx Gold", lambda: reset_button("Main",Mantissa(5,1935), "Iron", 4e21,"Gold")),
+        ("8e2389 Iron: 50Sx Gold", lambda: reset_button("Main",Mantissa(8,2389), "Iron", 5e22,"Gold")),
+    ],
+    "Quartz": [
+        ("5e200 Gold: 80Qd Quartz", lambda: reset_button("Main",5e200, "Gold", 8e16,"Quartz")),
+        ("3e303 Gold: 300Qd Quartz", lambda: reset_button("Main",Mantissa(3,303), "Gold", 3e17,"Quartz")),
+        ("2e609 Gold: 6Qn Quartz", lambda: reset_button("Main",Mantissa(2,609), "Gold", 6e18,"Quartz")),
+        ("9e1050 Gold: 25Qn Quartz", lambda: reset_button("Main",Mantissa(9,1050), "Gold", 2.5e19,"Quartz")),
+        ("3e3680 Gold: 130Qn Quartz", lambda: reset_button("Main",Mantissa(3,3680), "Gold", 1.3e20,"Quartz")),
+    ],
+    "Jade": [
+        ("1e200 Quartz: 2.5M Jade", lambda: reset_button("Main",1e200, "Quartz", 2.5e6,"Jade")),
+        ("5e300 Quartz: 10M Jade", lambda: reset_button("Main",Mantissa(5,300), "Quartz", 1e7,"Jade")),
+        ("8e800 Quartz: 35M Jade", lambda: reset_button("Main",Mantissa(8,800), "Quartz", 3.5e7,"Jade")),
+        ("3e1100 Quartz: 100M Jade", lambda: reset_button("Main",Mantissa(3,1100), "Quartz", 1e8,"Jade")),
+        ("2e1600 Quartz: 500M Jade", lambda: reset_button("Main",Mantissa(2,1600), "Quartz", 5e8,"Jade")),
+    ],
+    "Obsidian": [
+        ("3e60 Jade: 12 Obsidian", lambda: reset_button("Main",3e60, "Jade", 12,"Obsidian")),
+        ("6e150 Jade: 25 Obsidian", lambda: reset_button("Main",6e150, "Jade", 25,"Obsidian")),
+        ("5e270 Jade: 46 Obsidian", lambda: reset_button("Main",5e270, "Jade", 46,"Obsidian")),
+        ("1e500 Jade: 110 Obsidian", lambda: reset_button("Main",Mantissa(1,500), "Jade", 110,"Obsidian")),
+        ("1e760 Jade: 180 Obsidian", lambda: reset_button("Main",Mantissa(1,760), "Jade", 180,"Obsidian")),
+    ],
+    "Ruby": [
+        ("1.5e92 Obsidian: 100 Ruby", lambda: reset_button("Main", 1.5e92, "Obsidian", 100, "Ruby")),
+        ("5e230 Obsidian: 800 Ruby", lambda: reset_button("Main",5e230, "Obsidian", 800, "Ruby")),
+        ("1e620 Obsidian: 3k Ruby", lambda: reset_button("Main", Mantissa(1,620), "Obsidian", 3000, "Ruby")),
+    ],
+    "Emerald": [
+        ("3e53 Ruby: 100 Emerald", lambda: cost_button("Main","Ruby",3e53, "Emerald", 100)),
+        ("1e86 Ruby: 500 Emerald", lambda: cost_button("Main","Ruby",1e86, "Emerald", 500)),
+        ("3e185 Ruby: 1.2k Emerald", lambda: cost_button("Main","Ruby",3e185, "Emerald", 1200)),
+    ],
+    "Sapphire": [
+        ("50Sx Emerald: 400 Sapphire", lambda: cost_button("Main", "Emerald", 5e22, "Sapphire", 400)),
+        ("16No Emerald: 750 Sapphire", lambda: cost_button("Main", "Emerald", 1.6e31, "Sapphire", 750)),
+        ("3.47e50 Emerald: 1.22k Sapphire", lambda: cost_button("Main", "Emerald", 3.47e50, "Sapphire", 1220)),
+    ],
+    "Diamond": [
+        ("1Qn Sapphire: 1k Diamond", lambda: reset_button("Main", 1e18, "Sapphire", 1000, "Diamond")),
+        ("285Qn Sapphire: 2.5k Diamond", lambda: reset_button("Main", 2.85e20, "Sapphire", 2500, "Diamond")),
+        ("57Sx Sapphire: 6.2k Diamond", lambda: reset_button("Main", 5.7e22, "Sapphire", 6200, "Diamond")),
+        ("326Sx Sapphire: 13.1k Diamond", lambda: reset_button("Main", 3.26e23, "Sapphire", 13100, "Diamond")),
+    ],
+    "Starlight": [
+        ("2.5M Diamond: 300 Starlight", lambda: reset_button("Main", 2.5e6, "Diamond", 300, "Starlight")),
+        ("15M Diamond: 750 Starlight", lambda: reset_button("Main", 1.5e7, "Diamond", 750, "Starlight")),
+        ("300M Diamond: 1.6k Starlight", lambda: reset_button("Main", 3e8, "Diamond", 1600, "Starlight")),
+        ("2.75B Diamond: 2.8k Starlight", lambda: reset_button("Main", 2.75e9, "Diamond", 2800, "Starlight")),
+    ],
+    "Ion": [
+        ("8k Starlight: 3 Ion", lambda: reset_button("Main", 8000, "Starlight", 3, "Ion")),
+        ("50k Starlight: 10 Ion", lambda: reset_button("Main", 50000, "Starlight", 10, "Ion")),
+        ("244k Starlight: 25 Ion", lambda: reset_button("Main", 244000, "Starlight", 25, "Ion")),
+    ],
+    "Uranium": [
+        ("30 Ion: 1 Uranium", lambda: reset_button("Main", 30, "Ion", 1, "Uranium")),
+        ("100 Ion: 3 Uranium", lambda: reset_button("Main", 100, "Ion", 3, "Uranium")),
+    ],
+    "Gem Buttons": [
+        ("5e41 Sapphire: 250M Gems", lambda: cost_button("Main","Sapphire", 5e41, "Gems", 2.5e8)),
+        ("1k Starlight: 800M Gems", lambda: cost_button("Main","Starlight", 1000, "Gems", 8e8)),
+        ("7 Ion: 3B Gems", lambda: cost_button("Main","Ion", 7, "Gems", 3e9)),
+    ],
+    "Geodes": [
+        ("Scared Geode: 1B Gems", lambda btn: Geode_roll(btn, sacred_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll)),
+    ],
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ]
+}
+Bismuth_Buttons = {
+    "Diamond": [
+        ("4.6No Sapphire: 700M Diamond", lambda: reset_button("Main", 4.6e30, "Sapphire", 7e8, "Diamond")),
+        ("620De Sapphire: 3B Diamond", lambda: reset_button("Main", 6.2e35, "Sapphire", 3e9, "Diamond")),
+        ("1.5e38 Sapphire: 50B Diamond", lambda: reset_button("Main", 1.5e38, "Sapphire", 5e10, "Diamond")),
+        ("5.3e45 Sapphire: 160B Diamond", lambda: reset_button("Main", 5.3e45, "Sapphire", 1.6e11, "Diamond")),
+        ("8.7e52 Sapphire: 500B Diamond", lambda: reset_button("Main", 8.7e52, "Sapphire", 5e11, "Diamond")),
+    ],
+    "Starlight": [
+        ("60B Diamond: 6k Starlight", lambda: reset_button("Main", 6e10, "Diamond", 6000, "Starlight")),
+        ("800B Diamond: 50k Starlight", lambda: reset_button("Main", 8e11, "Diamond", 50000, "Starlight")),
+        ("75T Diamond: 700k Starlight", lambda: reset_button("Main", 7.5e13, "Diamond", 700000, "Starlight")),
+    ],
+    "Ion": [
+        ("500k Starlight: 100 Ion", lambda: reset_button("Main", 500000, "Starlight", 100, "Ion")),
+        ("7M Starlight: 500 Ion", lambda: reset_button("Main", 7e6, "Starlight", 500, "Ion")),
+        ("50M Starlight: 2k Ion", lambda: reset_button("Main", 5e7, "Starlight", 2000, "Ion")),
+        ("470M Starlight: 17k Ion", lambda: reset_button("Main", 4.7e8, "Starlight", 17000, "Ion")),
+        ("850M Starlight: 50k Ion", lambda: reset_button("Main", 8.5e8, "Starlight", 50000, "Ion")),
+        ("30B Starlight: 320k Ion", lambda: reset_button("Main", 3e10, "Starlight", 320000, "Ion")),
+        ("260B Starlight: 800k Ion", lambda: reset_button("Main", 2.6e11, "Starlight", 800000, "Ion")),
+    ],
+    "Uranium": [
+        ("1.5k Ion: 7 Uranium", lambda: reset_button("Main", 1500, "Ion", 7, "Uranium")),
+        ("4k Ion: 25 Uranium", lambda: reset_button("Main", 4000, "Ion", 25, "Uranium")),
+        ("20k Ion: 60 Uranium", lambda: reset_button("Main", 20000, "Ion", 60, "Uranium")),
+        ("50k Ion: 200 Uranium", lambda: reset_button("Main", 50000, "Ion", 200, "Uranium")),
+        ("300k Ion: 500 Uranium", lambda: reset_button("Main", 300000, "Ion", 500, "Uranium")),
+    ],
+    "Bismuth": [
+        ("60 Uranium: 1 Bismuth", lambda: reset_button("Main", 60, "Uranium", 1, "Bismuth")),
+        ("500 Uranium: 5 Bismuth", lambda: reset_button("Main", 500, "Uranium", 5, "Bismuth")),
+        ("3.7k Uranium: 10 Bismuth", lambda: reset_button("Main", 3700, "Uranium", 10, "Bismuth")),
+    ],
+    "Recovery": [
+        ("1 Bismuth: 800 Diamond (Fetch)", lambda: recovery_button_fetch("Main",1, "Bismuth", 600, "Diamond")),
+    ],
+    "Geodes": [
+        ("Bismuth Geode: 50 Bismuth", lambda btn: Geode_roll(btn, bismuth_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll)),
+    ],
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ]
+}
+Icy_Buttons = {
+    "Diamond": [
+        ("1e61 Sapphire: 3T Diamond", lambda: reset_button("Main", 1e61, "Sapphire", 3e12, "Diamond")),
+        ("5e74 Sapphire: 25T Diamond", lambda: reset_button("Main", 5e74, "Sapphire", 2.5e13, "Diamond")),
+        ("7.3e82 Sapphire: 150T Diamond", lambda: reset_button("Main", 7.3e82, "Sapphire", 1.5e14, "Diamond")),
+        ("4.6e89 Sapphire: 2Qd Diamond", lambda: reset_button("Main", 4.6e89, "Sapphire", 2e15, "Diamond")),
+        ("7.5e92 Sapphire: 30Qd Diamond", lambda: reset_button("Main", 7.5e92, "Sapphire", 3e16, "Diamond")),
+        ("1e95 Sapphire: 200Qd Diamond", lambda: reset_button("Main", 1e95, "Sapphire", 2e17, "Diamond")),
+    ],
+    "Starlight": [
+        ("500T Diamond: 5M Starlight", lambda: reset_button("Main", 5e14, "Diamond", 5e6, "Starlight")),
+        ("30Qd Diamond: 30M Starlight", lambda: reset_button("Main", 3e16, "Diamond", 3e7, "Starlight")),
+        ("260Qd Diamond: 150M Starlight", lambda: reset_button("Main", 2.6e17, "Diamond", 1.5e8, "Starlight")),
+        ("15Qn Diamond: 470M Starlight", lambda: reset_button("Main", 1.5e19, "Diamond", 4.7e8, "Starlight")),
+        ("80Qn Diamond: 790M Starlight", lambda: reset_button("Main", 8e19, "Diamond", 7.9e8, "Starlight")),
+        ("500Qn Diamond: 5B Starlight", lambda: reset_button("Main", 5e20, "Diamond", 5e9, "Starlight")),
+        ("40Sx Diamond: 30B Starlight", lambda: reset_button("Main", 4e22, "Diamond", 3e10, "Starlight")),
+        ("170Sx Diamond: 50B Starlight", lambda: reset_button("Main", 1.7e23, "Diamond", 5e10, "Starlight")),
+        ("800Sx Diamond: 400B Starlight", lambda: reset_button("Main", 8e23, "Diamond", 4e11, "Starlight")),
+    ],
+    "Ion": [
+        ("50T Starlight: 10M Ion", lambda: reset_button("Main", 5e13, "Starlight", 1e7, "Ion")),
+        ("300T Starlight: 40M Ion", lambda: reset_button("Main", 3e14, "Starlight", 4e7, "Ion")),
+        ("6Qd Starlight: 90M Ion", lambda: reset_button("Main", 6e15, "Starlight", 9e7, "Ion")),
+        ("200Qd Starlight: 150M Ion", lambda: reset_button("Main", 2e17, "Starlight", 1.5e8, "Ion")),
+        ("15Qn Starlight: 400M Ion", lambda: reset_button("Main", 1.5e19, "Starlight", 4e8, "Ion")),
+        ("250Qn Starlight: 3B Ion", lambda: reset_button("Main", 2.5e20, "Starlight", 3e9, "Ion")),
+        ("800Qn Starlight: 14B Ion", lambda: reset_button("Main", 8e20, "Starlight", 1.4e10, "Ion")),
+    ],
+    "Uranium": [
+        ("800M Ion: 5k Uranium", lambda: reset_button("Main", 8e8, "Ion", 5000, "Uranium")),
+        ("15B Ion: 14k Uranium", lambda: reset_button("Main", 1.5e10, "Ion", 14000, "Uranium")),
+        ("200B Ion: 65k Uranium", lambda: reset_button("Main", 2e11, "Ion", 65000, "Uranium")),
+        ("500B Ion: 200k Uranium", lambda: reset_button("Main", 5e11, "Ion", 200000, "Uranium")),
+        ("3T Ion: 700k Uranium", lambda: reset_button("Main", 3e12, "Ion", 700000, "Uranium")),
+        ("20T Ion: 3M Uranium", lambda: reset_button("Main", 2e13, "Ion", 3e6, "Uranium")),
+    ],
+    "Bismuth": [
+        ("27k Uranium: 30 Bismuth", lambda: reset_button("Main", 27000, "Uranium", 30, "Bismuth")),
+        ("120k Uranium: 100 Bismuth", lambda: reset_button("Main", 120000, "Uranium", 100, "Bismuth")),
+        ("430k Uranium: 500 Bismuth", lambda: reset_button("Main", 430000, "Uranium", 500, "Bismuth")),
+        ("1M Uranium: 1.1k Bismuth", lambda: reset_button("Main", 1e6, "Uranium", 1100, "Bismuth")),
+        ("20M Uranium: 3k Bismuth", lambda: reset_button("Main", 2e7, "Uranium", 3000, "Bismuth")),
+    ],
+    "Boracite": [
+        ("3k Bismuth: 1 Boracite", lambda: reset_button("Main", 3000, "Bismuth", 1, "Boracite")),
+        ("30k Bismuth: 3 Boracite", lambda: reset_button("Main", 30000, "Bismuth", 3, "Boracite")),
+        ("200k Bismuth: 10 Boracite", lambda: reset_button("Main", 200000, "Bismuth", 10, "Boracite")),
+    ],
+    "Nissonite": [
+        ("50 Boracite: 1 Nissonite", lambda: reset_button("Main", 50, "Boracite", 1, "Nissonite")),
+    ],
+    "Geodes": [
+        ("Boracite Geode: 1k Boracite", lambda btn: Geode_roll(btn, boracite_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll)),
+        ("Nissonite Geode: 5 Nissonite", lambda btn: Geode_roll(btn, nissonite_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll)),
+    ],
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ]
+}
+Orpiment_Buttons = {
+    "Ion": [
+        ("500Sx Starlight: 40B Ion", lambda: reset_button("Main", 5e23, "Starlight", 4e10, "Ion")),
+        ("200Sp Starlight: 100B Ion", lambda: reset_button("Main", 2e26, "Starlight", 1e11, "Ion")),
+        ("15Oc Starlight: 500B Ion", lambda: reset_button("Main", 1.5e28, "Starlight", 5e11, "Ion")),
+        ("200Oc Starlight: 5T Ion", lambda: reset_button("Main", 2e29, "Starlight", 5e12, "Ion")),
+        ("1.5No Starlight: 75T Ion", lambda: reset_button("Main", 1.5e30, "Starlight", 7.5e13, "Ion")),
+        ("80No Starlight: 300T Ion", lambda: reset_button("Main", 8e31, "Starlight", 3e14, "Ion")),
+        ("500No Starlight: 1Qd Ion", lambda: reset_button("Main", 5e32, "Starlight", 1e15, "Ion")),
+    ],
+    "Uranium": [
+        ("600Qd Ion: 25M Uranium", lambda: reset_button("Main", 6e17, "Ion", 2.5e7, "Uranium")),
+        ("800Qn Ion: 75M Uranium", lambda: reset_button("Main", 8e20, "Ion", 7.5e7, "Uranium")),
+        ("300Sx Ion: 250M Uranium", lambda: reset_button("Main", 3e23, "Ion", 2.5e8, "Uranium")),
+        ("150Sp Ion: 675M Uranium", lambda: reset_button("Main", 1.5e26, "Ion", 6.75e8, "Uranium")),
+        ("930Sp Ion: 5B Uranium", lambda: reset_button("Main", 9.3e26, "Ion", 5e9, "Uranium")),
+    ],
+    "Bismuth": [
+        ("90M Uranium: 5k Bismuth", lambda: reset_button("Main", 9e7, "Uranium", 5000, "Bismuth")),
+        ("450M Uranium: 20k Bismuth", lambda: reset_button("Main", 4.5e8, "Uranium", 20000, "Bismuth")),
+        ("2B Uranium: 75k Bismuth", lambda: reset_button("Main", 2e9, "Uranium", 75000, "Bismuth")),
+        ("30B Uranium: 300k Bismuth", lambda: reset_button("Main", 3e10, "Uranium", 300000, "Bismuth")),
+        ("5T Uranium: 500k Bismuth", lambda: reset_button("Main", 5e12, "Uranium", 500000, "Bismuth")),
+        ("400T Uranium: 3M Bismuth", lambda: reset_button("Main", 4e14, "Uranium", 3e6, "Bismuth")),
+        ("70Qd Uranium: 50M Bismuth", lambda: reset_button("Main", 7e16, "Uranium", 5e7, "Bismuth")),
+        ("400Qd Uranium: 130M Bismuth", lambda: reset_button("Main", 4e17, "Uranium", 1.3e8, "Bismuth")),
+    ],
+    "Boracite": [
+        ("1M Bismuth: 40 Boracite", lambda: reset_button("Main", 1e6, "Bismuth", 40, "Boracite")),
+        ("500M Bismuth: 120 Boracite", lambda: reset_button("Main", 5e8, "Bismuth", 120, "Boracite")),
+        ("75B Bismuth: 350 Boracite", lambda: reset_button("Main", 7.5e10, "Bismuth", 350, "Boracite")),
+        ("1T Bismuth: 1k Boracite", lambda: reset_button("Main", 1e12, "Bismuth", 1000, "Boracite")),
+        ("45T Bismuth: 4k Boracite", lambda: reset_button("Main", 4.5e13, "Bismuth", 4000, "Boracite")),
+        ("600T Bismuth: 9k Boracite", lambda: reset_button("Main", 6e14, "Bismuth", 9000, "Boracite")),
+        ("5Qd Bismuth: 15k Boracite", lambda: reset_button("Main", 5e15, "Bismuth", 15000, "Boracite")),
+        ("160Qd Bismuth: 60k Boracite", lambda: reset_button("Main", 1.6e17, "Bismuth", 60000, "Boracite")),
+        ("764Qd Bismuth: 150k Boracite", lambda: reset_button("Main", 7.64e17, "Bismuth", 150000, "Boracite")),
+        ("1Sx Bismuth: 1M Boracite", lambda: reset_button("Main", 1e21, "Bismuth", 1e6, "Boracite")),
+        ("50Sx Bismuth: 25M Boracite", lambda: reset_button("Main", 5e22, "Bismuth", 2.5e7, "Boracite")),
+        ("1Oc Bismuth: 1T Boracite", lambda: reset_button("Main", 1e27, "Bismuth", 1e12, "Boracite")),
+    ],
+    "Nissonite": [
+        ("300 Boracite: 5 Nissonite", lambda: reset_button("Main", 300, "Boracite", 5, "Nissonite")),
+        ("1k Boracite: 10 Nissonite", lambda: reset_button("Main", 1000, "Boracite", 10, "Nissonite")),
+        ("7k Boracite: 50 Nissonite", lambda: reset_button("Main", 7000, "Boracite", 50, "Nissonite")),
+        ("30k Boracite: 230 Nissonite", lambda: reset_button("Main", 30000, "Boracite", 230, "Nissonite")),
+        ("250k Boracite: 650 Nissonite", lambda: reset_button("Main", 250000, "Boracite", 650, "Nissonite")),
+        ("40M Boracite: 1.5k Nissonite", lambda: reset_button("Main", 4e7, "Boracite", 1500, "Nissonite")),
+        ("600M Boracite: 4k Nissonite", lambda: reset_button("Main", 6e8, "Boracite", 4000, "Nissonite")),
+        ("5B Boracite: 12k Nissonite", lambda: reset_button("Main", 5e9, "Boracite", 12000, "Nissonite")),
+        ("742B Boracite: 65k Nissonite", lambda: reset_button("Main", 7.42e11, "Boracite", 65000, "Nissonite")),
+        ("30T Boracite: 252k Nissonite", lambda: reset_button("Main", 3e13, "Boracite", 252000, "Nissonite")),
+        ("160T Boracite: 600k Nissonite", lambda: reset_button("Main", 1.6e14, "Boracite", 600000, "Nissonite")),
+        ("500T Boracite: 2M Nissonite", lambda: reset_button("Main", 5e14, "Boracite", 2e6, "Nissonite")),
+        ("45Qd Boracite: 50M Nissonite", lambda: reset_button("Main", 4.5e16, "Boracite", 5e7, "Nissonite")),
+    ],
+    "Orpiment": [
+        ("1B Nissonite: 1 Orpiment", lambda: reset_button("Main", 1e9, "Nissonite", 1, "Orpiment")),
+        ("10B Nissonite: 4 Orpiment", lambda: reset_button("Main", 1e10, "Nissonite", 4, "Orpiment")),
+        ("500B Nissonite: 18 Orpiment", lambda: reset_button("Main", 5e11, "Nissonite", 18, "Orpiment")),
+        ("7.5T Nissonite: 30 Orpiment", lambda: reset_button("Main", 7.5e12, "Nissonite", 30, "Orpiment")),
+        ("50T Nissonite: 50 Orpiment", lambda: reset_button("Main", 5e13, "Nissonite", 50, "Orpiment")),
+    ],
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ]
+}
+Tetra_Buttons = {
+    "Boracite": [
+        ("1e63 Bismuth: 20T Boracite", lambda: reset_button("Main", 1e63, "Bismuth", 2e13, "Boracite")),
+        ("1e78 Bismuth: 500T Boracite", lambda: reset_button("Main", 1e78, "Bismuth", 5e14, "Boracite")),
+        ("1e93 Bismuth: 8Qd Boracite", lambda: reset_button("Main", 1e93, "Bismuth", 8e15, "Boracite")),
+        ("1e105 Bismuth: 75Qd Boracite", lambda: reset_button("Main", 1e105, "Bismuth", 7.5e16, "Boracite")),
+        ("1e123 Bismuth: 1Qn Boracite", lambda: reset_button("Main", 1e123, "Bismuth", 1e18, "Boracite")),
+        ("1e126 Bismuth: 15Qn Boracite", lambda: reset_button("Main", 1e126, "Bismuth", 1.5e19, "Boracite")),
+    ],
+    "Nissonite": [
+        ("100De Boracite: 200M Nissonite", lambda: reset_button("Main", 1e35, "Boracite", 2e8, "Nissonite")),
+        ("1e42 Boracite: 1B Nissonite", lambda: reset_button("Main", 1e42, "Boracite", 1e9, "Nissonite")),
+        ("1e50 Boracite: 15B Nissonite", lambda: reset_button("Main", 1e50, "Boracite", 1.5e10, "Nissonite")),
+        ("1e52 Boracite: 200B Nissonite", lambda: reset_button("Main", 1e52, "Boracite", 2e11, "Nissonite")),
+        ("1e55 Boracite: 2T Nissonite", lambda: reset_button("Main", 1e55, "Boracite", 2e12, "Nissonite")),
+        ("1e60 Boracite: 25T Nissonite", lambda: reset_button("Main", 1e60, "Boracite", 2.5e13, "Nissonite")),
+    ],
+    "Orpiment": [
+        ("1Qd Nissonite: 115 Orpiment", lambda: reset_button("Main", 1e15, "Nissonite", 115, "Orpiment")),
+        ("25Qd Nissonite: 300 Orpiment", lambda: reset_button("Main", 2.5e16, "Nissonite", 300, "Orpiment")),
+        ("175Qd Nissonite: 1.05k Orpiment", lambda: reset_button("Main", 1.75e17, "Nissonite", 1050, "Orpiment")),
+        ("4Qn Nissonite: 2.25k Orpiment", lambda: reset_button("Main", 4e18, "Nissonite", 2250, "Orpiment")),
+        ("10Qn Nissonite: 5k Orpiment", lambda: reset_button("Main", 1e19, "Nissonite", 5000, "Orpiment")),
+    ],
+    "Tetra" : [
+        ("2.5k Orpiment: 1 Tetra", lambda: reset_button("Main", 2500, "Orpiment", 1, "Tetra")),
+        ("200k Orpiment: 4.5 Tetra", lambda: reset_button("Main", 200000, "Orpiment", 4.5, "Tetra")),
+        ("1.5M Orpiment: 12 Tetra", lambda: reset_button("Main", 1.5e6, "Orpiment", 12, "Tetra")),
+    ],
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ],
+    "Extra": [
+        ("Console Input", lambda: secret_input("Tetratum"))
+    ],
+    "???": [
+        ("Graphite Puzzle", lambda: image_load("graphite.png"))
+    ]
+}
+Volt_Buttons = {
+    "Multiplier": [
+        ("1e(2e5) Cash: 1e9003 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,2e5),"Multiplier", Mantissa(1,9003))),
+        ("1e(3e5) Cash: 1e10000 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,3e5),"Multiplier", Mantissa(1,10000))),
+        ("1e(7e5) Cash: 1e11003 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,7e5),"Multiplier", Mantissa(1,11003))),
+        ("1e(8e5) Cash: 1e12003 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,8e5),"Multiplier", Mantissa(1,12003))),
+        ("1e(9e5) Cash: 1e13000 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,9e5),"Multiplier", Mantissa(1,13000))),
+        ("1e(1e6) Cash: 1e14003 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,1e6),"Multiplier", Mantissa(1,14003))),
+        ("1e(1.1e6) Cash: 1e15003 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,1.1e6),"Multiplier", Mantissa(1,15003))),
+        ("1e(1.2e6) Cash: 1e16000 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,1.2e6),"Multiplier", Mantissa(1,16000))),
+        ("1e(1.3e6) Cash: 1e17003 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,1.3e6),"Multiplier", Mantissa(1,17003))),
+        ("1e(1.4e6) Cash: 1e18003 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,1.4e6),"Multiplier", Mantissa(1,18003))),
+        ("1e(1.5e6) Cash: 1e19000 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,1.5e6),"Multiplier", Mantissa(1,19000))),
+        ("1e(1.6e6) Cash: 1e20003 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1.6,1e6),"Multiplier", Mantissa(1,20003))),
+        ("1e(1.7e6) Cash: 1e21003 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,1.7e6),"Multiplier", Mantissa(1,21003))),
+        ("1e(1.8e6) Cash: 1e22000 Multiplier", lambda: cost_button("Main","Cash",Mantissa(1,1.8e6),"Multiplier", Mantissa(1,22000))),
+    ],
+    "Rebirths": [
+        ("1e600003 Multiplier: 1e5003 Rebirths", lambda: reset_button("Main",Mantissa(1,600003),"Multiplier",Mantissa(1,5003), "Rebirths")),
+        ("1e650003 Multiplier: 1e6003 Rebirths", lambda: reset_button("Main",Mantissa(1,650003),"Multiplier",Mantissa(1,6003), "Rebirths")),
+        ("1e700003 Multiplier: 1e7003 Rebirths", lambda: reset_button("Main",Mantissa(1,700003),"Multiplier",Mantissa(1,7003), "Rebirths")),
+        ("1e750003 Multiplier: 1e8003 Rebirths", lambda: reset_button("Main",Mantissa(1,750003),"Multiplier",Mantissa(1,8003), "Rebirths")),
+        ("1e800003 Multiplier: 1e9003 Rebirths", lambda: reset_button("Main",Mantissa(1,800003),"Multiplier",Mantissa(1,9003), "Rebirths")),
+        ("1e850003 Multiplier: 1e10003 Rebirths", lambda: reset_button("Main",Mantissa(1,850003),"Multiplier",Mantissa(1,10003), "Rebirths")),
+        ("1e900003 Multiplier: 1e11003 Rebirths", lambda: reset_button("Main",Mantissa(1,900003),"Multiplier",Mantissa(1,11003), "Rebirths")),
+        ("1e950003 Multiplier: 1e12003 Rebirths", lambda: reset_button("Main",Mantissa(1,950003),"Multiplier",Mantissa(1,12003), "Rebirths")),
+        ("1e1000003 Multiplier: 1e13003 Rebirths", lambda: reset_button("Main",Mantissa(1,1000003),"Multiplier",Mantissa(1,13003), "Rebirths")),
+        ("1e1050003 Multiplier: 1e14003 Rebirths", lambda: reset_button("Main",Mantissa(1,1050003),"Multiplier",Mantissa(1,14003), "Rebirths")),
+        ("1e1100003 Multiplier: 1e15003 Rebirths", lambda: reset_button("Main",Mantissa(1,1100003),"Multiplier",Mantissa(1,15003), "Rebirths")),
+        ("1e1150003 Multiplier: 1e16003 Rebirths", lambda: reset_button("Main",Mantissa(1,1150003),"Multiplier",Mantissa(1,16003), "Rebirths")),
+        ("1e1200003 Multiplier: 1e17003 Rebirths", lambda: reset_button("Main",Mantissa(1,1200003),"Multiplier",Mantissa(1,17003), "Rebirths")),
+        ("6.9e1250003 Multiplier: 1e18003 Rebirths", lambda: reset_button("Main",Mantissa(6.9,1250003),"Multiplier",Mantissa(1,18003), "Rebirths")),
+    ],
+    "Stone": [
+        ("1e250003 Rebirths: 1e1003 Stone", lambda: reset_button("Main",Mantissa(1,250003), "Rebirths", Mantissa(1,1003), "Stone")),
+        ("1e300003 Rebirths: 1e1303 Stone", lambda: reset_button("Main",Mantissa(1,300003), "Rebirths", Mantissa(1,1303), "Stone")),
+        ("1e330003 Rebirths: 1e1603 Stone", lambda: reset_button("Main",Mantissa(1,330003), "Rebirths", Mantissa(1,1603), "Stone")),
+        ("1e360003 Rebirths: 1e1903 Stone", lambda: reset_button("Main",Mantissa(1,360003), "Rebirths", Mantissa(1,1903), "Stone")),
+        ("1e390003 Rebirths: 1e2103 Stone", lambda: reset_button("Main",Mantissa(1,390003), "Rebirths", Mantissa(1,2103), "Stone")),
+        ("1e420003 Rebirths: 1e2403 Stone", lambda: reset_button("Main",Mantissa(1,420003), "Rebirths", Mantissa(1,2403), "Stone")),
+        ("1e450003 Rebirths: 1e2703 Stone", lambda: reset_button("Main",Mantissa(1,450003), "Rebirths", Mantissa(1,2703), "Stone")),
+        ("1e480003 Rebirths: 1e3003 Stone", lambda: reset_button("Main",Mantissa(1,480003), "Rebirths", Mantissa(1,3003), "Stone")),
+        ("1e510003 Rebirths: 1e3303 Stone", lambda: reset_button("Main",Mantissa(1,510003), "Rebirths", Mantissa(1,3303), "Stone")),
+        ("1e540003 Rebirths: 1e3603 Stone", lambda: reset_button("Main",Mantissa(1,540003), "Rebirths", Mantissa(1,3603), "Stone")),
+        ("1e570003 Rebirths: 1e3903 Stone", lambda: reset_button("Main",Mantissa(1,570003), "Rebirths", Mantissa(1,3903), "Stone")),
+        ("1e600003 Rebirths: 1e4203 Stone", lambda: reset_button("Main",Mantissa(1,600003), "Rebirths", Mantissa(1,4203), "Stone")),
+        ("1e630003 Rebirths: 1e4503 Stone", lambda: reset_button("Main",Mantissa(1,630003), "Rebirths", Mantissa(1,4503), "Stone")),
+        ("1e660003 Rebirths: 1e4803 Stone", lambda: reset_button("Main",Mantissa(1,660003), "Rebirths", Mantissa(1,4803), "Stone")),
+    ],
+    "White Gems": [
+        ("1e300003 Stone: 1e603 White Gems", lambda: reset_button("Main",Mantissa(1,300003), "Stone", Mantissa(1,603),"White Gems")),
+        ("1e320003 Stone: 1e700 White Gems", lambda: reset_button("Main",Mantissa(1,320003), "Stone", Mantissa(1,700),"White Gems")),
+        ("1e340003 Stone: 1e800 White Gems", lambda: reset_button("Main",Mantissa(1,340003), "Stone", Mantissa(1,800),"White Gems")),
+        ("1e360003 Stone: 1e903 White Gems", lambda: reset_button("Main",Mantissa(1,360003), "Stone", Mantissa(1,903),"White Gems")),
+        ("1e380003 Stone: 1e1000 White Gems", lambda: reset_button("Main",Mantissa(1,380003), "Stone", Mantissa(1,1000),"White Gems")),
+        ("1e400003 Stone: 1e1100 White Gems", lambda: reset_button("Main",Mantissa(1,400003), "Stone", Mantissa(1,1100),"White Gems")),
+        ("1e420003 Stone: 1e1203 White Gems", lambda: reset_button("Main",Mantissa(1,420003), "Stone", Mantissa(1,1203),"White Gems")),
+        ("1e440003 Stone: 1e1300 White Gems", lambda: reset_button("Main",Mantissa(1,440003), "Stone", Mantissa(1,1300),"White Gems")),
+        ("1e460003 Stone: 1e1400 White Gems", lambda: reset_button("Main",Mantissa(1,460003), "Stone", Mantissa(1,1400),"White Gems")),
+        ("1e480003 Stone: 1e1503 White Gems", lambda: reset_button("Main",Mantissa(1,480003), "Stone", Mantissa(1,1503),"White Gems")),
+        ("1e500003 Stone: 1e1600 White Gems", lambda: reset_button("Main",Mantissa(1,500003), "Stone", Mantissa(1,1600),"White Gems")),
+        ("1e520003 Stone: 1e1700 White Gems", lambda: reset_button("Main",Mantissa(1,520003), "Stone", Mantissa(1,1700),"White Gems")),
+        ("1e540003 Stone: 1e1803 White Gems", lambda: reset_button("Main",Mantissa(1,540003), "Stone", Mantissa(1,1803),"White Gems")),
+        ("1e560003 Stone: 1e1900 White Gems", lambda: reset_button("Main",Mantissa(1,560003), "Stone", Mantissa(1,1900),"White Gems")),
+    ],
+    "Crystal": [
+        ("1e200003 White Gems: 1e400 Crystal", lambda: reset_button("Main",Mantissa(1,200003), "White Gems", Mantissa(1,400),"Crystal")),
+        ("1e210003 White Gems: 1e450 Crystal", lambda: reset_button("Main",Mantissa(1,210003), "White Gems", Mantissa(1,450),"Crystal")),
+        ("1e220003 White Gems: 1e500 Crystal", lambda: reset_button("Main",Mantissa(1,220003), "White Gems", Mantissa(1,500),"Crystal")),
+        ("1e230003 White Gems: 1e550 Crystal", lambda: reset_button("Main",Mantissa(1,230003), "White Gems", Mantissa(1,550),"Crystal")),
+        ("1e240003 White Gems: 1e600 Crystal", lambda: reset_button("Main",Mantissa(1,240003), "White Gems", Mantissa(1,600),"Crystal")),
+        ("1e250003 White Gems: 1e650 Crystal", lambda: reset_button("Main",Mantissa(1,250003), "White Gems", Mantissa(1,650),"Crystal")),
+        ("1e260003 White Gems: 1e700 Crystal", lambda: reset_button("Main",Mantissa(1,260003), "White Gems", Mantissa(1,700),"Crystal")),
+        ("1e270003 White Gems: 1e750 Crystal", lambda: reset_button("Main",Mantissa(1,270003), "White Gems", Mantissa(1,750),"Crystal")),
+        ("1e280003 White Gems: 1e800 Crystal", lambda: reset_button("Main",Mantissa(1,280003), "White Gems", Mantissa(1,800),"Crystal")),
+        ("1e290003 White Gems: 1e850 Crystal", lambda: reset_button("Main",Mantissa(1,290003), "White Gems", Mantissa(1,850),"Crystal")),
+        ("1e300003 White Gems: 1e900 Crystal", lambda: reset_button("Main",Mantissa(1,300003), "White Gems", Mantissa(1,900),"Crystal")),
+        ("1e310003 White Gems: 1e950 Crystal", lambda: reset_button("Main",Mantissa(1,310003), "White Gems", Mantissa(1,950),"Crystal")),
+        ("1e320003 White Gems: 1e1000 Crystal", lambda: reset_button("Main",Mantissa(1,320003), "White Gems", Mantissa(1,1000),"Crystal")),
+        ("1e330003 White Gems: 1e1050 Crystal", lambda: reset_button("Main",Mantissa(1,330003), "White Gems", Mantissa(1,1050),"Crystal")),
+    ],
+    "Iron": [
+        ("1e200003 Crystal: 1e303 Iron", lambda: reset_button("Main",Mantissa(1,200003), "Crystal", Mantissa(1,303),"Iron")),
+        ("1e205003 Crystal: 1e353 Iron", lambda: reset_button("Main",Mantissa(1,205003), "Crystal", Mantissa(1,353),"Iron")),
+        ("1e210003 Crystal: 1e403 Iron", lambda: reset_button("Main",Mantissa(1,210003), "Crystal", Mantissa(1,403),"Iron")),
+        ("1e215003 Crystal: 1e453 Iron", lambda: reset_button("Main",Mantissa(1,215003), "Crystal", Mantissa(1,453),"Iron")),
+        ("1e220003 Crystal: 1e503 Iron", lambda: reset_button("Main",Mantissa(1,220003), "Crystal", Mantissa(1,503),"Iron")),
+        ("1e225003 Crystal: 1e553 Iron", lambda: reset_button("Main",Mantissa(1,225003), "Crystal", Mantissa(1,553),"Iron")),
+        ("1e230003 Crystal: 1e603 Iron", lambda: reset_button("Main",Mantissa(1,230003), "Crystal", Mantissa(1,603),"Iron")),
+        ("1e235003 Crystal: 1e653 Iron", lambda: reset_button("Main",Mantissa(1,235003), "Crystal", Mantissa(1,653),"Iron")),
+        ("1e240003 Crystal: 1e703 Iron", lambda: reset_button("Main",Mantissa(1,240003), "Crystal", Mantissa(1,703),"Iron")),
+        ("1e245003 Crystal: 1e753 Iron", lambda: reset_button("Main",Mantissa(1,245003), "Crystal", Mantissa(1,753),"Iron")),
+        ("1e250003 Crystal: 1e803 Iron", lambda: reset_button("Main",Mantissa(1,250003), "Crystal", Mantissa(1,803),"Iron")),
+        ("1e255003 Crystal: 1e853 Iron", lambda: reset_button("Main",Mantissa(1,255003), "Crystal", Mantissa(1,853),"Iron")),
+        ("1e260003 Crystal: 1e903 Iron", lambda: reset_button("Main",Mantissa(1,260003), "Crystal", Mantissa(1,903),"Iron")),
+        ("1e265003 Crystal: 1e953 Iron", lambda: reset_button("Main",Mantissa(1,265003), "Crystal", Mantissa(1,953),"Iron")),
+    ],
+    "Gold": [
+        ("1e101003 Iron: 1e63 Gold", lambda: reset_button("Main",Mantissa(1,101003), "Iron", 1e63,"Gold")),
+        ("1e102003 Iron: 1e80 Gold", lambda: reset_button("Main",Mantissa(1,102003), "Iron", 1e80,"Gold")),
+        ("1e103003 Iron: 1e120 Gold", lambda: reset_button("Main",Mantissa(1,103003), "Iron", 1e120,"Gold")),
+        ("1e104003 Iron: 1e160 Gold", lambda: reset_button("Main",Mantissa(1,104003), "Iron", 1e160,"Gold")),
+        ("1e105003 Iron: 1e200 Gold", lambda: reset_button("Main",Mantissa(1,105003), "Iron", 1e200,"Gold")),
+        ("1e106003 Iron: 1e240 Gold", lambda: reset_button("Main",Mantissa(1,106003), "Iron", 1e240,"Gold")),
+        ("1e107003 Iron: 1e280 Gold", lambda: reset_button("Main",Mantissa(1,107003), "Iron", 1e280,"Gold")),
+        ("1e108003 Iron: 1e320 Gold", lambda: reset_button("Main",Mantissa(1,108003), "Iron", 1e320,"Gold")),
+        ("1e109003 Iron: 1e360 Gold", lambda: reset_button("Main",Mantissa(1,109003), "Iron", 1e360,"Gold")),
+        ("1e110003 Iron: 1e400 Gold", lambda: reset_button("Main",Mantissa(1,110003), "Iron", 1e400,"Gold")),
+        ("1e111003 Iron: 1e440 Gold", lambda: reset_button("Main",Mantissa(1,111003), "Iron", 1e440,"Gold")),
+        ("1e112003 Iron: 1e480 Gold", lambda: reset_button("Main",Mantissa(1,112003), "Iron", 1e480,"Gold")),
+        ("1e113003 Iron: 1e520 Gold", lambda: reset_button("Main",Mantissa(1,113003), "Iron", 1e520,"Gold")),
+        ("1e114003 Iron: 1e560 Gold", lambda: reset_button("Main",Mantissa(1,114003), "Iron", 1e560,"Gold")),
+    ],
+    "Quartz": [
+        ("1e60000 Gold: 1Sx Quartz", lambda: reset_button("Main",Mantissa(1,60000), "Gold", 1e21,"Quartz")),
+        ("1e62000 Gold: 10No Quartz", lambda: reset_button("Main",Mantissa(1,62000), "Gold", 1e31,"Quartz")),
+        ("1e64000 Gold: 1e41 Quartz", lambda: reset_button("Main",Mantissa(1,64000), "Gold", 1e41,"Quartz")),
+        ("1e66000 Gold: 1e51 Quartz", lambda: reset_button("Main",Mantissa(1,66000), "Gold", 1e51,"Quartz")),
+        ("1e68000 Gold: 1e61 Quartz", lambda: reset_button("Main",Mantissa(1,68000), "Gold", 1e61,"Quartz")),
+        ("1e70000 Gold: 1e71 Quartz", lambda: reset_button("Main",Mantissa(1,70000), "Gold", 1e71,"Quartz")),
+        ("1e72000 Gold: 1e81 Quartz", lambda: reset_button("Main",Mantissa(1,72000), "Gold", 1e81,"Quartz")),
+        ("1e74000 Gold: 1e91 Quartz", lambda: reset_button("Main",Mantissa(1,74000), "Gold", 1e91,"Quartz")),
+        ("1e76000 Gold: 1e101 Quartz", lambda: reset_button("Main",Mantissa(1,76000), "Gold", 1e101,"Quartz")),
+        ("1e78000 Gold: 1e111 Quartz", lambda: reset_button("Main",Mantissa(1,78000), "Gold", 1e111,"Quartz")),
+        ("1e80000 Gold: 1e121 Quartz", lambda: reset_button("Main",Mantissa(1,80000), "Gold", 1e121,"Quartz")),
+        ("1e82000 Gold: 1e131 Quartz", lambda: reset_button("Main",Mantissa(1,82000), "Gold", 1e131,"Quartz")),
+        ("1e84000 Gold: 1e141 Quartz", lambda: reset_button("Main",Mantissa(1,84000), "Gold", 1e141,"Quartz")),
+        ("1e86000 Gold: 1e151 Quartz", lambda: reset_button("Main",Mantissa(1,86000), "Gold", 1e151,"Quartz")),
+    ],
+    "Jade": [
+        ("1e45003 Quartz: 1B Jade", lambda: reset_button("Main",Mantissa(1,45003), "Quartz", 1e9,"Jade")),
+        ("1e46003 Quartz: 1T Jade", lambda: reset_button("Main",Mantissa(1,46003), "Quartz", 1e12,"Jade")),
+        ("1e47003 Quartz: 1Qd Jade", lambda: reset_button("Main",Mantissa(1,47003), "Quartz", 1e15,"Jade")),
+        ("1e48003 Quartz: 1Qn Jade", lambda: reset_button("Main",Mantissa(1,48003), "Quartz", 1e18,"Jade")),
+        ("1e49003 Quartz: 1Sx Jade", lambda: reset_button("Main",Mantissa(1,49003), "Quartz", 1e21,"Jade")),
+        ("1e50003 Quartz: 1Sp Jade", lambda: reset_button("Main",Mantissa(1,50003), "Quartz", 1e24,"Jade")),
+        ("1e51003 Quartz: 1Oc Jade", lambda: reset_button("Main",Mantissa(1,51003), "Quartz", 1e27,"Jade")),
+        ("1e52003 Quartz: 1No Jade", lambda: reset_button("Main",Mantissa(1,52003), "Quartz", 1e30,"Jade")),
+        ("1e53003 Quartz: 1De Jade", lambda: reset_button("Main",Mantissa(1,53003), "Quartz", 1e33,"Jade")),
+        ("1e54003 Quartz: 1e36 Jade", lambda: reset_button("Main",Mantissa(1,54003), "Quartz", 1e36,"Jade")),
+        ("1e55003 Quartz: 1e39 Jade", lambda: reset_button("Main",Mantissa(1,55003), "Quartz", 1e39,"Jade")),
+        ("1e56003 Quartz: 1e42 Jade", lambda: reset_button("Main",Mantissa(1,56003), "Quartz", 1e42,"Jade")),
+        ("1e57003 Quartz: 1e45 Jade", lambda: reset_button("Main",Mantissa(1,57003), "Quartz", 1e45,"Jade")),
+        ("1e58003 Quartz: 1e48 Jade", lambda: reset_button("Main",Mantissa(1,58003), "Quartz", 1e48,"Jade")),
+    ],
+    "Obsidian": [
+        ("1e27003 Jade: 1k Obsidian", lambda: reset_button("Main",Mantissa(1,27003), "Jade", 1000,"Obsidian")),
+        ("1e27503 Jade: 10k Obsidian", lambda: reset_button("Main",Mantissa(1,27503), "Jade", 10000,"Obsidian")),
+        ("1e28003 Jade: 100k Obsidian", lambda: reset_button("Main",Mantissa(1,28003), "Jade", 100000,"Obsidian")),
+        ("1e28503 Jade: 1M Obsidian", lambda: reset_button("Main",Mantissa(1,28503), "Jade", 1e6,"Obsidian")),
+        ("1e29003 Jade: 10M Obsidian", lambda: reset_button("Main",Mantissa(1,29003), "Jade", 1e7,"Obsidian")),
+        ("1e29503 Jade: 100M Obsidian", lambda: reset_button("Main",Mantissa(1,29503), "Jade", 1e8,"Obsidian")),
+        ("1e30003 Jade: 1B Obsidian", lambda: reset_button("Main",Mantissa(1,30003), "Jade", 1e9,"Obsidian")),
+        ("1e30503 Jade: 10B Obsidian", lambda: reset_button("Main",Mantissa(1,30503), "Jade", 1e10,"Obsidian")),
+        ("1e31003 Jade: 100B Obsidian", lambda: reset_button("Main",Mantissa(1,31003), "Jade", 1e11,"Obsidian")),
+        ("1e31503 Jade: 1T Obsidian", lambda: reset_button("Main",Mantissa(1,31503), "Jade", 1e12,"Obsidian")),
+        ("1e32003 Jade: 10T Obsidian", lambda: reset_button("Main",Mantissa(1,32003), "Jade", 1e13,"Obsidian")),
+        ("1e32503 Jade: 100T Obsidian", lambda: reset_button("Main",Mantissa(1,32503), "Jade", 1e14,"Obsidian")),
+        ("1e33003 Jade: 1Qd Obsidian", lambda: reset_button("Main",Mantissa(1,33003), "Jade", 1e15,"Obsidian")),
+        ("1e33503 Jade: 10Qd Obsidian", lambda: reset_button("Main",Mantissa(1,33503), "Jade", 1e16,"Obsidian")),
+    ],
+    "Ruby": [
+        ("1e15003 Obsidian: 1e93 Ruby", lambda: reset_button("Main", Mantissa(1,15003), "Obsidian", 1e93, "Ruby")),
+    ],
+    "Emerald": [
+        ("1e9003 Ruby: 1e63 Emerald", lambda: cost_button("Main","Ruby",Mantissa(1,9003), "Emerald", 1e63)),
+    ],
+    "Sapphire": [
+        ("1e3003 Emerald: 1De Sapphire", lambda: cost_button("Main", "Emerald", Mantissa(1,3003), "Sapphire", 1e33)),
+    ],
+    "Diamond": [
+        ("1e2703 Sapphire: 1Qn Diamond", lambda: reset_button("Main", Mantissa(1,2703), "Sapphire", 1e18, "Diamond")),
+        ("1e2733 Sapphire: 1Sp Diamond", lambda: reset_button("Main", Mantissa(1,2733), "Sapphire", 1e24, "Diamond")),
+        ("1e2763 Sapphire: 1No Diamond", lambda: reset_button("Main", Mantissa(1,2763), "Sapphire", 1e30, "Diamond")),
+        ("1e2793 Sapphire: 1e36 Diamond", lambda: reset_button("Main", Mantissa(1,2793), "Sapphire", 1e36, "Diamond")),
+        ("1e2903 Sapphire: 1e42 Diamond", lambda: reset_button("Main", Mantissa(1,2903), "Sapphire", 1e42, "Diamond")),
+        ("1e3003 Sapphire: 1e48 Diamond", lambda: reset_button("Main", Mantissa(1,3003), "Sapphire", 1e48, "Diamond")),
+        ("1e3053 Sapphire: 1e54 Diamond", lambda: reset_button("Main", Mantissa(1,3053), "Sapphire", 1e54, "Diamond")),
+        ("1e3103 Sapphire: 1e60 Diamond", lambda: reset_button("Main", Mantissa(1,3103), "Sapphire", 1e60, "Diamond")),
+        ("1e3153 Sapphire: 1e66 Diamond", lambda: reset_button("Main", Mantissa(1,3153), "Sapphire", 1e66, "Diamond")),
+        ("1e3203 Sapphire: 1e72 Diamond", lambda: reset_button("Main", Mantissa(1,3203), "Sapphire", 1e72, "Diamond")),
+        ("1e3253 Sapphire: 1e78 Diamond", lambda: reset_button("Main", Mantissa(1,3253), "Sapphire", 1e78, "Diamond")),
+        ("1e3303 Sapphire: 1e84 Diamond", lambda: reset_button("Main", Mantissa(1,3303), "Sapphire", 1e84, "Diamond")),
+        ("1e3353 Sapphire: 1e90 Diamond", lambda: reset_button("Main", Mantissa(1,3353), "Sapphire", 1e90, "Diamond")),
+        ("1e3403 Sapphire: 1e93 Diamond", lambda: reset_button("Main", Mantissa(1,3403), "Sapphire", 1e93, "Diamond")),
+    ],
+    "Starlight": [
+        ("1e1203 Diamond: 5T Starlight", lambda: reset_button("Main", Mantissa(1,1203), "Diamond", 5e12, "Starlight")),
+        ("1e1233 Diamond: 400T Starlight", lambda: reset_button("Main", Mantissa(1,1233), "Diamond", 4e14, "Starlight")),
+        ("1e1263 Diamond: 15Qd Starlight", lambda: reset_button("Main", Mantissa(1,1263), "Diamond", 1.5e16, "Starlight")),
+        ("1e1293 Diamond: 200Qd Starlight", lambda: reset_button("Main", Mantissa(1,1293), "Diamond", 2e17, "Starlight")),
+        ("1e1323 Diamond: 5Qn Starlight", lambda: reset_button("Main", Mantissa(1,1323), "Diamond", 5e18, "Starlight")),
+        ("1e1353 Diamond: 750Qn Starlight", lambda: reset_button("Main", Mantissa(1,1353), "Diamond", 7.5e20, "Starlight")),
+        ("1e1383 Diamond: 20Sx Starlight", lambda: reset_button("Main", Mantissa(1,1383), "Diamond", 2e22, "Starlight")),
+        ("1e1413 Diamond: 1Sp Starlight", lambda: reset_button("Main", Mantissa(1,1413), "Diamond", 1e24, "Starlight")),
+        ("1e1443 Diamond: 400Sp Starlight", lambda: reset_button("Main", Mantissa(1,1443), "Diamond", 4e26, "Starlight")),
+        ("1e1473 Diamond: 3Oc Starlight", lambda: reset_button("Main", Mantissa(1,1473), "Diamond", 3e27, "Starlight")),
+        ("1e1503 Diamond: 800Oc Starlight", lambda: reset_button("Main", Mantissa(1,1503), "Diamond", 8e29, "Starlight")),
+        ("1e1533 Diamond: 4No Starlight", lambda: reset_button("Main", Mantissa(1,1533), "Diamond", 4e30, "Starlight")),
+        ("1e1563 Diamond: 100No Starlight", lambda: reset_button("Main", Mantissa(1,1563), "Diamond", 1e32, "Starlight")),
+        ("1e1593 Diamond: 1De Starlight", lambda: reset_button("Main", Mantissa(1,1593), "Diamond", 1e33, "Starlight")),
+    ],
+    "Ion": [
+        ("1e700 Starlight: 5Qd Ion", lambda: reset_button("Main", Mantissa(1,700), "Starlight", 5e15, "Ion")),
+        ("1e710 Starlight: 45Qd Ion", lambda: reset_button("Main", Mantissa(1,710), "Starlight", 4.5e16, "Ion")),
+        ("1e720 Starlight: 300Qd Ion", lambda: reset_button("Main", Mantissa(1,720), "Starlight", 3e17, "Ion")),
+        ("1e730 Starlight: 1Qn Ion", lambda: reset_button("Main", Mantissa(1,730), "Starlight", 1e18, "Ion")),
+        ("1e740 Starlight: 6Qn Ion", lambda: reset_button("Main", Mantissa(1,740), "Starlight", 6e18, "Ion")),
+        ("1e750 Starlight: 80Qn Ion", lambda: reset_button("Main", Mantissa(1,750), "Starlight", 8e19, "Ion")),
+        ("1e760 Starlight: 400Qn Ion", lambda: reset_button("Main", Mantissa(1,760), "Starlight", 4e20, "Ion")),
+        ("1e770 Starlight: 2Sx Ion", lambda: reset_button("Main", Mantissa(1,770), "Starlight", 2e21, "Ion")),
+        ("1e780 Starlight: 7Sx Ion", lambda: reset_button("Main", Mantissa(1,780), "Starlight", 7e21, "Ion")),
+        ("1e790 Starlight: 30Sx Ion", lambda: reset_button("Main", Mantissa(1,790), "Starlight", 3e22, "Ion")),
+        ("1e800 Starlight: 150Sx Ion", lambda: reset_button("Main", Mantissa(1,800), "Starlight", 1.5e23, "Ion")),
+        ("1e810 Starlight: 1Sp Ion", lambda: reset_button("Main", Mantissa(1,810), "Starlight", 1e24, "Ion")),
+        ("1e820 Starlight: 4Sp Ion", lambda: reset_button("Main", Mantissa(1,820), "Starlight", 4e24, "Ion")),
+        ("1e830 Starlight: 50Sp Ion", lambda: reset_button("Main", Mantissa(1,830), "Starlight", 5e25, "Ion")),
+    ],
+    "Uranium": [
+        ("1e363 Ion: 1e66 Uranium", lambda: reset_button("Main", Mantissa(1,363), "Ion", 1e66, "Uranium")),
+        ("1e373 Ion: 1e67 Uranium", lambda: reset_button("Main", Mantissa(1,373), "Ion", 1e67, "Uranium")),
+        ("1e383 Ion: 1e68 Uranium", lambda: reset_button("Main", Mantissa(1,383), "Ion", 1e68, "Uranium")),
+        ("1e393 Ion: 1e69 Uranium", lambda: reset_button("Main", Mantissa(1,393), "Ion", 1e69, "Uranium")),
+        ("1e403 Ion: 1e70 Uranium", lambda: reset_button("Main", Mantissa(1,403), "Ion", 1e70, "Uranium")),
+        ("1e413 Ion: 1e71 Uranium", lambda: reset_button("Main", Mantissa(1,413), "Ion", 1e71, "Uranium")),
+        ("1e423 Ion: 1e72 Uranium", lambda: reset_button("Main", Mantissa(1,423), "Ion", 1e72, "Uranium")),
+        ("1e433 Ion: 1e73 Uranium", lambda: reset_button("Main", Mantissa(1,433), "Ion", 1e73, "Uranium")),
+        ("1e443 Ion: 1e74 Uranium", lambda: reset_button("Main", Mantissa(1,443), "Ion", 1e74, "Uranium")),
+        ("1e453 Ion: 1e75 Uranium", lambda: reset_button("Main", Mantissa(1,453), "Ion", 1e75, "Uranium")),
+        ("1e463 Ion: 1e76 Uranium", lambda: reset_button("Main", Mantissa(1,463), "Ion", 1e76, "Uranium")),
+        ("1e473 Ion: 1e77 Uranium", lambda: reset_button("Main", Mantissa(1,473), "Ion", 1e77, "Uranium")),
+        ("1e483 Ion: 1e78 Uranium", lambda: reset_button("Main", Mantissa(1,483), "Ion", 1e78, "Uranium")),
+        ("1e493 Ion: 1e79 Uranium", lambda: reset_button("Main", Mantissa(1,493), "Ion", 1e79, "Uranium")),
+    ],
+    "Bismuth": [
+        ("1e243 Uranium: 1B Bismuth", lambda: reset_button("Main", 1e243, "Uranium", 1e9, "Bismuth")),
+        ("1e248 Uranium: 5B Bismuth", lambda: reset_button("Main", 1e248, "Uranium", 5e9, "Bismuth")),
+        ("1e253 Uranium: 60B Bismuth", lambda: reset_button("Main", 1e253, "Uranium", 6e10, "Bismuth")),
+        ("1e258 Uranium: 200B Bismuth", lambda: reset_button("Main", 1e258, "Uranium", 2e11, "Bismuth")),
+        ("1e263 Uranium: 800B Bismuth", lambda: reset_button("Main", 1e263, "Uranium", 8e11, "Bismuth")),
+        ("1e268 Uranium: 2T Bismuth", lambda: reset_button("Main", 1e268, "Uranium", 2e12, "Bismuth")),
+        ("1e273 Uranium: 8T Bismuth", lambda: reset_button("Main", 1e273, "Uranium", 8e12, "Bismuth")),
+        ("1e278 Uranium: 20T Bismuth", lambda: reset_button("Main", 1e278, "Uranium", 2e13, "Bismuth")),
+        ("1e283 Uranium: 100T Bismuth", lambda: reset_button("Main", 1e283, "Uranium", 1e14, "Bismuth")),
+        ("1e288 Uranium: 500T Bismuth", lambda: reset_button("Main", 1e288, "Uranium", 5e14, "Bismuth")),
+        ("1e293 Uranium: 3Qd Bismuth", lambda: reset_button("Main", 1e293, "Uranium", 3e15, "Bismuth")),
+        ("1e298 Uranium: 20Qd Bismuth", lambda: reset_button("Main", 1e298, "Uranium", 2e16, "Bismuth")),
+        ("1e303 Uranium: 100Qd Bismuth", lambda: reset_button("Main", Mantissa(1,303), "Uranium", 1e17, "Bismuth")),
+        ("1e308 Uranium: 500Qd Bismuth", lambda: reset_button("Main", Mantissa(1,308), "Uranium", 5e17, "Bismuth")),
+    ],
+    "Boracite": [
+        ("1e129 Bismuth: 100Qn Boracite", lambda: reset_button("Main", 1e129, "Bismuth", 1e20, "Boracite")),
+        ("1e132 Bismuth: 650Qn Boracite", lambda: reset_button("Main", 1e132, "Bismuth", 6.5e20, "Boracite")),
+        ("1e135 Bismuth: 2Sx Boracite", lambda: reset_button("Main", 1e135, "Bismuth", 2e21, "Boracite")),
+        ("1e138 Bismuth: 8Sx Boracite", lambda: reset_button("Main", 1e138, "Bismuth", 8e21, "Boracite")),
+        ("1e141 Bismuth: 35Sx Boracite", lambda: reset_button("Main", 1e141, "Bismuth", 3.5e22, "Boracite")),
+        ("1e144 Bismuth: 140Sx Boracite", lambda: reset_button("Main", 1e144, "Bismuth", 1.4e23, "Boracite")),
+        ("1e147 Bismuth: 600Sx Boracite", lambda: reset_button("Main", 1e147, "Bismuth", 6e23, "Boracite")),
+        ("1e150 Bismuth: 1.5Sp Boracite", lambda: reset_button("Main", 1e150, "Bismuth", 1.5e24, "Boracite")),
+        ("1e153 Bismuth: 6Sp Boracite", lambda: reset_button("Main", 1e153, "Bismuth", 6e24, "Boracite")),
+        ("1e156 Bismuth: 20Sp Boracite", lambda: reset_button("Main", 1e156, "Bismuth", 2e25, "Boracite")),
+        ("1e159 Bismuth: 90Sp Boracite", lambda: reset_button("Main", 1e159, "Bismuth", 9e25, "Boracite")),
+        ("1e162 Bismuth: 230Sp Boracite", lambda: reset_button("Main", 1e162, "Bismuth", 2.3e26, "Boracite")),
+        ("1e165 Bismuth: 750Sp Boracite", lambda: reset_button("Main", 1e165, "Bismuth", 7.5e26, "Boracite")),
+        ("1e168 Bismuth: 2Oc Boracite", lambda: reset_button("Main", 1e168, "Bismuth", 2e27, "Boracite")),
+    ],
+    "Nissonite": [
+        ("1e63 Boracite: 100T Nissonite", lambda: reset_button("Main", 1e63, "Boracite", 1e14, "Nissonite")),
+        ("1e65 Boracite: 500T Nissonite", lambda: reset_button("Main", 1e65, "Boracite", 5e14, "Nissonite")),
+        ("1e67 Boracite: 2Qd Nissonite", lambda: reset_button("Main", 1e67, "Boracite", 2e15, "Nissonite")),
+        ("1e69 Boracite: 10Qd Nissonite", lambda: reset_button("Main", 1e69, "Boracite", 1e16, "Nissonite")),
+        ("1e71 Boracite: 40Qd Nissonite", lambda: reset_button("Main", 1e71, "Boracite", 4e16, "Nissonite")),
+        ("1e73 Boracite: 130Qd Nissonite", lambda: reset_button("Main", 1e73, "Boracite", 1.3e17, "Nissonite")),
+        ("1e75 Boracite: 500Qd Nissonite", lambda: reset_button("Main", 1e75, "Boracite", 5e17, "Nissonite")),
+        ("1e77 Boracite: 3Qn Nissonite", lambda: reset_button("Main", 1e77, "Boracite", 3e18, "Nissonite")),
+        ("1e79 Boracite: 20Qn Nissonite", lambda: reset_button("Main", 1e79, "Boracite", 2e19, "Nissonite")),
+        ("1e81 Boracite: 110Qn Nissonite", lambda: reset_button("Main", 1e81, "Boracite", 1.1e20, "Nissonite")),
+        ("1e83 Boracite: 400Qn Nissonite", lambda: reset_button("Main", 1e83, "Boracite", 4e20, "Nissonite")),
+        ("1e85 Boracite: 1Sx Nissonite", lambda: reset_button("Main", 1e85, "Boracite", 1e21, "Nissonite")),
+        ("1e87 Boracite: 5Sx Nissonite", lambda: reset_button("Main", 1e87, "Boracite", 5e21, "Nissonite")),
+        ("1e88 Boracite: 25Sx Nissonite", lambda: reset_button("Main", 1e88, "Boracite", 2.5e22, "Nissonite")),
+    ],
+    "Orpiment": [
+        ("1No Nissonite: 3k Orpiment", lambda: reset_button("Main", 1e30, "Nissonite", 3000, "Orpiment")),
+        ("10No Nissonite: 10k Orpiment", lambda: reset_button("Main", 1e31, "Nissonite", 10000, "Orpiment")),
+        ("100No Nissonite: 22k Orpiment", lambda: reset_button("Main", 1e32, "Nissonite", 22000, "Orpiment")),
+        ("1De Nissonite: 60k Orpiment", lambda: reset_button("Main", 1e33, "Nissonite", 60000, "Orpiment")),
+        ("10De Nissonite: 140k Orpiment", lambda: reset_button("Main", 1e34, "Nissonite", 140000, "Orpiment")),
+        ("100De Nissonite: 400k Orpiment", lambda: reset_button("Main", 1e35, "Nissonite", 400000, "Orpiment")),
+        ("1e36 Nissonite: 1M Orpiment", lambda: reset_button("Main", 1e36, "Nissonite", 1e6, "Orpiment")),
+        ("1e37 Nissonite: 2.5M Orpiment", lambda: reset_button("Main", 1e37, "Nissonite", 2.5e6, "Orpiment")),
+        ("1e38 Nissonite: 10M Orpiment", lambda: reset_button("Main", 1e38, "Nissonite", 1e7, "Orpiment")),
+        ("1e39 Nissonite: 25M Orpiment", lambda: reset_button("Main", 1e39, "Nissonite", 2.5e7, "Orpiment")),
+        ("1e40 Nissonite: 50M Orpiment", lambda: reset_button("Main", 1e40, "Nissonite", 5e7, "Orpiment")),
+        ("1e41 Nissonite: 120M Orpiment", lambda: reset_button("Main", 1e41, "Nissonite", 1.2e8, "Orpiment")),
+        ("1e42 Nissonite: 350M Orpiment", lambda: reset_button("Main", 1e42, "Nissonite", 3.5e8, "Orpiment")),
+        ("1e45 Nissonite: 1B Orpiment", lambda: reset_button("Main", 1e45, "Nissonite", 1e9, "Orpiment")),
+    ],
+    "Tetra": [
+        ("100B Orpiment: 40 Tetra", lambda: reset_button("Main", 1e11, "Orpiment", 40, "Tetra")),
+        ("450B Orpiment: 85 Tetra", lambda: reset_button("Main", 4.5e11, "Orpiment", 85, "Tetra")),
+        ("6T Orpiment: 150 Tetra", lambda: reset_button("Main", 6e12, "Orpiment", 150, "Tetra")),
+        ("100T Orpiment: 320 Tetra", lambda: reset_button("Main", 1e14, "Orpiment", 320, "Tetra")),
+        ("2Qd Orpiment: 750 Tetra", lambda: reset_button("Main", 2e15, "Orpiment", 750, "Tetra")),
+        ("15Qd Orpiment: 1.2k Tetra", lambda: reset_button("Main", 1.5e16, "Orpiment", 1200, "Tetra")),
+        ("1Qn Orpiment: 2.65k Tetra", lambda: reset_button("Main", 1e18, "Orpiment", 2650, "Tetra")),
+    ],
+    "Volt": [
+        ("1.4k Tetra: 1 Volt", lambda: reset_button("Main", 1400, "Tetra", 1, "Volt")),
+        ("65k Tetra: 3 Volt", lambda: reset_button("Main", 65000, "Tetra", 3, "Volt")),
+        ("600k Tetra: 7 Volt", lambda: reset_button("Main", 600000, "Tetra", 7, "Volt")),
+    ],
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ],
+    "Unknown": [("", lambda: blinded())]
+}
+Aquamarine_Buttons = {
+    "Orpiment": [
+        ("1e54 Nissonite: 2.2B Orpiment", lambda: reset_button("Main", 1e54, "Nissonite", 2.2e9, "Orpiment")),
+        ("1e56 Nissonite: 6B Orpiment", lambda: reset_button("Main", 1e56, "Nissonite", 6e9, "Orpiment")),
+        ("1e58 Nissonite: 13B Orpiment", lambda: reset_button("Main", 1e58, "Nissonite", 1.3e10, "Orpiment")),
+        ("1e63 Nissonite: 30B Orpiment", lambda: reset_button("Main", 1e63, "Nissonite", 3e10, "Orpiment")),
+        ("1e66 Nissonite: 100B Orpiment", lambda: reset_button("Main", 1e66, "Nissonite", 1e11, "Orpiment")),
+        ("1e67 Nissonite: 250B Orpiment", lambda: reset_button("Main", 1e67, "Nissonite", 2.5e11, "Orpiment")),
+    ],
+    "Tetra": [
+        ("25Qn Orpiment: 7.5k Tetra", lambda: reset_button("Main", 2.5e19, "Orpiment", 7500, "Tetra")),
+        ("700Qn Orpiment: 16.5k Tetra", lambda: reset_button("Main", 7e20, "Orpiment", 16500, "Tetra")),
+        ("1Sx Orpiment: 34k Tetra", lambda: reset_button("Main", 1e21, "Orpiment", 34000, "Tetra")),
+        ("1Sp Orpiment: 70k Tetra", lambda: reset_button("Main", 1e24, "Orpiment", 70000, "Tetra")),
+        ("10Sp Orpiment: 150k Tetra", lambda: reset_button("Main", 1e25, "Orpiment", 150000, "Tetra")),
+    ],
+    "Volt": [
+        ("1M Tetra: 25 Volt", lambda: reset_button("Main", 1e6, "Tetra", 25, "Volt")),
+        ("10M Tetra: 50 Volt", lambda: reset_button("Main", 1e7, "Tetra", 50, "Volt")),
+        ("70M Tetra: 150 Volt", lambda: reset_button("Main", 7e7, "Tetra", 150, "Volt")),
+        ("400M Tetra: 400 Volt", lambda: reset_button("Main", 4e8, "Tetra", 400, "Volt")),
+        ("3B Tetra: 1k Volt", lambda: reset_button("Main", 3e9, "Tetra", 1000, "Volt")),
+        ("20B Tetra: 2.45k Volt", lambda: reset_button("Main", 2e10, "Tetra", 2450, "Volt")),
+        ("150B Tetra: 5k Volt", lambda: reset_button("Main", 1.5e11, "Tetra", 5000, "Volt")),
+    ],
+    "Aquamarine": [
+        ("700 Volt: 1 Aquamarine", lambda: reset_button("Main", 700, "Volt", 1, "Aquamarine")),
+        ("2.5k Volt: 4 Aquamarine", lambda: reset_button("Main", 2500, "Volt", 4, "Aquamarine")),
+        ("30k Volt: 13 Aquamarine", lambda: reset_button("Main", 30000, "Volt", 13, "Aquamarine")),
+    ],
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ]
+}
+Lollipop_Buttons = {
+    "Orpiment": [
+        ("1e76 Nissonite: 550B Orpiment", lambda: reset_button("Main", 1e76, "Nissonite", 5.5e11, "Orpiment")),
+        ("1e78 Nissonite: 1.3T Orpiment", lambda: reset_button("Main", 1e78, "Nissonite", 1.3e12, "Orpiment")),
+        ("1e82 Nissonite: 6T Orpiment", lambda: reset_button("Main", 1e82, "Nissonite", 6e12, "Orpiment")),
+    ],
+    "Tetra": [
+        ("1Oc Orpiment: 350k Tetra", lambda: reset_button("Main", 1e27, "Orpiment", 350000, "Tetra")),
+        ("40Oc Orpiment: 1M Tetra", lambda: reset_button("Main", 4e28, "Orpiment", 1e6, "Tetra")),
+        ("1No Orpiment: 2.3M Tetra", lambda: reset_button("Main", 1e30, "Orpiment", 2.3e6, "Tetra")),
+    ],
+    "Volt": [
+        ("250B Tetra: 10k Volt", lambda: reset_button("Main", 2.5e11, "Tetra", 10000, "Volt")),
+        ("800B Tetra: 22k Volt", lambda: reset_button("Main", 8e11, "Tetra", 22000, "Volt")),
+        ("4T Tetra: 50k Volt", lambda: reset_button("Main", 4e12, "Tetra", 50000, "Volt")),
+        ("20T Tetra: 105k Volt", lambda: reset_button("Main", 2e13, "Tetra", 105000, "Volt")),
+        ("300T Tetra: 250k Volt", lambda: reset_button("Main", 3e14, "Tetra", 250000, "Volt")),
+        ("1.3Qd Tetra: 400k Volt", lambda: reset_button("Main", 1.3e15, "Tetra", 400000, "Volt")),
+    ],
+    "Aquamarine": [
+        ("400k Volt: 24 Aquamarine", lambda: reset_button("Main", 400000, "Volt", 24, "Aquamarine")),
+        ("2M Volt: 80 Aquamarine", lambda: reset_button("Main", 2e6, "Volt", 80, "Aquamarine")),
+        ("11M Volt: 210 Aquamarine", lambda: reset_button("Main", 1.1e7, "Volt", 210, "Aquamarine")),
+        ("50M Volt: 1k Aquamarine", lambda: reset_button("Main", 5e7, "Volt", 1000, "Aquamarine")),
+    ],
+    "Lollipop": [
+        ("100 Aquamarine: 1 Lollipop", lambda: reset_button("Main", 100, "Aquamarine", 1, "Lollipop")),
+        ("800 Aquamarine: 3 Lollipop", lambda: reset_button("Main", 800, "Aquamarine", 3, "Lollipop")),
+        ("10k Aquamarine: 12 Lollipop", lambda: reset_button("Main", 10000, "Aquamarine", 12, "Lollipop")),
+    ],
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ]
+}
+Anticovery_Buttons = {
+    "Lollipop": [
+        ("1M Aquamarine: 75 Lollipop", lambda: reset_button("Main", 1e6, "Aquamarine", 75, "Lollipop")),
+        ("100M Aquamarine: 300 Lollipop", lambda: reset_button("Main", 1e8, "Aquamarine", 300, "Lollipop")),
+        ("10B Aquamarine: 1.5k Lollipop", lambda: reset_button("Main", 1e10, "Aquamarine", 1500, "Lollipop")),
+        ("1T Aquamarine: 5k Lollipop", lambda: reset_button("Main", 1e12, "Aquamarine", 5000, "Lollipop")),
+        ("10Qd Aquamarine: 10k Lollipop", lambda: reset_button("Main", 1e16, "Aquamarine", 10000, "Lollipop")),
+    ],
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ]
+}
+Mint_Buttons = {
+    "Mint": [
+        ("15 Rebirths: 1 Mint", lambda: reset_button_special("Main", 15, "Rebirths", 1, "Mint", "Main", ["Cash", "Multiplier", "Rebirths"])),
+        ("500 Rebirths: 3 Mint", lambda: reset_button_special("Main", 500, "Rebirths", 3, "Mint", "Main", ["Cash", "Multiplier", "Rebirths"])),
+        ("6k Rebirths: 7 Mint", lambda: reset_button_special("Main", 6000, "Rebirths", 7, "Mint", "Main", ["Cash", "Multiplier", "Rebirths"])),
+        ("20k Rebirths: 13 Mint", lambda: reset_button_special("Main", 20000, "Rebirths", 13, "Mint", "Main", ["Cash", "Multiplier", "Rebirths"])),
+        ("100k Rebirths: 20 Mint", lambda: reset_button_special("Main", 100000, "Rebirths", 20, "Mint", "Main", ["Cash", "Multiplier", "Rebirths"])),
+        ("5M Rebirths: 50 Mint", lambda: reset_button_special("Main", 5e6, "Rebirths", 50, "Mint", "Main", ["Cash", "Multiplier", "Rebirths"])),
+        ("75M Rebirths: 100 Mint", lambda: reset_button_special("Main", 7.5e7, "Rebirths", 100, "Mint", "Main", ["Cash", "Multiplier", "Rebirths"])),
+        ("1B Rebirths: 300 Mint", lambda: reset_button_special("Main", 1e9, "Rebirths", 300, "Mint", "Main", ["Cash", "Multiplier", "Rebirths"])),
+        ("1No Rebirths: 1k Mint", lambda: reset_button_special("Main", 1e30, "Rebirths", 1000, "Mint", "Main", ["Cash", "Multiplier", "Rebirths"])),
+        ("1e300 Rebirths: 10k Mint", lambda: reset_button_special("Main", 1e300, "Rebirths", 10000, "Mint", "Main", ["Cash", "Multiplier", "Rebirths"])),
+        ("1e3000 Rebirths: 100k Mint", lambda: reset_button_special("Main", Mantissa(1,3000), "Rebirths", 100000, "Mint", "Main", ["Cash", "Multiplier", "Rebirths"])),
+    ],
+    "Geodes": [
+        ("Mint Geode: 2k Mint", lambda btn: Geode_roll(btn, mint_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll)),
+    ],
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ]
+}
+Wormhole_Buttons = {
+    "Area Teleports": [
+       ("Spawn (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Spawn_Buttons)),
+       ("Recover Hall (req: 0 Cash)", lambda: load_check("Main",0, "Cash", Recover_Hall_Buttons))
+    ],
+    "???": [
+        ("Puzzle 1", lambda: image_load("Galaxite/Galaxite1.png")),
+        ("Puzzle 2", lambda: image_load("Galaxite/Galaxite2.png")),
+        ("Puzzle 3", lambda: image_load("Galaxite/Galaxite3.png"))
+    ],
+    "Extra": [
+        ("Console Input", lambda: secret_input("Wormhole"))
     ]
 }
 def open_stat_menu(parent, stat_increment):
@@ -1882,22 +2983,25 @@ def open_stat_menu(parent, stat_increment):
             self.grid.addWidget(name_label, self.current_row, 0)
 
             # Value formatting
-            value = stat_data.get("Value", 0)
-
-            if isinstance(value, Mantissa):
-                text = value.to_string()
-            elif isinstance(value, (int, float)):
-                text = str(round(value, 6))
-            else:
-                text = str(value)
-
-            value_label = QLabel(text)
-            self.grid.addWidget(value_label, self.current_row, 1, alignment=Qt.AlignRight)
-
-            # Store for later updates
-            self.stat_labels[(category, stat_name)] = value_label
-
-            self.current_row += 1
+            try:
+              value = stat_data.get("Value", 0)
+  
+              if isinstance(value, Mantissa):
+                  text = value.to_string()
+              elif isinstance(value, (int, float)):
+                  text = str(round(value, 6))
+              else:
+                  text = str(value)
+  
+              value_label = QLabel(text)
+              self.grid.addWidget(value_label, self.current_row, 1, alignment=Qt.AlignRight)
+  
+              # Store for later updates
+              self.stat_labels[(category, stat_name)] = value_label
+  
+              self.current_row += 1
+            except AttributeError:
+                pass
 
         # -------------------------------------------------------
 

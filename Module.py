@@ -4,7 +4,64 @@ from PySide6.QtWidgets import *
 from PySide6.QtGui import *
 from PySide6.QtCore import *
 import inspect
+import os
+import ctypes
+import colorama
+from pathlib import Path
+# Source - https://stackoverflow.com/a
+# Posted by luke, modified by community. See post 'Timeline' for change history
+# Retrieved 2025-11-30, License - CC BY-SA 3.0
+FILE_ATTRIBUTE_HIDDEN = 0x02
+FILE_ATTRIBUTE_SYSTEM = 0x04
+def write_hidden(file_name, data):
+    """
+    Cross platform hidden file writer.
+    """
+    # For *nix add a '.' prefix.
+    prefix = '.' if os.name != 'nt' else ''
+    file_name = prefix + file_name
 
+    # Write file.
+    with open(file_name, 'w') as f:
+        f.write(data)
+
+    # For windows set file attribute.
+    if os.name == 'nt':
+        ret = ctypes.windll.kernel32.SetFileAttributesW(file_name,
+                                                        FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM)
+        if not ret: # There was an error.
+            raise ctypes.WinError()
+#End of atrributions stuff
+def documents():
+    # Windows & macOS: simple and correct
+    base = Path.home() / "Documents"
+    if base.exists():
+        return base
+
+    # Linux (XDG Documents specification)
+    xdg_user_dirs = Path.home() / ".config" / "user-dirs.dirs"
+    if xdg_user_dirs.exists():
+        text = xdg_user_dirs.read_text()
+        for line in text.splitlines():
+            if line.startswith("XDG_DOCUMENTS_DIR"):
+                path = line.split("=")[1].strip().strip('"')
+                path = path.replace("$HOME", str(Path.home()))
+                p = Path(path)
+                if p.exists():
+                    return p
+
+    # Fallback
+    return Path.home()
+DOCUMENTS_PATH = documents()
+def blinded(parent):
+    if not os.path.exists(str(DOCUMENTS_PATH)+"\\toodarktosee"):
+      print("Traceback (most recent call last):")
+      print('  File "Module.py", line 128, in <module>')
+      print("    test_function()")
+      print("RuntimeError: Unexpected internal failure")
+      print(colorama.Fore.BLACK + "YOU'RE JUST TOO BLIND TO SEE IT.")
+      write_hidden(str(DOCUMENTS_PATH)+"\\toodarktosee", "Are you not afraid of what cannot be seen? \n You search for the impossible, what has never been found \n Yet you wish to harness its energy, the energy of DARKMATTER.")
+      parent.close()
 def button_inspect(cmd, btn):
     signature = inspect.signature(cmd)
     params = len(signature.parameters)
@@ -100,7 +157,7 @@ def float_to_mantissa(value: float) -> Mantissa:
 class tkinter_frames:
 
 
-  def create_scrollable_area(parent, button_groups, bg="black", text_color="white"):
+  def create_scrollable_area(parent, button_groups, bg="black", text_color="white", voltaic_radar=False):
     """
     Creates a scrollable area using PySide6 that mimics your tkinter scrollable canvas system.
     Returns: (outer_container, scroll_area, content_widget)
@@ -127,7 +184,13 @@ class tkinter_frames:
     grid.setAlignment(Qt.AlignTop)
 
     scroll_area.setWidget(content_widget)
-
+    if "Unknown" in button_groups.keys():
+        parent.voltaic_random = VoltaicRandomizer(enable_count=50, interval_ms=20000, voltaic_radar=voltaic_radar, always_texts=["Spawn (req: 0 Cash)","Recover Hall (req: 0 Cash)"])
+        num = 1 if voltaic_radar else 100
+        if random.randint(1,num) != 1:
+          del button_groups["Unknown"]
+    else:
+      parent.voltaic_random = None
     # --- Populate columns and buttons ---
     for col_index, (group_name, buttons) in enumerate(button_groups.items()):
 
@@ -154,9 +217,17 @@ class tkinter_frames:
                 }}
                 """
             )
-            btn.clicked.connect(lambda _, b=btn, cmd=command: button_inspect(cmd, b))
             grid.addWidget(btn, row_index, col_index, alignment=Qt.AlignTop)
-
+            if not parent.voltaic_random:  
+              btn.clicked.connect(lambda _, b=btn, cmd=command: button_inspect(cmd, b))
+              continue
+            index = len(parent.voltaic_random.buttons)
+            parent.voltaic_random.buttons.append({"btn": btn, "command": command})
+            if text in parent.voltaic_random.always_texts:
+              parent.voltaic_random.always_indices.add(index)
+    if parent.voltaic_random:
+        parent.voltaic_random.start()
+        button_groups["Unknown"] = [("", lambda: blinded(parent))]
     return outer_container, scroll_area, content_widget
 
 class GradientLabel(QLabel):
@@ -249,13 +320,23 @@ class Geode:
     
         # Roll item
         item = random.choices(list(adjusted_items.keys()), weights=probabilities, k=1)[0]
-        print(item)
+        msg = f"You obtained a common {item} (1/{self.items[item]['Chance']})" if self.items[item]['Chance'] < 10000 else f"You obtained an INSANELY RARE {item} (1/{self.items[item]['Chance']})!" if self.items[item]['Chance'] >= 100000000 else f"You obtained a Rare {item} (1/{self.items[item]['Chance']})" if 10000 <= self.items[item]['Chance'] < 1000000 else f"You obtained a Very Rare {item} (1/{self.items[item]['Chance']})!"
+        print(msg)
         # Add item to inventory
         if file["Main"].get(item) is not None:
             val = 2 if random.randint(1,500) == 1 else 1
             if isinstance(file["Main"][item]["Value"], Mantissa):
                 val = float_to_mantissa(val)
             file["Main"][item]["Value"] += val
+        elif file["Secret"].get(item) is not None: # Not the most efficient method, but I'm working with redundant code
+            val = 2 if random.randint(1,500) == 1 else 1
+            file["Secret"][item]["Value"] += val
+        elif file["Exclusive"].get(item) is not None:
+            val = 2 if random.randint(1,500) == 1 else 1
+            file["Exclusive"][item]["Value"] += val
+        elif file["Event"].get(item) is not None:
+            val = 2 if random.randint(1,500) == 1 else 1
+            file["Event"][item]["Value"] += val
         elif file["Geode"].get(item) is not None:
             file["Geode"][item]["Value"] += 2 if random.randint(1,500//crit_luck) == 1 else 1
         else:
@@ -263,6 +344,93 @@ class Geode:
         file["Extra"]["Geodes Opened"]["Value"] += 1
       return file
 
+class VoltaicRandomizer:
+    def __init__(self, enable_count=10, interval_ms=20000, voltaic_radar=False, always_texts=None):
+        self.enable_count = enable_count
+        self.interval_ms = interval_ms
+        self.buttons = []   
+        self.timer = None
+        self.radar = voltaic_radar
+        self.always_texts = set(always_texts) if always_texts else set()
+        self.always_indices = set() 
+
+    def start(self):
+        """Start the periodic reshuffling."""
+        if not self.radar:
+          self.shuffle()
+          if self.timer is None:
+              self.timer = QTimer()
+              self.timer.timeout.connect(self.shuffle)
+              self.timer.start(self.interval_ms)
+        else:
+            for i, item in enumerate(self.buttons):
+              btn = item["btn"]
+              cmd = item["command"]
+              # ENABLED BUTTON
+              btn.setEnabled(True)
+              btn.setStyleSheet("""
+                  QPushButton {
+                      color: white;     
+                      background-color: #111;
+                      padding: 6px;
+                      border: 1px solid white;
+                  }
+                  QPushButton:hover {
+                      background-color: #222;
+                  }
+              """)
+              btn.clicked.disconnect()
+              btn.clicked.connect(cmd)
+    def shuffle(self):
+      if not self.buttons:
+          return
+  
+      indices = list(range(len(self.buttons)))
+  
+      # Everything except the always-enabled ones
+      random_pool = [i for i in indices if i not in self.always_indices]
+  
+      # How many random buttons are allowed after always-enabled ones are included
+      remaining = self.enable_count - len(self.always_indices)
+      remaining = max(0, remaining)
+  
+      enable_set = set(self.always_indices)
+  
+      if remaining > 0:
+        enable_set |= set(random.sample(random_pool, min(remaining, len(random_pool))))
+
+  
+      # Apply styles
+      for i, item in enumerate(self.buttons):
+          btn = item["btn"]
+          cmd = item["command"]
+  
+          if i in enable_set:
+              btn.setEnabled(True)
+              btn.setStyleSheet("""
+                  QPushButton {
+                      color: white;     
+                      background-color: #111;
+                      padding: 6px;
+                      border: 1px solid white;
+                  }
+                  QPushButton:hover {
+                      background-color: #222;
+                  }
+              """)
+              btn.clicked.disconnect()
+              btn.clicked.connect(cmd)
+  
+          else:
+              btn.setEnabled(False)
+              btn.setStyleSheet("""
+                  QPushButton {
+                      color: #111; 
+                      background-color: #111;
+                      padding: 6px;
+                      border: 1px solid white;
+                  }
+              """)
 
 
 
