@@ -186,7 +186,7 @@ class tkinter_frames:
     scroll_area.setWidget(content_widget)
     if "Unknown" in button_groups.keys():
         parent.voltaic_random = VoltaicRandomizer(enable_count=50, interval_ms=20000, voltaic_radar=voltaic_radar, always_texts=["Spawn (req: 0 Cash)","Recover Hall (req: 0 Cash)"])
-        num = 1 if voltaic_radar else 100
+        num = 10 if voltaic_radar else 100
         if random.randint(1,num) != 1:
           del button_groups["Unknown"]
     else:
@@ -231,50 +231,79 @@ class tkinter_frames:
     return outer_container, scroll_area, content_widget
 
 class GradientLabel(QLabel):
-    def __init__(self, text, colors, angle_deg=90, parent=None):
+    def __init__(
+        self,
+        text,
+        colors,
+        angle_deg=90,
+        parent=None,
+        stroke_color=None,
+        stroke_width=0
+    ):
         """
-        text: string
-        colors: list of QColor
-        angle_deg: angle of gradient in degrees (0 = left→right, 90 = top→bottom)
+        colors: list of fill gradient colors
+        stroke_color: optional outline color (None = no stroke)
+        stroke_width: thickness of outline
         """
         super().__init__(text, parent)
+
         self.colors = colors
         self.angle_deg = angle_deg
-        self.setMinimumWidth(1)
+        self.stroke_color = QColor(stroke_color) if stroke_color else None
+        self.stroke_width = stroke_width
+
+        # <big> = scale font 25%
+        font = self.font()
+        font.setPointSizeF(font.pointSizeF() * 1.25)
+        self.setFont(font)
 
     def paintEvent(self, event):
-        if (self.colors, self.angle_deg) != None:
-          painter = QPainter(self)
-          painter.setRenderHint(QPainter.Antialiasing)
-          painter.setRenderHint(QPainter.TextAntialiasing)
-  
-          font = self.font()
-          fm = QFontMetrics(font)
-  
-          # Create the text path
-          path = QPainterPath()
-          path.addText(0, fm.ascent(), font, self.text())
-  
-          # Compute gradient direction
-          angle_rad = math.radians(self.angle_deg)
-          w = self.width()
-          h = self.height()
-  
-          x1 = w / 2 - math.cos(angle_rad) * w
-          y1 = h / 2 - math.sin(angle_rad) * h
-          x2 = w / 2 + math.cos(angle_rad) * w
-          y2 = h / 2 + math.sin(angle_rad) * h
-  
-          gradient = QLinearGradient(QPointF(x1, y1), QPointF(x2, y2))
-  
-          # Distribute colors evenly
-          stops = len(self.colors)
-          for i, c in enumerate(self.colors):
-              gradient.setColorAt(i / (stops - 1), QColor(c))
-  
-          painter.setBrush(gradient)
-          painter.setPen(Qt.NoPen)
-          painter.drawPath(path)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.TextAntialiasing)
+
+        font = self.font()
+        fm = QFontMetrics(font)
+
+        # Build the text path
+        path = QPainterPath()
+        path.addText(0, fm.ascent(), font, self.text())
+
+        # Center inside widget
+        bounds = path.boundingRect()
+        dx = (self.width()  - bounds.width())  / 2 - bounds.x()
+        dy = (self.height() - bounds.height()) / 2 - bounds.y()
+        path = QTransform().translate(dx, dy).map(path)
+
+        # ---- OPTIONAL STROKE PASS ----
+        if self.stroke_color is not None and self.stroke_width > 0:
+            pen = QPen(self.stroke_color, self.stroke_width)
+            pen.setJoinStyle(Qt.RoundJoin)
+            pen.setCapStyle(Qt.RoundCap)
+            painter.setPen(pen)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawPath(path)
+
+        # ---- FILL GRADIENT PASS ----
+        angle_rad = math.radians(self.angle_deg)
+        w, h = self.width(), self.height()
+
+        x1 = w/2 - math.cos(angle_rad) * w
+        y1 = h/2 - math.sin(angle_rad) * h
+        x2 = w/2 + math.cos(angle_rad) * w
+        y2 = h/2 + math.sin(angle_rad) * h
+
+        gradient = QLinearGradient(QPointF(x1, y1), QPointF(x2, y2))
+
+        stops = len(self.colors)
+        for i, col in enumerate(self.colors):
+            gradient.setColorAt(i / (stops - 1), QColor(col))
+
+        painter.setBrush(gradient)
+        painter.setPen(Qt.NoPen)
+        painter.drawPath(path)
+
+
   
 import random
 
@@ -293,10 +322,10 @@ class Geode:
     def open(self, file, luck=1.0, bulk_roll=1, crit_luck=1):
       luck += (random.randint(100, 777) / 100) - 1
       for i in range(bulk_roll):
-        if not isinstance(file["Main"][self.unit]["Value"],Mantissa): #Skips cost check as if value is a Mantissa cost is always negligible (prices will never be that high)
-          if file["Main"][self.unit]["Value"] < self.cost:
+        if not isinstance(file["Stats"][self.unit],Mantissa): #Skips cost check as if value is a Mantissa cost is always negligible (prices will never be that high)
+          if file["Stats"][self.unit] < self.cost:
               return file
-          file["Main"][self.unit]["Value"] -= self.cost
+          file["Stats"][self.unit] -= self.cost
     
         adjusted_items = {}
     
@@ -323,25 +352,11 @@ class Geode:
         msg = f"You obtained a common {item} (1/{self.items[item]['Chance']})" if self.items[item]['Chance'] < 10000 else f"You obtained an INSANELY RARE {item} (1/{self.items[item]['Chance']})!" if self.items[item]['Chance'] >= 100000000 else f"You obtained a Rare {item} (1/{self.items[item]['Chance']})" if 10000 <= self.items[item]['Chance'] < 1000000 else f"You obtained a Very Rare {item} (1/{self.items[item]['Chance']})!"
         print(msg)
         # Add item to inventory
-        if file["Main"].get(item) is not None:
-            val = 2 if random.randint(1,500) == 1 else 1
-            if isinstance(file["Main"][item]["Value"], Mantissa):
-                val = float_to_mantissa(val)
-            file["Main"][item]["Value"] += val
-        elif file["Secret"].get(item) is not None: # Not the most efficient method, but I'm working with redundant code
-            val = 2 if random.randint(1,500) == 1 else 1
-            file["Secret"][item]["Value"] += val
-        elif file["Exclusive"].get(item) is not None:
-            val = 2 if random.randint(1,500) == 1 else 1
-            file["Exclusive"][item]["Value"] += val
-        elif file["Event"].get(item) is not None:
-            val = 2 if random.randint(1,500) == 1 else 1
-            file["Event"][item]["Value"] += val
-        elif file["Geode"].get(item) is not None:
-            file["Geode"][item]["Value"] += 2 if random.randint(1,500//crit_luck) == 1 else 1
+        if file["Stats"].get(item):
+          file["Stats"][item] += 2 if random.randint(1,500//crit_luck) == 1 else 1
         else:
-            file["Geode"][item] = {"Multis": self.items[item]["Multis"], "Value": 1}
-        file["Extra"]["Geodes Opened"]["Value"] += 1
+          file["Stats"][item] = 2 if random.randint(1,500//crit_luck) == 1 else 1
+        file["Stats"]["Geodes Opened"] += 1
       return file
 
 class VoltaicRandomizer:
