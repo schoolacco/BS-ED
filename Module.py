@@ -69,6 +69,29 @@ def button_inspect(cmd, btn):
         return cmd()
     else:
         return cmd(btn)
+def find_key_path(nested_dict, target_key_name, current_path=None):
+    """
+    Recursively searches for a specific key name in a nested dictionary
+    and returns the full path of keys to that key's location.
+    """
+    if current_path is None:
+        current_path = []
+
+    for key, value in nested_dict.items():
+        new_path = current_path + [key]
+
+        if key == target_key_name:
+            # The key name matches our target! Return the path up to this point.
+            return new_path
+        
+        elif isinstance(value, dict):
+            # Recursively search in nested dictionaries
+            found_path = find_key_path(value, target_key_name, new_path)
+            if found_path:
+                return found_path
+    
+    # Key not found in this branch
+    return None
 class Mantissa:
     def __init__(self, mantissa, exponent):
         self.num = mantissa
