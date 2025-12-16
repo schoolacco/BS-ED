@@ -164,9 +164,6 @@ class Mantissa:
     def to_float(self):
         """Convert the Mantissa to a regular float. Warning: may overflow for huge exponents."""
         value =  self.num * (10 ** self.exp) if self.exp < 300 else self
-        if not isinstance(value, Mantissa):
-            if 1 <= value < 2e9:
-                return int(value)
         return value
 def float_to_mantissa(value: float) -> Mantissa:
       """Converts a float or int into a Mantissa representation."""

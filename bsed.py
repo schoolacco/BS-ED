@@ -1341,7 +1341,7 @@ def calculate_multi(unit):
           multi_2 = multiplier_2 * amount_m
           if multi_2.num == 0:
               multi_2 = Mantissa(1,0)
-          total *= Mantissa(1, 0) + (multiplier * amount_m * multi_2)
+          total *=  (multiplier * amount_m * multi_2)
       if key == "Geode":
           for g_key in abs_stat_info[key]:
               stat_list = list(abs_stat_info[key][g_key].keys())
@@ -1368,7 +1368,7 @@ def calculate_multi(unit):
                   multi_2 = multiplier_2 * amount_m
                   if multi_2.num == 0:
                       multi_2 = Mantissa(1,0)
-                  total *= Mantissa(1, 0) + (multiplier * amount_m * multi_2)
+                  total *= (multiplier * amount_m * multi_2)
     # Ensure we don't return zero
     if total.num == 0:
         return Mantissa(1, 0)
@@ -1376,7 +1376,7 @@ def calculate_multi(unit):
     if total.exp < math.log(MANTISSA_THRESHOLD, 10):
         total = round(total.to_float(), 2)
         total = float_to_mantissa(total)
-    total *= 2 if random.randint(1,500//local_crit) == 1 and not isinstance(total,Mantissa) else float_to_mantissa(2) if random.randint(1,500//local_crit) == 1 and isinstance(total, Mantissa) else 1 if not isinstance(total, Mantissa) else Mantissa(1,0)
+    total *= 2 if random.randint(1,int(500//local_crit)) == 1 and not isinstance(total,Mantissa) else float_to_mantissa(2) if random.randint(1,int(500//local_crit)) == 1 and isinstance(total, Mantissa) else 1 if not isinstance(total, Mantissa) else Mantissa(1,0)
     return total
 def cash_increase():
     global stat_increment, cash_l, cash_type, multi_type
@@ -3799,8 +3799,11 @@ if __name__ == "__main__":
       ],
       "Recovery Buttons": [
           ("1 Master Stone: 4.5 Master Multiplier (fetch)", lambda: recovery_button_fetch(1, "Master Stone", 4.5, "Master Multiplier")),
-          ("12 Master Stone: 150 Master Rebirths (sets)", lambda: recovery_button_fetch(12, "Master Stone", 150, "Master Rebirths")),
+          ("12 Master Stone: 150 Master Rebirths (sets)", lambda: recovery_button_set(12, "Master Stone", 150, "Master Rebirths")),
           ("1 Master White Gems: 1 Master Rebirths (fetch)", lambda: recovery_button_fetch(1, "Master White Gems", 1, "Master Rebirths"))
+      ],
+      "Area Teleports": [
+          ("Buttonia (req: 0 Master Cash)", lambda: load_world(0, "Master Cash", Spawn_Buttons, "Cash", "Multiplier", "Rebirths", "Gems", "Main Progression", "Event Power")),
       ]
   }
   Wormhole_Buttons = {
