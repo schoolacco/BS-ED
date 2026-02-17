@@ -301,7 +301,7 @@ def load_check(req, unit, buttons, new_area=None):
     if amount >= req:
       container.deleteLater()  # remove old scroll area
       container, scroll_area, content = tkinter_frames.create_scrollable_area(root, buttons, voltaic_radar=voltaic_radar)
-      layout.addWidget(container, 2, 1, 6, 6)
+      layout.addWidget(container, 2, 1, 7, 7)
       area = new_area
 def load_world(req, unit, initial_area, cash, multiplier, rebirths, gems, reset, world_name, event_power=False, multi_logic=True):
     global stat_increment, container, scroll_area, container, content, layout, cash_type, multi_type, rebirth_type, gem_type, e_event, e_type, cash_l, multi_l, re_l, reset_key, world, music, m_logic
@@ -310,7 +310,7 @@ def load_world(req, unit, initial_area, cash, multiplier, rebirths, gems, reset,
     if amount >= req:
       container.deleteLater()  # remove old scroll area
       container, scroll_area, content = tkinter_frames.create_scrollable_area(root, initial_area, voltaic_radar=voltaic_radar)
-      layout.addWidget(container, 2, 1, 6, 6)
+      layout.addWidget(container, 2, 1, 7, 7)
       cash_type = cash
       multi_type = multiplier
       rebirth_type = rebirths
@@ -745,11 +745,17 @@ def cythrex_boot(parent=None):
                 main_window.activateWindow()
         boot = None
       boot.finished.connect(start_main)
-def graphite_puzzle(parent=None):
+def graphite_puzzle(parent=None, req=None):
+    if req:
+     if stat_increment["Stats"][req[1]] > req[0]:
+         return
     puzzle = BolicalWorld(stat_increment, parent)
     puzzle.show()
-def sloth(parent=None):
-    puzzle = Sloth(parent)
+def sloth(parent=None, time=3000, req=None):
+    if req:
+      if stat_increment["Stats"][req[1]] > req[0]:
+          return
+    puzzle = Sloth(time, parent)
     if parent:
         parent.sloth = puzzle
         parent.input_watch = InputWatch(parent.sloth)
@@ -887,7 +893,6 @@ class ExtendedComboBox(QComboBox):
         if text:
             index = self.findText(text)
             self.setCurrentIndex(index)
-            self.activated[int].emit(self.itemText(index))
 
 
     # on model change, update the models of the filter and completer as well 
@@ -1186,7 +1191,7 @@ if __name__ == "__main__":
         stat = self.stat_select.currentText()
         self.player["Stats"][stat] += direction * self.get_value(self.stat_value)
   class Sloth(QDialog):
-      def __init__(self, parent=None):
+      def __init__(self, time=3000, parent=None):
           super().__init__(parent)
           self.setWindowFlags(Qt.Window|Qt.FramelessWindowHint|Qt.WindowStaysOnTopHint|Qt.WindowTransparentForInput)
           self.setAttribute(Qt.WA_TranslucentBackground)
@@ -1198,7 +1203,7 @@ if __name__ == "__main__":
           self.fade_timer.setInterval(30)
           self.fade_timer.timeout.connect(self._fade_step)
           self.progress = 0.0
-          self.step = 100/3000
+          self.step = 100/time
           self.failed = False
           self.completed = False
           self.raise_()
@@ -2374,6 +2379,8 @@ if __name__ == "__main__":
           ("Flourish Candylands (req: 25 Aquamarine)", lambda: load_check( 25, "Aquamarine", Lollipop_Buttons), "Button"),
           ("Minty Grooves (req: 5 Rebirths)", lambda: load_check( 5, "Rebirths", Mint_Buttons), "Button"),
           ("Stardustry (req: 1 Gold)", lambda: load_check(1, "Gold", Star_Buttons), "Button"),
+          ("Purified Illusions (req: 1 Starglass)", lambda: load_check(1, "Starglass", Purified_Buttons), "Button"),
+          ("Purified Illusions (req: 1 Shell Piece)", lambda: load_check(1, "Shell Piece", Purified_Buttons), "Button"),
       ]
   }
   Crystal_Buttons = {
@@ -4782,6 +4789,22 @@ if __name__ == "__main__":
           ("Puzzle 1", lambda: image_load("Galaxite/Galaxite1.png"), "Button"),
           ("Puzzle 2", lambda: image_load("Galaxite/Galaxite2.png"), "Button"),
           ("Puzzle 3", lambda: image_load("Galaxite/Galaxite3.png"), "Button")
+      ]
+  }
+  Purified_Buttons = {
+      "???": [
+          ("Are you patient enough to overcome 7 billion thoughts? (req: 1 Starglass)", lambda: sloth(root, 300, (1, "Starglass")), "Button"),
+          ("Bolical World (req: 1 Starglass)", lambda: graphite_puzzle(root, (1, "Starglass")), "Button"),
+          ("Stellarite Location (req: 1 Starglass)", lambda: load_check(1, "Starglass", ET_Stellarite), "Button"),
+          ("Wormhole's Breech (req: 1 Starglass)", lambda: load_check(1, "Starglass", Wormhole_Buttons, "Wormhole"), "Button")
+      ],
+      "Recovery": [
+          ("1 Gyge: 1 Starglass (Sets)", lambda: recovery_button_set(1, "Gyge", 1, "Starglass"), "Button"),
+          ("1 Shell Piece: 1 Singularity (Sets)", lambda: recovery_button_set(1, "Shell Piece", 1, "Singularity"), "Button")
+      ],
+      "Area Teleports": [
+         ("Spawn (req: 0 Cash)", lambda: load_check(0, "Cash", Spawn_Buttons), "Button"),
+         ("Recover Hall (req: 0 Cash)", lambda: load_check(0, "Cash", Recover_Hall_Buttons), "Button")
       ]
   }
   def open_boosts_menu(parent):
