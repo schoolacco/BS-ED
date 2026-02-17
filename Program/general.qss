@@ -1,0 +1,38 @@
+QPushButton {
+                    background-color: "#2f2f2f";
+                    color: "white";
+                    padding: 6px;
+                    border: 1px solid "white";
+                }
+QPushButton:hover {
+                    background-color: #222;
+                }
+QLineEdit {
+    color: "white";
+    background-color: "#2f2f2f";
+    padding: 6px;
+}
+QPushButton#Easy {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop: 0 #2aa54c, stop: 0.5 #2aa54c, stop: 0.5 #00aa00, stop: 1 #00aa00)
+}
+QPushButton#Medium {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop: 0 #dda5a5, stop: 0.5 #dda5a5, stop: 0.5 #ffaa7f, stop: 1 #ffaa7f)
+}
+QPushButton#Hard {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop: 0 #dd4564, stop: 0.5 #dd4564, stop: 0.5 #ff2222, stop: 1 #ff2222)
+}
+QPushButton#Insane {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop: 0 #662eff, stop: 0.5 #662eff, stop: 0.5 #5500ff, stop: 1 #5500ff)
+}
+QPushButton#Impossible {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop: 0 #2a2a2a, stop: 0.5 #2a2a2a, stop: 0.5 #000000, stop: 1 #000000)
+}
+QPushButton#Relentless {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop: 0 #6669ff, stop: 0.5 #6669ff, stop: 0.5 #5555ff, stop: 1 #5555ff)
+}
+QPushButton#Unreal {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop: 0 #e610ff, stop: 0.5 #e610ff, stop: 0.5 #ea00ff, stop: 1 #ea00ff)
+}
+QPushButton#Absurd {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop: 0 #10f7ff, stop: 0.5 #10f7ff, stop: 0.5 #0080ff, stop: 1 #0080ff)
+}
