@@ -2,10 +2,10 @@
 from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 from PySide6.QtGui import *
+from PySide6.QtMultimedia import *
+from PySide6.QtSql import *
 import json
-import threading
 import math
-import os
 import ctypes
 import random
 import sys
@@ -15,7 +15,9 @@ from pathlib import Path
 import colorama
 import webbrowser
 import re
-from Module import Mantissa, tkinter_frames, Geode, GradientLabel, BootScreen, CY47Window, BolicalWorld, find_key_path
+import os
+from Module import Mantissa, tkinter_frames, GradientLabel, BootScreen, CY47Window, BolicalWorld, find_key_path
+from geode import *
 from data import abs_stat_info, stat_gradients, cythrex_data, craftable_items
 try: #Unused imports that may have future implementation
   import sqlalchemy
@@ -23,11 +25,6 @@ try: #Unused imports that may have future implementation
   import datetime
 except ImportError:
     pass
-try: #Audio imports
-  from pydub import AudioSegment
-  import simpleaudio as sa
-except ImportError:
-    print("The following Modules: pydub, simpleaudio have not been imported due to their excessive requirements for install. The program does not necessitate their presence for functionality however music shall not be played without them, please refer to the README.md for the installation process.")
 warnings.filterwarnings("ignore")
 app = QApplication(sys.argv)
 def_upgrades = {
@@ -214,7 +211,6 @@ crit_luck = 1
 geode_speed= 1
 bulk_roll = 1
 voltaic_radar = True
-music = os.listdir(f"Program/Music/{world}")
 # Source - https://stackoverflow.com/a
 # Posted by luke, modified by community. See post 'Timeline' for change history
 # Retrieved 2025-11-30, License - CC BY-SA 3.0
@@ -245,12 +241,6 @@ def write_hidden(file_name, data):
             raise ctypes.WinError()
 #It should be noted that the code has been marginally modified from the original version
 #End of atrributions stuff
-def trig_check(input):
-    input = input.lower()
-    required = ["sin", "cos", "tan", "cot", "sec", "csc"]
-    def present(text):
-        return re.search(rf"(?<![a-z]){text}(?![a-z])", input)
-    return all(present(text) for text in required)
 def blinded():
     if not os.path.exists(Path.home()/"Documents"/"toodarktosee"):
       print("Traceback (most recent call last):")
@@ -269,7 +259,7 @@ def secret_input(input):
     if area == "Abyssal Trenches":
       if input == "God of Miners" and secrets["Darkmatter_1"] and secrets["Darkmatter_2"]:
           secrets["Darkmatter_3"] = True
-          print(colorama.Fore.BLACK, "Perhaps you are capable of seeing in the dark.", colorama.Fore.RESET)
+          print(colorama.Fore.BLACK, "Perhaps you are capable of seeing in the dark. Nethertheless the end is nigh. Corrupt thy soul, plague it with sin, and perhaps once more you may be capable of opening your eyes.", colorama.Fore.RESET)
     if area == "Wormhole":
       if input == "Andromeda":
           print("You feel as if the wormhole was beginning to reopen")
@@ -330,8 +320,11 @@ def load_world(req, unit, initial_area, cash, multiplier, rebirths, gems, reset,
       re_msg = rebirths if not isinstance(rebirths, Mantissa) else rebirths.to_string()
       re_l.setText(f"{rebirth_type}: {re_msg}")
       world = world_name
-      music = os.listdir(f"Music/{world}")
-      sa.stop_all()
+      music_manager = container.parent().parent().music_manager
+      music_manager.path = os.path.abspath(f"Program/Music/{world}")
+      music_manager.music_list = os.listdir(os.path.abspath(f"Program/Music/{world}"))
+      music_manager.stop()
+      music_manager.play_random()
 def float_to_mantissa(value: float) -> Mantissa:
       """Converts a float or int into a Mantissa representation."""
       if isinstance(value, Mantissa):
@@ -341,11 +334,11 @@ def float_to_mantissa(value: float) -> Mantissa:
       exponent = int(math.floor(math.log10(abs(value))))
       mantissa = value / (10 ** exponent)
       return Mantissa(mantissa, exponent)
-def upgrade_cost(info, level):
+def upgrade_cost(info: dict, level: int) -> int:
     base = info["base_cost"]
     growth = info["cost_growth"]
     return int(base * (growth ** level))
-def serialize(obj):
+def serialize(obj: Mantissa) -> dict:
     if isinstance(obj, Mantissa):
         return obj.to_dict()
     elif isinstance(obj, dict):
@@ -353,14 +346,14 @@ def serialize(obj):
     else:
         return obj
 # Recursive deserialization
-def deserialize(obj):
+def deserialize(obj: dict) -> Mantissa:
     if isinstance(obj, dict):
         if obj.get("__mantissa__"):
             return Mantissa.from_dict(obj)
         return {k: deserialize(v) for k, v in obj.items()}
     else:
         return obj
-def Load():
+def Load() -> dict:
        '''Load your data from your savefile'''
        global upgrades, secrets
        if os.path.exists("savefile.json"): # If you have saved before
@@ -401,7 +394,7 @@ def Load():
        else:
           print("You have never saved before.")
           return def_stat_increment # Return your empty collection
-def Save(collection, upgrades, secrets):
+def Save(collection: dict, upgrades: dict, secrets: dict) -> None:
         '''Saves your data to a json file, and makes the previous file a backup'''
         collection["Upgrades"] = {}
         collection["Upgrades"] = {upgrade: upgrades[upgrade]["current_lvl"] for upgrade in upgrades.keys()}
@@ -423,7 +416,7 @@ def calculate_multi(unit):
     total = Mantissa(1, 0)  # Start as 1 in Mantissa form
     keys = list(abs_stat_info.keys())
     for key in keys:
-      if not (0.1 < stat_increment["Stats"]["C0RR8PT10N"] < 2 and key not in ("Main Progression", "Mastery")):
+      if not (stat_increment["Stats"]["C0RR8PT10N"] < 2 and stat_increment["Stats"]["C0RR8PT10N"] > 0.1 and key not in ("Main Progression", "Mastery")):
         stat_list = list(abs_stat_info[key].keys())
         for item in stat_list:
             try:
@@ -747,13 +740,13 @@ def cythrex_boot(parent=None):
       boot.finished.connect(start_main)
 def graphite_puzzle(parent=None, req=None):
     if req:
-     if stat_increment["Stats"][req[1]] > req[0]:
+     if stat_increment["Stats"][req[1]] >= req[0]:
          return
     puzzle = BolicalWorld(stat_increment, parent)
     puzzle.show()
 def sloth(parent=None, time=3000, req=None):
     if req:
-      if stat_increment["Stats"][req[1]] > req[0]:
+      if stat_increment["Stats"][req[1]] >= req[0]:
           return
     puzzle = Sloth(time, parent)
     if parent:
@@ -764,7 +757,10 @@ def sloth(parent=None, time=3000, req=None):
 def craft(stat, amount): #item = dict, amount = int/float/Mantissa
     if amount == None or amount < 1:
         return None
-    recipe = abs_stat_info["Craftable"][stat]["Recipe"] #recipe = dict
+    key_1 = find_key_path(abs_stat_info,stat)[0]
+    recipe = abs_stat_info[key_1][stat]["Recipe"] #recipe = dict
+    if stat_increment["Stats"][stat] >= abs_stat_info[key_1][stat].get("max_amount", math.inf):
+        return None
     for item, amounts in recipe.items():
         amounts_m = float_to_mantissa(amounts)
         amounts_m *= amount
@@ -845,6 +841,8 @@ def string_to_num(string:str):
           value = int(string)
         except ValueError:
           return None
+    if value < 2e9:
+        value = int(value)
     if value == math.inf:
         value = Mantissa.from_string(string)
     return value
@@ -1068,10 +1066,37 @@ if __name__ == "__main__":
             def hideEvent(self, event):
                 self.timer.stop()
                 super().hideEvent(event)
+  class MusicManager: #Pydub + simpleaudio worked well, but this helps to reduce compatibility and download issues.
+    def __init__(self):
+        self.audio_output = QAudioOutput()
+        self.player = QMediaPlayer()
+        self.player.setAudioOutput(self.audio_output)
+
+        self.music_list = []
+        self.path = os.path.abspath(r"Program/Music/Archive")
+        self.player.mediaStatusChanged.connect(self._handle_status)
+
+    def play_random(self):
+        if not self.music_list:
+            return
+
+        song = random.choice(self.music_list)
+        self.player.setSource(QUrl.fromLocalFile(f"{self.path}/{song}"))
+        self.player.play()
+
+    def _handle_status(self, status):
+        if status == QMediaPlayer.EndOfMedia:
+            self.play_random()
+    def stop(self):
+        self.player.stop()
   class Window(QMainWindow):
       def __init__(self):
           super().__init__()
           self.stat_window = StatMenu(self)
+          self.music_manager = MusicManager()
+          self.music_manager.music_list = os.listdir(os.path.abspath(f"Program/Music/{world}"))
+          self.music_manager.path =  os.path.abspath(f"Program/Music/{world}")
+          self.setWindowIcon(QIcon(os.path.abspath(f"Program/Starglass.png")))
           self.stat_window.hide()
       def closeEvent(self, event: QCloseEvent):
         Save(stat_increment, upgrades, secrets)
@@ -1164,6 +1189,7 @@ if __name__ == "__main__":
     def set_bulk_roll(self):
         global bulk_roll
         value = self.get_value(self.roll_input)
+        value = int(value)
         if value is None:
           return
         bulk_roll = value
@@ -1395,653 +1421,7 @@ if __name__ == "__main__":
   rebirths = stat_increment["Stats"]['Rebirths']
   re_msg = rebirths if not isinstance(rebirths, Mantissa) else rebirths.to_string()
   re_l.setText(f"Rebirths: {re_msg}")
-  stone_geode = Geode({"Multiplier": {"Chance": 3},
-                       "Rebirths": {"Chance": 10},
-                       "Stone": {"Chance": 20},
-                       "Mint": {"Chance": 33},
-                       "White Gems": {"Chance": 333},
-                       "Dezyp": {"Chance": 12000},
-                       "Podrillium": {"Chance": 1000000000}}, 1e6, "Stone") #Podrillium is real guys!!! Trust!!!
-  gems_geode = Geode({"Stone": {"Chance": 6},
-                      "White Gems": {"Chance": 10},
-                      "Crystal": {"Chance": 20},
-                      "Gems": {"Chance": 20},
-                      "Digenite": {"Chance": 100},
-                      "Oneillite": {"Chance": 500},
-                      "Alum": {"Chance": 13000},
-                      "Chaoite": {"Chance": 273000},
-                      "Stone 2": {"Chance": 3000000},
-                      "Loocasium": {"Chance": 9000000},
-                      "Stone 3": {"Chance": 25000000},
-                      "Skilltriix": {"Chance": 101101101},
-                      "Hyka Gem": {"Chance": 200000000},
-                      "Starglass": {"Chance": 929221841},
-                      "Shell Piece": {"Chance": 1650000000}}, 30, "White Gems")
-  crystal_geode = Geode({"White Gems": {"Chance": 4},
-                         "Stone": {"Chance": 5},
-                         "Crystal": {"Chance": 33},
-                         "Amethyst": {"Chance": 333},
-                         "Iron": {"Chance": 1162},
-                         "Paradoxite": {"Chance": 65000}},
-                         100, "Crystal")
-  iron_geode = Geode({"Iron": {"Chance": 5},
-                      "Crystal": {"Chance": 10},
-                      "White Gems": {"Chance": 20},
-                      "Gems": {"Chance": 25},
-                      "Event Power": {"Chance": 33},
-                      "Silver": {"Chance": 142, "Multis": {"Multiplier": 10, "White Gems": 5, "Iron": 2}},
-                      "Platinum": {"Chance": 32000, "Multis": {"White Gems": 10, "Crystal": 20, "Iron": 15, "Gold": 3, "Quartz": 2}},
-                      "Mythril": {"Chance": 2000000, "Multis": {"Cash": 999, "Crystal": 5, "Iron": 10, "Gold": 50, "Quartz": 100}}},
-                      25, "Iron")
-  gold_geode = Geode({"Gold": {"Chance": 4},
-                      "Iron": {"Chance": 6},
-                      "Quartz": {"Chance": 33},
-                      "Mushroom": {"Chance": 100},
-                      "Pumpkin": {"Chance": 125},
-                      "Yellow Beryl": {"Chance": 6666, "Multis": {"Crystal": 15, "Gold": 3}},
-                      "Opal": {"Chance": 51000, "Multis": {"Cash": 8, "Multiplier": 8, "Rebirths": 8, "Crystal": 8, "Gold": 8, "Jade": 8, "Ruby": 1.3, "Sapphire": 1.3, "Diamond": 1.3}},
-                      "Holeyum": {"Chance": 2750000, "Multis": {"Rebirths": 1000, "White Gems": 1000, "Crystal": 500, "Iron": 500, "Gold": 300}}},
-                      60, "Gold")
-  quartz_geode = Geode({"Quartz": {"Chance": 5},
-                        "Gold": {"Chance": 8},
-                        "Jade": {"Chance": 16},
-                        "Pink Quartz": {"Chance": 50, "Multis": {"Crystal": 10, "Quartz": 3}},
-                        "Cyan Quartz": {"Chance": 166, "Multis": {"Rebirths": 10, "Crystal": 10, "Quartz": 4}},
-                        "Black Quartz": {"Chance": 2500, "Multis": {"Stone": 10, "White Gems": 10, "Iron": 10, "Quartz": 5}},
-                        "Garnet": {"Chance": 23000, "Multis": {"Gold": 30, "Quartz": 15, "Jade": 10, "Obsidian": 5}},
-                        "Milky Quartz": {"Chance": 800000, "Multis": {"Cash": 10, "Multiplier": 10, "Rebirths": 10, "Stone": 100, "White Gems": 100, "Crystal": 10, "Iron": 100, "Gold": 10, "Quartz": 100, "Jade": 10, "Obsidian": 100}}},
-                        30, "Quartz")
-  jade_geode = Geode({"Gold": {"Chance": 2},
-                      "Quartz": {"Chance": 4},
-                      "Jade": {"Chance": 10},
-                      "Jurite": {"Chance": 20, "Multis": {"Iron": 3, "Gold": 3, "Quartz": 3, "Jade": 3}},
-                      "Obsidian": {"Chance": 1000},
-                      "Molybendum": {"Chance": 23000, "Multis": {"Stone": 1000, "White Gems": 1000, "Iron": 1000, "Quartz": 1000}},
-                      "Rbadam's Smokestackite": {"Chance": 100000, "Multis": {"Gold": 44,"Quartz": 33," Jade": 22, "Obsidian": 11, "Ruby": 1.1}}},
-                      500, "Jade")
-  emoji_geode = Geode({":3": {"Chance": 2, "Multis": {"Quartz": 2}},
-                       "O_O": {"Chance": 100, "Multis": {"Quartz": 5, "Jade": 2}},
-                       "^_^": {"Chance": 2000, "Multis": {"Multiplier": 1.1, "Rebirths": 2.2, "Stone": 3.3, "White Gems": 4.4, "Crystal": 5.5, "Iron": 6.6, "Gold": 7.7, "Quartz": 8.8}},
-                       "'-'": {"Chance": 12000, "Multis": {"Iron": 1.1, "Gold": 1.1, "Quartz": 1.1, "Jade": 1.1, "Obsidian": 1.1}},
-                       ":D": {"Chance": 35000, "Multis": {"Jade": 5, "Obsidian": 3, "Ruby": 2}},
-                       "OwO": {"Chance": 150000, "Multis": {"Gold": 5.5, "Emerald": 5.5}},
-                       "UwU": {"Chance": 1000000, "Multis": {"Gold": 6.5, "Quartz": 6.5, "Jade": 6.5, "Obsidian": 6.5, "Ruby": 5.4, "Emerald": 4.3, "Sapphire": 3.2, "Diamond": 2.1}}},
-                       1000, "Gems")
-  obsidian_geode = Geode({"Obsidian": {"Chance": 5},
-                          "Jade": {"Chance": 10},
-                          "Ruby": {"Chance": 20},
-                          "Draconite": {"Chance": 100, "Multis": {"Crystal": 10, "Obsidian": 2}},
-                          "Burneite": {"Chance": 400, "Multis": {"Cash": 7, "Multiplier": 7, "Rebirths": 7, "Stone": 7, "White Gems": 7, "Crystal": 7, "Iron": 7, "Gold": 7, "Quartz": 7, "Jade": 7}},
-                          "Dragonglass": {"Chance": 6666, "Multis": {"Crystal": 25, "Quartz": 15, "Jade": 10, "Obsidian": 5}},
-                          "Hellyerite": {"Chance": 47000, "Multis": {"Obsidian": 10, "Ruby": 3}},
-                          "Palladium": {"Chance": 350000, "Multis": {"Cash": 6, "Multiplier": 6, "Rebirths": 6, "Stone": 6, "White Gems": 6, "Crystal": 6, "Iron": 6, "Gold": 6, "Jade": 6, "Obsidian": 6, "Ruby": 6, "Gems": 1.5}},
-                          "Osumillite": {"Chance": 4200000, "Multipliers": {"Cash": 6544, "Gold": 50, "Quartz": 40, "Jade": 30, "Obsidian": 20, "Ruby": 10}}},
-                          1, "Obsidian")
-  ruby_geode = Geode({"Ruby": {"Chance": 5},
-                      "Emerald": {"Chance": 10},
-                      "Sapphire": {"Chance": 20},
-                      "Pascoite": {"Chance": 666, "Multis": {"Obsidian": 3, "Ruby": 2}},
-                      "Roselite": {"Chance": 3333, "Multis": {"Jade": 5, "Obsidian": 5, "Ruby": 3}},
-                      "Wulfenite": {"Chance": 50000, "Multis": {"Multiplier": 15, "Obsidian": 15, "Ruby": 8}}},
-                      100000, "Ruby")
-  emerald_geode = Geode({"Emerald": {"Chance": 5},
-                         "Ruby": {"Chance": 10},
-                         "Sapphire": {"Chance": 20},
-                         "Olivine": {"Chance": 250, "Multis": {"Ruby": 3, "Emerald": 2}},
-                         "Heazlewoodite": {"Chance": 4000, "Multis": {"Obsidian": 5, "Ruby": 5, "Emerald": 3}},
-                         "Gaspeite": {"Chance": 35000, "Multis": {"Emerald": 15}},
-                         "Talc": {"Chance": 230000, "Multis": {"Cash": 15, "Jade": 15, "Emerald": 15}}},
-                          100000, "Emerald")
-  sapphire_geode = Geode({"Sapphire": {"Chance": 5},
-                          "Emerald": {"Chance": 10},
-                          "Ruby": {"Chance": 20},
-                          "Lapis": {"Chance": 142, "Multis": {"Emerald": 3, "Sapphire": 2}},
-                          "Ringwoodite": {"Chance": 2000, "Multis": {"Ruby": 5, "Emerald": 5, "Sapphire": 3}},
-                          "Kyanite": {"Chance": 15000, "Multis": {"Sapphire": 15}},
-                          "Azurite": {"Chance": 85000, "Multis": {"Rebirths": 15, "Crystal": 15, "Quartz": 15 ,"Sapphire": 8}},
-                          "Cobalt": {"Chance": 3000000, "Multis": {"Cash": 20, "Multiplier": 20, "Rebirths": 20, "Crystal": 20, "Gold": 20, "Quartz": 20, "Jade": 20, "Ruby": 20, "Emerald": 20, "Sapphire": 20}}},
-                          100000, "Sapphire")
-  diamond_geode = Geode({"Sapphire": {"Chance": 3},
-                         "Emerald": {"Chance": 3},
-                         "Ruby": {"Chance": 3},
-                         "Spatial Dust": {"Chance": 20, "Multis": {"Ruby": 3, "Emerald": 3, "Sapphire": 3, "Diamond": 4, "Starlight": 2}},
-                         "Starlight": {"Chance": 1666},
-                         "Astrophyllite": {"Chance": 71000, "Multis": {"Gold": 80, "Jade": 30, "Obsidan": 12, "Ruby": 52, "Diamond": 20, "Starlight": 25}}},
-                         2500, "Diamond")
-  starlight_geode = Geode({"Starlight": {"Chance": 5},
-                           "Diamond": {"Chance": 10},
-                           "Sapphire": {"Chance": 20},
-                           "Ion": {"Chance": 333},
-                           "Niter": {"Chance": 4000, "Multis": {"Starlight": 5}},
-                           "Yrnote": {"Chance": 80000, "Multis": {"Ruby": 10, "Emerald": 10, "Sapphire": 10, "Diamond": 20, "Starlight": 15}},
-                           "Sercense": {"Chance": 1400000, "Multis": {"Cash": 300, "Multiplier": 300, "Rebirths": 300, "Stone": 290, "White Gems": 280, "Crystal": 270, "Iron": 260, "Gold": 130, "Quartz": 120, "Jade": 110, "Obsidian": 100, "Ruby": 50, "Emerald": 40, "Sapphire": 30, "Diamond": 20, "Starlight": 10}}},
-                           60, "Starlight")
-  ion_geode = Geode({"Diamond": {"Chance": 2},
-                     "Starlight": {"Chance": 4},
-                     "Ion": {"Chance": 10},
-                     "Neuron": {"Chance": 20, "Multis": {"Starlight": 5, "Ion": 2}},
-                     "Uranium": {"Chance": 4000},
-                     "Antimatter": {"Chance": 45000, "Multis": {"Rebirths": 10, "Gold": 10, "Quartz": 10, "Sapphire": 10, "Diamond": 10, "Starlight": 10, "Ion": 10}}},
-                     5, "Ion")
-  uranium_geode = Geode({"Sphene": {"Chance": 3, "Multis": {"Diamond": 5}},
-                         "Uranium": {"Chance": 5},
-                         "Acid": {"Chance": 20, "Multis": {"Uranium": 1.4, "Starlight": 2}},
-                         "Niflhemite": {"Chance": 100, "Multis": {"Multiplier": 3, "Rebirths": 3, "White Gems": 3, "Quartz": 3, "Obsidian": 3, "Ruby": 3, "Diamond": 3, "Uranium": 3}},
-                         "Bismuth": {"Chance": 666},
-                         "Reactivite": {"Chance": 27500, "Multis": {"Starlight": 12, "Ion": 8, "Uranium": 5}},
-                         "Plutonerite": {"Chance": 125000, "Multis": {"Diamond": 80, "Starlight": 40, "Ion": 20, "Uranium": 10}}},
-                        12, "Uranium")
-  sacred_geode = Geode({"Grail": {"Chance": 2, "Multis": {"Starlight": 2, "Ion": 2, "Uranium": 2}},
-                        "Box": {"Chance": 3500000, "Multis": {"Obsidian": 3, "Ruby": 3, "Emerald": 3, "Sapphire": 3, "Bismuth": 3, "Boracite": 3}}},
-                       1e9, "Gems")
-  bismuth_geode = Geode({"Lead": {"Chance": 2, "Multis": {"Iron": 10000, "Obsidian": 5, "Ruby": 5, "Emerald": 5, "Sapphire": 5, "Diamond": 5}},
-                         "Bismuth": {"Chance": 4},
-                         "Pseudomalachite": {"Chance": 10, "Multis": {"Diamond": 6, "Uranium": 2, "Bismuth": 1.15}},
-                         "Boracite": {"Chance": 100},
-                         "Osmium": {"Chance": 1428, "Multis": {"Bismuth": 5}},
-                         "Yhed": {"Chance": 45000, "Multis": {"Cash": 80000, "Rebirths": 80000, "White Gems": 80000, "Iron": 80000, "Quartz": 800, "Obsidian": 800, "Emerald": 8, "Diamond": 8, "Ion": 8, "Bismuth": 8}},
-                         "Hexaferrum": {"Chance": 300000, "Multis": {"Ruby": 3000, "Emerald": 2000, "Sapphire": 1000, "Diamond": 160, "Uranium": 40, "Bismuth": 15, "Boracite": 3}}},
-                        50, "Bismuth")
-  boracite_geode = Geode({"Boracite": {"Chance": 5},
-                          "Bismuth": {"Chance": 10},
-                          "Uranium": {"Chance": 20},
-                          "Nissonite": {"Chance": 150},
-                          "Spectrolite": {"Chance": 4000, "Multis": {"Starlight": 5, "Ion": 5, "Bismuth": 5, "Boracite": 3}},
-                          "Hectam": {"Chance": 25000, "Multis": {"Crystal": 100, "Quartz": 100, "Jade": 100, "Ruby": 100, "Emerald": 100, "Diamond": 100, "Boracite": 10}}},
-                         1000, "Boracite")
-  nissonite_geode = Geode({"Nissonite": {"Chance": 5},
-                           "Boracite": {"Chance": 10},
-                           "Bismuth": {"Chance": 20},
-                           "Frostone": {"Chance": 1250, "Multis": {"Rebirths": 15, "Crystal": 15, "Quartz": 15, "Sapphire": 15, "Diamond": 15, "Boracite": 15, "Nissonite": 4, "Mint": 1.04}},
-                           "Neptunian": {"Chance": 6666, "Multis": {"Cash": 2, "Multiplier": 3, "Rebirths": 30, "Ion": 1.5, "Uranium": 2, "Bismuth": 3, "Boracite": 30, "Nissonite": 10}},
-                           "Clouminance": {"Chance": 19000, "Multis": {"Diamond": 100, "Starlight": 100, "Ion": 100, "Boracite": 100, "Nissonite": 20}},
-                           "Galarium": {"Chance": 600000, "Multis": {"Diamond": 300, "Starlight": 300, "Nissonite": 45}},
-                           "Unova": {"Chance": 5000000, "Multis": {"Cash": 1111, "Multiplier": 1111, "Rebirths": 1111, "Stone": 1111, "White Gems": 1111, "Crystal": 1111, "Iron": 1111, "Gold": 1111, "Quartz": 1111, "Jade": 1111, "Obsidian": 1111, "Ruby": 1111, "Emerald": 1111, "Sapphire": 1111, "Diamond": 1111, "Starlight": 1111, "Ion": 1111, "Uranium": 1111, "Bismuth": 1111, "Boracite": 1111, "Nissonite": 111, "Orpiment": 7, "Mint": 11.1, "Gems": 1.1}}},
-                          5, "Nissonite")
-  orpiment_geode = Geode({"Borax": {"Chance": 3, "Multis": {"Boracite": 20}},
-                          "Axiom": {"Chance": 10, "Multis": {"Boracite": 15, "Nissonite": 10}},
-                          "Orpiment": {"Chance": 20},
-                          "Vergemite": {"Chance": 33, "Multis": {"Bismuth": 25, "Orpiment": 1.01}},
-                          "Nissonite": {"Chance": 100},
-                          "Zanyte": {"Chance": 13000, "Multis": {"Iron": 10, "Gold": 10, "Quartz": 10, "Jade": 10, "Obsidian": 10, "Ruby": 10, "Emerald": 10, "Sapphire": 10, "Diamond": 10, "Starlight": 10, "Ion": 10, "Uranium": 10, "Bismuth": 10, "Boracite": 10, "Nissonite": 10, "Orpiment": 4}},
-                          "Secretum": {"Chance": 100000, "Multis": {"Orpiment": 12}},
-                          "Mortalstone": {"Chance": 750000, "Multis": {"Cash": 999, "Multiplier": 999, "Rebirths": 999, "Stone": 999, "White Gems": 999, "Crystal": 999, "Iron": 999, "Gold": 999, "Quartz": 999, "Jade": 999, "Obsidian": 999, "Ruby": 999, "Emerald": 999, "Sapphire": 999, "Diamond": 999, "Starlight": 999, "Ion": 999, "Uranium": 999, "Bismuth": 999, "Boracite": 100, "Nissonite": 100, "Orpiment": 15, "Gems": 10}}},
-                         2, "Orpiment")
-  mint_geode = Geode({"Mint": {"Chance": 2},
-                      "Alpha Point": {"Chance": 2},
-                      "Chestnut": {"Chance": 5},
-                      "Bat": {"Chance": 8},
-                      "Wicked Branch": {"Chance": 33},
-                      "Bone": {"Chance": 80},
-                      "Uzik": {"Chance": 69420, "Multis": {"Jade": 10, "Mint": 5}},
-                      "Omet": {"Chance": 133371, "Multis": {"Cash": 100000, "Mint": 20}}}, 2000, "Mint")
-  deepness_geode = Geode({"Hardstone": {"Chance": 2, "Multis": {"Stone": 8, "Iron": 2}},
-                          "Boomite": {"Chance": 3, "Multis": {"Stone": 15, "Crystal": 4, "Gold": 1.25}},
-                          "Plutonium": {"Chance": 6, "Multis": {"Rebirths": 2, "White Gems": 4, "Metal": 1.1}},
-                          "Cisophrase": {"Chance": 25, "Multis": {"Multiplier": 125, "Stone": 5, "Crystal": 1.5, "Iron": 3, "Gold": 1.2}},
-                          "Anatase": {"Chance": 25000, "Multis": {"Crystal": 1.5, "Iron": 2.5, "Gold": 3.5}},
-                          "Oligoclase": {"Chance": 82000, "Multis": {"Rebirths": 50, "Iron": 3, "Gold": 3, "Quartz": 2, "Metal": 1.2}},
-                          }, 25, "Metal")
-  oceanic_geode = Geode({"Coral": {"Chance": 3, "Multis": {"Stone": 4, "Gold": 2, "Quartz": 1.15}},
-                         "Shardrite": {"Chance": 5, "Multis": {"Crystal": 4, "Gold": 2.1, "Quartz": 1.3, "Metal": 1.15}},
-                         "Serpentine": {"Chance": 6, "Multis": {"Jade": 1.3, "Metal": 1.2}},
-                         "Tsavorite": {"Chance": 14, "Multis": {"Rebirths": 1.25, "Stone": 1.25, "White Gems": 1.25, "Crystal": 1.25, "Iron": 1.25, "Gold": 1.25, "Jade": 1.25}},
-                         "Tangeite": {"Chance": 100, "Multis": {"Cash": 15, "Multiplier": 15, "Rebirths": 15, "Metal": 1.8}},
-                         "Labradorite": {"Chance": 32000, "Multis": {"Cash": 3, "Multiplier": 3, "Rebirths": 3, "Stone": 3, "White Gems": 3, "Crystal": 3, "Iron": 3, "Gold": 3, "Quartz": 3, "Jade": 3, "Metal": 2.5, "Press": 1.1}},
-                         "Tetrahedrite": {"Chance": 125000, "Multis": {"Rebirths": 50, "Stone": 3, "Metal": 3, "Press": 3}},
-                         }, 5000, "Metal")
-  dream_geode = Geode({"Dreamstone": {"Chance": 2, "Multis": {"Cash": 30, "Stone": 12, "Gold": 5, "Metal": 1.6}},
-                       "Rhodium": {"Chance": 4, "Multis": {"Stone": 12, "White Gems": 7, "Quartz": 2, "Jade": 1.5, "Metal": 2}},
-                       "Paragonite": {"Chance": 6, "Multis": {"Obsidian": 1.3}},
-                       "Lautite": {"Chance": 50, "Multis": {"Gold": 2, "Jade": 2, "Press": 1.05}},
-                       "Tungsten": {"Chance": 400, "Multis": {"Quartz": 3, "Metal": 2.5}},
-                       "Iranite": {"Chance": 50000, "Multis": {"Quartz": 2, "Jade": 2, "Obsidian": 2, "Press": 1.25}},
-                       "Grandidierite": {"Chance": 452000, "Multis": {"Ruby": 1.1, "Emerald": 1.1, "Sapphire": 1.1, "Gems": 1.25, "Mint": 1.5, "Metal": 3.25, "Press": 1.4}},
-                       "Qernz": {"Chance": 3500000, "Multis": {"Cash": 30, "Multiplier": 30, "Rebirths": 30, "Stone": 30, "White Gems": 30, "Crystal": 30, "Iron": 30, "Gold": 30, "Metal": 5, "Press": 3, "Microparticles": 2}},
-                       }, 200, "Press")
-  star_geode = Geode({"Benitoite": {"Chance": 3, "Multis": {"Jade": 1.5, "Obsidian": 1.4, "Ruby": 1.2, "Press": 1.3}},
-                      "Plesside": {"Chance": 5, "Multis": {"Gold": 5, "Quartz": 5, "Jade": 2}},
-                      "Zykaite": {"Chance": 8, "Multis": {"Cash": 76, "Multiplier": 76, "Rebirths": 76, "Gold": 3.2, "Jade": 1.4, "Metal": 3, "Press": 1.35}},
-                      "Abelsonite": {"Chance": 25, "Multis": {"Ruby": 2, "Press": 1.6}},
-                      "Devilline": {"Chance": 80, "Multis": {"Gold": 3, "Quartz": 3, "Jade": 3, "Emerald": 1.15, "Metal": 3.2}},
-                      "Lazulite": {"Chance": 25000, "Multis": {"Iron": 4, "Gold": 4, "Quartz": 4, "Sapphire": 1.2, "Mint": 1.45, "Metal": 2, "Press": 1.5, "Microparticles": 1.1}},
-                      "Pentagonite": {"Chance": 250000, "Multis": {"Obsidian": 2.5, "Ruby": 2, "Emerald": 2, "Sapphire": 2, "Press": 2, "Microparticles": 1.3}},
-                      }, 7, "Microparticles")
-  holographic_geode = Geode({"Pigeonite": {"Chance": 2, "Multis": {"Obsidian": 2, "Emerald": 1.25, "Mint": 1.5, "Microparticles": 1.02}},
-                             "Vanuralite": {"Chance": 3, "Multis": {"Jade": 2.5, "Obsidian": 1.3, "Ruby": 1.75, "Metal": 1.75, "Press": 1.63, "Microparticles": 1.05}},
-                             "Xanthoconite": {"Chance": 6, "Multis": {"Ruby": 1.25, "Emerald": 1.25, "Sapphire": 1.25, "Microparticles": 1.1}},
-                             "Uytenbogaardtite": {"Chance": 50, "Multis": {"Cash": 111, "Multiplier": 111, "Rebirths": 111, "Press": 3}},
-                             "Taranakite": {"Chance": 62000, "Multis": {"Ruby": 2, "Emerald": 2, "Sapphire": 2, "Diamond": 1.15}},
-                             "Quetzalcoatlite": {"Chance": 300000, "Multis": {"Ruby": 1.7, "Emerald": 1.7, "Sapphire": 1.7, "Mint": 2.5, "Metal": 2.5, "Press": 2.5, "Microparticles": 2}},
-                             "Playfairite": {"Chance": 800000, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2, "Sapphire": 2, "Diamond": 2, "Gems": 2, "Metal": 2, "Press": 2, "Microparticles": 2, "Star": 2}},
-                             "Hologram": {"Chance": 12500000, "Multis": {"Diamond": 3, "Starlight": 5, "Ion": 2, "Metal": 1.5, "Press": 1.5, "Microparticles": 1.5, "Star": 1.5, "Robot": 1.5, "Prototype": 2}},
-                             }, 750, "Microparticles")
-  vector_geode = Geode({"X": {"Chance": 1.84, "Multis": {"Cash": 3.3, "Stone": 3.3, "Iron": 3.3, "Jade": 3.3, "Emerald": 3.3}},
-                        "Y": {"Chance": 2.22, "Multis": {"Multiplier": 3.3, "White Gems": 3.3, "Gold": 3.3, "Obsidian": 3.3, "Sapphire": 3.3}},
-                        "Z": {"Chance": 7777, "Multis": {"Rebirths": 3.3, "Crystal": 3.3, "Quartz": 3.3, "Ruby": 3.3, "Diamond": 3.3, "Press": 3.3}},
-                        "Vectorlord": {"Chance": 1750000, "Multis": {"Cash": 1.75, "Multiplier": 1.75, "Rebirths": 1.75, "Stone": 1.75, "White Gems": 1.75, "Crystal": 1.75, "Iron": 1.75, "Gold": 1.75, "Quartz": 1.75, "Jade": 1.75, "Obsidian": 1.75, "Ruby": 1.75, "Emerald": 1.75, "Sapphire": 1.75, "Diamond": 1.75, "Starlight": 1.75, "Metal": 1.75, "Press": 1.75, "Microparticles": 1.75, "Star": 1.75}},
-                        }, 100, "Star")
-  insurgence_geode = Geode({"Unholy Copper": {"Chance": 3.33, "Multis": {"Iron": 4, "Obsidian": 5, "Microparticles": 1.7}},
-                            "Wrath Amethyst": {"Chance": 4, "Multis": {"Obsidian": 2.7, "Ruby": 2.7, "Sapphire": 2.7, "Press": 3.5}},
-                            "Dark Gold": {"Chance": 5, "Multis": {"Obsidian": 3, "Diamond": 2, "Microparticles": 1.4, "Star": 1.1}},
-                            "Tempered Quartz": {"Chance": 6, "Multis": {"Quartz": 7, "Obsidian": 4, "Ruby": 3, "Emerald": 3, "Sapphire": 3, "Press": 4.5, "Microparticles": 1.35}},
-                            "Volcanic Molybdenum": {"Chance": 20, "Multis": {"Jade": 150, "Mint": 3, "Star": 1.25}},
-                            "Deadly Obsidian": {"Chance": 200, "Multis": {"Obsidian": 25, "Metal": 3.5}},
-                            "Doomdilite": {"Chance": 18000, "Multis": {"Ruby": 5, "Emerald": 5, "Sapphire": 5, "Diamond": 2.5, "Robot": 1.2}},
-                            "Rave Ectoplasm": {"Chance": 50500, "Multis": {"Obsidian": 10, "Sapphire": 4, "Ion": 1.2, "Microparticles": 1.55}},
-                            "Cloom": {"Chance": 100000, "Multis": {"Iron": 1.5, "Gold": 1.5, "Quartz": 1.5, "Jade": 1.5, "Obsidian": 1.5, "Ruby": 1.5, "Emerald": 1.5, "Sapphire": 1.5, "Diamond": 1.5, "Starlight": 1.5, "Ion": 1.5, "Metal": 1.5, "Press": 1.5, "Microparticles": 1.5}},
-                            "Pentagram": {"Chance": 2500000, "Multis": {"Obsidian": 5, "Ruby": 5, "Emerald": 5, "Sapphire": 5, "Diamond": 5, "Starlight": 5, "Star": 2.5}},
-                            "Nevercyan": {"Chance": 8000000, "Multis": {"Crystal": 7, "Quartz": 7, "Sapphire": 7, "Diamond": 7, "Uranium": 2, "Bismuth": 2, "Boracite": 1.5, "Mint": 5, "Robot": 2}},
-                            "Core of Insurgence": {"Chance": 12000000, "Multis": {"Obsidian": 200, "Ion": 70, "Uranium": 20, "Bismuth": 3, "Orpiment": 1.5, "Metal": 4, "Press": 4, "Microparticles": 4, "Star": 4, "Robot": 4, "Prototype": 3}},
-                            }, 3, "Robot")
-  nostalgic_geode = Geode({"Starfury": {"Chance": 3, "Multis": {"Star": 2}},
-                           "Golden Glory": {"Chance": 5.55, "Multis": {"Gold": 78, "Ruby": 3, "Emerald": 3, "Press": 1.5}},
-                           "Skylest": {"Chance": 6.25, "Multis": {"Sapphire": 3, "Diamond": 3, "Microparticles": 2}},
-                           "Golest": {"Chance": 7.14, "Multis": {"Gold": 3, "Starlight": 3, "Microparticles": 3}},
-                           "Prismo": {"Chance": 8.33, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2, "Sapphire": 2, "Diamond": 2}},
-                           "Aragon": {"Chance": 10, "Multis": {"Jade": 4, "Emerald": 4, "Mint": 4, "Metal": 4, "Press": 4}},
-                           "Ephos": {"Chance": 12.5, "Multis": None},
-                           "Illudic": {"Chance": 16.67, "Multis": {"Iron": 3, "Gold": 3, "Quartz": 3, "Jade": 3, "Obsidian": 3, "Ruby": 3, "Emerald": 3, "Sapphire": 3, "Mint": 3, "Metal": 3, "Press": 3, "Microparticles": 2.4}},
-                           "Magmit": {"Chance": 25, "Multis": {"Ruby": 30, "Press": 5}},
-                           "Phelix": {"Chance": 50, "Multis": {"Ion": 8, "Microparticles": 3.5}},
-                           "Sepron": {"Chance": 200, "Multis": {"Jade": 5, "Emerald": 5, "Uranium": 5, "Metal": 5}},
-                           "Ancar": {"Chance": 15000, "Multis": {"Sapphire": 3, "Diamond": 3, "Ion": 4, "Star": 3, "Robot": 2, "Prototype": 1.5}},
-                           "Taryl": {"Chance": 27000, "Multis": {"Sapphire": 0.5, "Diamond": 100, "Microparticles": 2, "Star": 1.5}},
-                           "Goldermine": {"Chance": 50000, "Multis": {"Gold": Mantissa(1,303), "Ruby": 10, "Emerald": 10, "Sapphire": 10, "Gems": 1.7, "Mint": 7, "Star": 3}},
-                           "Prismarine": {"Chance": 75000, "Multis": {"Boracite": 3, "Mint": 9, "Metal": 5, "Press": 5}},
-                           "Intergalaxias": {"Chance": 166667, "Multis": {"Emerald": 30, "Diamond": 10, "Starlight": 10, "Ion": 5, "Microparticles": 4, "Star": 4}},
-                           "Eruptis": {"Chance": 181818, "Multis": {"Obsidian": 1e100, "Ruby": 8.5, "Orpiment": 1.1, "Robot": 3, "Prototype": 2}},
-                           "Dime": {"Chance": 200000, "Multis": {"Cash": 3, "Multiplier": 3, "Rebirths": 3, "Stone": 3, "White Gems": 3, "Crystal": 3, "Iron": 3, "Gold": 3, "Quartz": 3, "Jade": 3, "Obsidian": 3, "Ruby": 3, "Emerald": 3, "Sapphire": 3, "Diamond": 3, "Starlight": 3, "Ion": 3, "Uranium": 3, "Bismuth": 3, "Boracite": 3}},
-                           "Calamity": {"Chance": 500000, "Multis": {"Ruby": 15, "Diamond": 7, "Ion": 5, "Bismuth": 3, "Metal": 7, "Robot": 4, "Prototype": 2.5}},
-                           "Elysium": {"Chance": 600000, "Multis": {"Quartz": 9696969696, "Sapphire": 96, "Boracite": 5, "Nissonite": 4, "Gems": 2.5, "Mint": 5, "Star": 5, "Robot": 4, "Prototype": 3}},
-                           "Equinox": {"Chance": 750000, "Multis": {"White Gems": 7, "Iron": 7, "Quartz": 7, "Obsidian": 7, "Ruby": 7, "Emerald": 7, "Sapphire": 7, "Ion": 7, "Metal": 4.5, "Robot": 4.5}},
-                           "Oculous": {"Chance": 875000, "Multis": {"Boracite": 2, "Prototype": 10}},
-                           "Catalyst": {"Chance": 1500000, "Multis": {"Starlight": 8, "Ion": 8, "Uranium": 8, "Orpiment": 2, "Metal": 8, "Press": 8, "Microparticles": 8, "Robot": 5}},
-                           "Loyalty": {"Chance": 3000000, "Multis": {"Orpiment": 4, "Robot": 6}},
-                           "Omni": {"Chance": 5000000, "Multis": {"Emerald": 9, "Bismuth": 9, "Boracite": 9, "Nissonite": 9, "Orpiment": 3, "Metal": 9, "Prototype": 9}},
-                           "Excalibur": {"Chance": 7000000, "Multis": {"Obsidian": 100, "Ruby": 25, "Diamond": 8, "Ion": 12, "Metal": 7, "Microparticles": 7}},
-                           "Volùspa": {"Chance": 15000000, "Multis": {"Uranium": 6, "Bismuth": 5, "Boracite": 4, "Nissonite": 3, "Metal": 3, "Press": 3, "Microparticles": 3, "Star": 3, "Robot": 3}},
-                           "Dynamo": {"Chance": 25000000, "Multis": {"Crystal": 15, "Gold": 15, "Jade": 15, "Ruby": 15, "Emerald": 15, "Sapphire": 15, "Starlight": 15, "Metal": 15}},
-                           "Genesis": {"Chance": 25000000, "Multis": {"Obsidian": 15, "Emerald": 15, "Diamond": 15, "Ion": 15, "Bismuth": 15, "Press": 15}},
-                           "Solomnium": {"Chance": 50000000, "Multis": {"Volt": 2, "Prototype": 3}},
-                           "Immortality": {"Chance": 75000000, "Multis": {"Emerald": 50, "Ion": 12, "Bismuth": 12, "Orpiment": 3, "Metal": 12, "Robot": 7}},
-                           "Temperùs": {"Chance": 150000000, "Multis": {"Crystal": 25, "Iron": 25, "Quartz": 25, "Jade": 25, "Sapphire": 25, "Diamond": 25, "Boracite": 25, "Nissonite": 25, "Aquamarine": 100, "Lollipop": 5, "Star": 15}},
-                           "Relictic Loyalty": {"Chance": 300000000, "Multis": {"Emerald": 100000, "Starlight": 100000, "Nissonite": 100000, "Orpiment": 5, "Tetra": 1.5, "Volt": 1e15, "Aquamarine": 1e8, "Lollipop": 50, "C0RR8PT10N": 3, "Metal": 17, "Press": 9, "Microparticles": 8, "Star": 7}},
-                           "Relictic Volùspa": {"Chance": 1500000000, "Multis": {"Cash": 100, "Multiplier": 100, "Rebirths": 100, "Stone": 100, "Crystal": 100, "Quartz": 100, "Emerald": 100, "Uranium": 100, "Orpiment": 10, "Tetra": 4, "Volt": 1e50, "Aquamarine": 1e25, "Lollipop": 1000, "C0RR8PT10N": 25, "Star": 9, "Robot": 10, "Prototype": 12}},
-                           "Lifender": {"Chance": 5000000000, "Multis": {"Rebirths": 1e12, "Stone": 1e12, "Iron": 1e12, "Gold": 1e12, "Quartz": 1e12, "Diamond": 1e12, "Starlight": 1e12, "Ion": 1e12, "Uranium": 1e12, "Bismuth": 1e12, "Boracite": 1e12, "Nissonite": 1e12, "Orpiment": 1e222, "Tetra": 1e100, "Volt": 1e50, "Aquamarine": 1e30, "Lollipop": 1e15, "C0RR8PT10N": 1e6, "Mint": 50, "Metal": 1e12, "Stargazed Metal": 1e6, "Gyge": 5, "Auly Plate": 82, "Shel Piece": 9.08}},
-                           }, 50, "Robot")
-  cosmic_geode = Geode({"Ascended Crystal": {"Chance": 2, "Multis": {"Cash": 1e50, "Multiplier": 1e50, "Rebirths": 1e50, "Stone": 1e50, "White Gems": 1e50, "Crystal": 1e50}},
-                        "Bright Quartz": {"Chance": 8, "Multis": {"Cash": 1e50, "Multiplier": 1e50, "Rebirths": 1e50, "Stone": 1e50, "White Gems": 1e50, "Crystal": 1e50, "Iron": 1e50, "Gold": 1e50, "Quartz": 1e50}},
-                        "Glowing Jade": {"Chance": 23, "Multis": {"Cash": 1e50, "Multiplier": 1e50, "Rebirths": 1e50, "Stone": 1e50, "White Gems": 1e50, "Crystal": 1e50, "Iron": 1e50, "Gold": 1e50, "Quartz": 1e50, "Jade": 1e50}},
-                        "Vivid Ruby": {"Chance": 100, "Multis": {"Cash": 1e50, "Multiplier": 1e50, "Rebirths": 1e50, "Stone": 1e50, "White Gems": 1e50, "Crystal": 1e50, "Iron": 1e50, "Gold": 1e50, "Quartz": 1e50, "Jade": 1e50, "Obsidian": 1e50, "Ruby": 1e50}},
-                        "Glossy Diamond": {"Chance": 470, "Multis": {"Cash": 1e50, "Multiplier": 1e50, "Rebirths": 1e50, "Stone": 1e50, "White Gems": 1e50, "Crystal": 1e50, "Iron": 1e50, "Gold": 1e50, "Quartz": 1e50, "Jade": 1e50, "Obsidian": 1e50, "Ruby": 1e50, "Emerald": 1e50, "Sapphire": 1e50, "Diamond": 1e50}},
-                        "Polarized Ion": {"Chance": 2100, "Multis": {"Cash": 1e50, "Multiplier": 1e50, "Rebirths": 1e50, "Stone": 1e50, "White Gems": 1e50, "Crystal": 1e50, "Iron": 1e50, "Gold": 1e50, "Quartz": 1e50, "Jade": 1e50, "Obsidian": 1e50, "Ruby": 1e50, "Emerald": 1e50, "Sapphire": 1e50, "Diamond": 1e50, "Starlight": 1e50, "Ion": 1e50}},
-                        "Illuminated Bismuth": {"Chance": 8600, "Multis": {"Cash": 1e50, "Multiplier": 1e50, "Rebirths": 1e50, "Stone": 1e50, "White Gems": 1e50, "Crystal": 1e50, "Iron": 1e50, "Gold": 1e50, "Quartz": 1e50, "Jade": 1e50, "Obsidian": 1e50, "Ruby": 1e50, "Emerald": 1e50, "Sapphire": 1e50, "Diamond": 1e50, "Starlight": 1e50, "Ion": 1e50, "Uranium": 1e50, "Bismuth": 1e50}},
-                        "Gleaming Nissonite": {"Chance": 15600, "Multis": {"Cash": 1e50, "Multiplier": 1e50, "Rebirths": 1e50, "Stone": 1e50, "White Gems": 1e50, "Crystal": 1e50, "Iron": 1e50, "Gold": 1e50, "Quartz": 1e50, "Jade": 1e50, "Obsidian": 1e50, "Ruby": 1e50, "Emerald": 1e50, "Sapphire": 1e50, "Diamond": 1e50, "Starlight": 1e50, "Ion": 1e50, "Uranium": 1e50, "Bismuth": 1e50, "Boracite": 1e50, "Nissonite": 1e50}},
-                        "Glaring Tetra": {"Chance": 75000, "Multis": {"Cash": 1e50, "Multiplier": 1e50, "Rebirths": 1e50, "Stone": 1e50, "White Gems": 1e50, "Crystal": 1e50, "Iron": 1e50, "Gold": 1e50, "Quartz": 1e50, "Jade": 1e50, "Obsidian": 1e50, "Ruby": 1e50, "Emerald": 1e50, "Sapphire": 1e50, "Diamond": 1e50, "Starlight": 1e50, "Ion": 1e50, "Uranium": 1e50, "Bismuth": 1e50, "Boracite": 1e50, "Nissonite": 1e50, "Orpiment": 1e50, "Tetra": 1e50}},
-                        "Shining Lollipop": {"Chance": 210000, "Multis": {"Cash": 1e50, "Multiplier": 1e50, "Rebirths": 1e50, "Stone": 1e50, "White Gems": 1e50, "Crystal": 1e50, "Iron": 1e50, "Gold": 1e50, "Quartz": 1e50, "Jade": 1e50, "Obsidian": 1e50, "Ruby": 1e50, "Emerald": 1e50, "Sapphire": 1e50, "Diamond": 1e50, "Starlight": 1e50, "Ion": 1e50, "Uranium": 1e50, "Bismuth": 1e50, "Boracite": 1e50, "Nissonite": 1e50, "Orpiment": 1e50, "Tetra": 1e50, "Volt": 1e50, "Aquamarine": 1e11, "Lollipop": 100}},
-                        "Glistening Gyge": {"Chance": 613435, "Multis": {"Aquamarine": 1e8, "Lollipop": 300, "C0RR8PT10N": 2}},
-                        "Scapolite": {"Chance": 1630500, "Multis": {"Volt": 1e10, "Aquamarine": 100000, "Lollipop": 5000, "C0RR8PT10N": 5}},
-                        "Phenakite": {"Chance": 4230540, "Multis": {"Aquamarine": 1e20, "Lollipop": 1e6, "C0RR8PT10N": 25, "Stargazed Metal": 5}},
-                        "Unarovite": {"Chance": 11230900, "Multis": {"Volt": 1e50, "Aquamarine": 1e50, "Lollipop": 1e10, "C0RR8PT10N": 150, "Stargazed Metal": 15}},
-                        "Sphalerite": {"Chance": 27920300, "Multis": {"Lollipop": 1e20, "C0RR8PT10N": 1000, "Stargazed Metal": 50}},
-                        "Rhodochrosite": {"Chance": 92000000, "Multis": {"Volt": 1e50, "Aquamarine": 1e50, "Lollipop": 1e50, "C0RR8PT10N": 100000, "Stargazed Metal": 150, "Gyge": 5}},
-                        "Tourmaline": {"Chance": 231039274, "Multis": {"Tetra": 1e50, "Volt": 1e50, "Aquamarine": 1e50, "Lollipop": 1e50, "C0RR8PT10N": 1e8, "Stargazed Metal": 900, "Gyge": 30, "Auly Plate": 12, "Shell Piece": 2.43}},
-                        "Cosmillite": {"Chance": 1000000000, "Multis": {"Boracite": 1e100, "Nissonite": 1e100, "Orpiment": 1e100, "Tetra": 1e100, "Volt": 1e100, "Aquamarine": 1e100, "Lollipop": 1e100, "C0RR8PT10N": 1e12, "Stargazed Metal": 5000, "Gyge": 132, "Auly Plate": 28, "Shell Piece": 5.42}},
-                        }, 100, "C0RR8PT10N")
-  #----------- AD GEODES -------------
-  galactic_geode = Geode({"Eveslogite": {"Chance": 3},
-                          "Spacelite": {"Chance": 14},
-                          "Astrolite": {"Chance": 100},
-                          "Cometium": {"Chance": 400},
-                          "Planetium": {"Chance": 20000},
-                          "Mercury": {"Chance": 75000},
-                          "Saturnite": {"Chance": 225000},
-                          "Constellar": {"Chance": 755000},
-                          "Neutronium": {"Chance": 25000000},
-                          "Magnetar": {"Chance": 8000000},
-                          "Uzoburnus": {"Chance": 18000000}}, 1e6, "Mana")
-  artificial_geode = Geode({"Bit": {"Chance": 2},
-                            "Pixel": {"Chance": 5},
-                            "Aluminium": {"Chance": 20},
-                            "Nickel": {"Chance": 80},
-                            "Zinc": {"Chance": 133},
-                            "Electrolite": {"Chance": 2000},
-                            "Livermorium": {"Chance": 45000},
-                            "Gygabittium": {"Chance": 162500},
-                            "Pteracorite": {"Chance": 650000},
-                            "Oganesson": {"Chance": 2250000},
-                            "Metactinium": {"Chance": 7500000},
-                            "Apatite": {"Chance": 26000000},
-                            "Unbinilium": {"Chance": 125000000}},
-                           7e10, "Enchantment")
-  elemental_geode = Geode({"Watercrystal": {"Chance": 2},
-                           "Sandstone": {"Chance": 8},
-                           "Firecrystal": {"Chance": 33},
-                           "Leafstone": {"Chance": 200},
-                           "Windirius": {"Chance": 3333},
-                           "Rockarnium": {"Chance": 30000},
-                           "Drakan": {"Chance": 150000},
-                           "Chromatite": {"Chance": 500000},
-                           "Sognus": {"Chance": 3000000},
-                           "Ambrosia": {"Chance": 15000000},
-                           "Quintessence": {"Chance": 77777777}}, 2e32, "Mana")
-  awakened_geode = Geode({"Silicon": {"Chance": 2},
-                           "Sulfur": {"Chance": 6},
-                           "Chlorine": {"Chance": 33},
-                           "Bromine": {"Chance": 200},
-                           "Technetium": {"Chance": 8000},
-                           "Scandium": {"Chance": 20000},
-                           "Rhodimite": {"Chance": 80000},
-                           "Vanadium": {"Chance": 250000},
-                           "Selenium": {"Chance": 575000},
-                           "Yttrium": {"Chance": 925000},
-                           "Polonium": {"Chance": 1750000},
-                           "Krypton": {"Chance": 7500000},
-                           "Aeglestone": {"Chance": 30000000}}, 7e39, "Enchantment")
-  magical_geode = Geode({"Arctite": {"Chance": 3},
-                         "Cuprite": {"Chance": 7},
-                         "Musgravite": {"Chance": 50},
-                         "Kainosite": {"Chance": 200},
-                         "Neodymium": {"Chance": 1333},
-                         "Beryllium": {"Chance": 80000},
-                         "Vergamite": {"Chance": 350000},
-                         "Quamite": {"Chance": 888888},
-                         "Astralyte": {"Chance": 3400000},
-                         "Unobtainium": {"Chance": 15000000},
-                         "Vibranium": {"Chance": 47500000},
-                         "Stygium": {"Chance": 100000000},
-                         "Kyber Crystal": {"Chance": 2500000000}},
-                        5e21, "Spell")
-  #----------- EVENT GEODES ------------
-  hearted_geode = Geode({"Sweet": {"Chance": 2, "Multis": {"Cash": 3, "Multiplier": 2, "Flower": 2.5, "Love": 1.5}},
-                         "Ichor Flower": {"Chance": 8, "Multis": {"Cash": 5, "Rebirths": 3, "Stone": 1.5, "Heart": 2}},
-                         "Halved Heart": {"Chance": 20, "Multis": {"White Gems": 2, "Love": 5, "Heart": 3}},
-                         "Rainbow": {"Chance": 100, "Multis": {"Cash": 3, "Multiplier": 3, "Rebirths": 3, "Crystal": 3, "Flower": 7, "Heart": 4}},
-                         "Unicorn": {"Chance": 333, "Multis": {"Cash": 7, "Multiplier": 7, "Rebirths": 7, "Stone": 7, "White Gems": 7, "Crystal": 7, "Flower": 7, "Heart": 7}},
-                         "Rose": {"Chance": 4000, "Multis": {"Gold": 5, "Quartz": 3, "Flower": 50, "Love": 20, "Heart": 10}},
-                         "Wickedite": {"Chance": 17500, "Multis": {"Stone": 10, "White Gems": 10, "Crystal": 10, "Iron": 10, "Gold": 10, "Quartz": 10, "Jade": 10, "Obsidian": 10, "Heart": 1/1.4}},
-                         "Heartium": {"Chance": 280000, "Multis": {"Multiplier": 100, "Stone": 100, "Crystal": 100, "Jade": 10, "Ruby": 5, "Sapphire": 3, "Flower": 50, "Love": 50, "Heart": 50}},
-                         "Eternal Rose": {"Chance": 1250000, "Multis": {"Cash": 1000, "Multiplier": 1000, "Stone": 1000, "White Gems": 1000, "Crystal": 1000, "Iron": 1000, "Gold": 1000, "Quartz": 1000, "Jade": 1000, "Obsidian": 1000, "Ruby": 100, "Emerald": 100, "Sapphire": 100, "Nissonite": 4, "Flower": 1000, "Love": 1000, "Heart": 1000}},
-                         }, 50, "Heart")
-  luck_geode = Geode({"Lucky Clover": {"Chance": 4, "Multis": {"Cash": 2, "Clover": 1.05}},
-                      "Golden Clover": {"Chance": 20, "Multis": {"Cash": 1.8, "Multiplier": 1.75, "Clover": 1.15}},
-                      "Diamond Clover": {"Chance": 100, "Multis": {"Multiplier": 2, "Rebirths": 3.5, "Clover": 1.25}},
-                      "Leprechaun's Hat": {"Chance": 200, "Multis": {"Rebirths": 3, "Stone": 1.8, "Clover": 1.32}},
-                      "Supreme Clover": {"Chance": 12000, "Multis": {"Crystal": 3, "Quartz": 4.5, "Clover": 1.75}},
-                      "Cloverite": {"Chance": 35000, "Multis": {"Stone": 10, "Gold": 5, "Jade": 3, "Emerald": 1.25, "Clover": 2.5}},
-                      "Ace": {"Chance": 1600000, "Multis": {"Cash": 6, "Multiplier": 6, "Rebirths": 6, "Stone": 6, "Crystal": 6, "Quartz": 6, "Ruby": 6, "Emerald": 6, "Sapphire": 6, "Diamond": 6, "Clover": 12.5}},
-                      "777": {"Chance": 7777777, "Multis": {"Cash": 777, "Multiplier": 777, "Rebirths": 777, "Stone": 77, "White Gems": 77, "Crystal": 77, "Iron": 77, "Gold": 77, "Quartz": 77, "Jade": 77, "Obsidian": 77, "Ruby": 77, "Emerald": 77, "Sapphire": 77, "Clover": 77.7}}
-                      }, 3, "Clover")
-  clover_geode = Geode({"Holy Clover": {"Chance": 3, "Multis": {"Quartz": 2, "Ruby": 1.5, "Clover": 1.45}},
-                        "Red Clover": {"Chance": 6, "Multis": {"Multiplier": 3, "White Gems": 1.15, "Obsidian": 3, "Ruby": 3, "Clover": 1.55}},
-                        "Death Clover": {"Chance": 20, "Multis": {"Stone": 5, "White Gems": 5, "Iron": 5, "Obsidian": 5, "Clover": 1.65}},
-                        "Oblivion Clover": {"Chance": 40, "Multis": {"Obsidian": 6, "Sapphire": 6, "Clover": 1.8}},
-                        "Giant Clover": {"Chance": 285, "Multis": {"Cash": 15, "Multiplier": 15, "Rebirths": 15, "Stone": 15, "Crystal": 15, "Clover": 2}},
-                        "Albino Clover": {"Chance": 1000, "Multis": {"Stone": 8, "White Gems": 8, "Iron": 8, "Ruby": 8, "Clover": 2.5}},
-                        "Tripetaled": {"Chance": 15000, "Multis": {"Cash": 3, "Multiplier": 3, "Rebirths": 3, "Stone": 3, "White Gems": 3, "Crystal": 3, "Iron": 3, "Gold": 3, "Quartz": 3, "Jade": 3, "Obsidian": 3, "Ruby": 3, "Emerald": 3, "Sapphire": 3, "Diamond": 3, "Clover": 3}},
-                        "Oddium": {"Chance": 55000, "Multis": {"Stone": 30, "Iron": 30, "Obsidian": 30, "Ruby": 30, "Emerald": 30, "Clover": 5}},
-                        "Dualpetaled": {"Chance": 120000, "Multis": {"Cash": 10, "Multiplier": 10, "Rebirths": 10, "Stone": 10, "White Gems": 10, "Crystal": 10, "Iron": 10, "Gold": 10, "Quartz": 10, "Jade": 10, "Clover": 10}},
-                        "Core Clover": {"Chance": 1000001, "Multis": {"Cash": 100, "Rebirths": 100, "White Gems": 100, "Gold": 100, "Jade": 100, "Ruby": 100, "Mint": 10, "Clover": 25}},
-                        "Jackpotium": {"Chance": 8000000, "Multis": {"Cash": 1e5, "Multiplier": 1e5, "Rebirths": 1e5, "Stone": 1e5, "White Gems": 1e5, "Crystal": 1e5, "Nissonite": 1000, "Orpiment": 8, "Clover": 1000}},
-                        "Luckant": {"Chance": 4500000, "Multis": {"Cash": 666, "Multiplier": 666, "Rebirths": 666, "Stone": 666, "White Gems": 66, "Iron": 666, "Gold": 66, "Quartz": 66, "Jade": 66, "Obsidian": 66, "Ruby": 66, "Emerald": 66, "Sapphire": 66, "Starlight": 6, "Ion": 6, "Uranium": 6}},
-                        "Reality": {"Chance": 50000000, "Multis": {"Cash": 1e9, "Multiplier": 1e9, "Rebirths": 1e9, "Stone": 1e9, "White Gems": 1e9, "Crystal": 1e9, "Iron": 1e9, "Gold": 1e9, "Quartz": 1e9, "Jade": 1e9, "Obsidian": 1e9, "Ruby": 1e9, "Emerald": 1e9, "Sapphire": 1e9, "Diamond": 1e9, "Starlight": 1e9, "Ion": 1e9, "Uranium": 1e5, "Bismuth": 1e5, "Boracite": 1e5, "Nissonite": 1e5, "Orpiment": 10, "Mint": 1e9, "Clover": 1e9}}
-                        }, 1e8, "Clover")
-  celebrative_geode = Geode({"Goldenium": {"Chance": 2, "Multis": {"Cash": 1.5, "Multiplier": 1.2}},
-                             "Lightroom": {"Chance": 5, "Multis": {"Obsidian": 1.75}},
-                             "Dazzlium": {"Chance": 11, "Multis": {"Cash": 2, "Multiplier": 1.7, "Rebirths": 1.7}},
-                             "Juled": {"Chance": 50, "Multis": {"Rebirths": 2, "Stone": 1.8}},
-                             "Tempested": {"Chance": 400, "Multis": {"Rebirths": 3, "Crystal": 1.5}},
-                             "Cyclone": {"Chance": 13000, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2}},
-                             "Koanite": {"Chance": 21000, "Multis": {"Crystal": 5, "Quartz": 3}},
-                             "Torbdenum": {"Chance": 45000, "Multis": {"Gold": 12, "Jade": 10, "Obsidian": 5}},
-                             "Darnite": {"Chance": 100000, "Multis": {"Cash": 1000, "Ruby": 2, "Emerald": 2, "Sapphire": 2}},
-                             "Wubium": {"Chance": 500000, "Multis": {"Rebirths": 653, "Crystal": 25, "Obsidian": 8, "Diamond": 3}},
-                             "Woofern": {"Chance": 1150000, "Multis": {"Cash": 27, "Multiplier": 27, "Rebirths": 27, "Stone": 27, "White Gems": 27, "Crystal": 27, "Iron": 27, "Gold": 27, "Quartz": 27, "Jade": 27, "Obsidian": 27, "Ion": 10, "Bismuth": 2}},
-                             "Acastar": {"Chance": 4750000, "Multis": {"Rebirths": 100, "Quartz": 100, "Sapphire": 100, "Diamond": 100, "Starlight": 100, "Ion": 100}},
-                             "Zinction": {"Chance": 9000000, "Multis": {"Cash": 5, "Multiplier": 5, "Rebirths": 5, "Stone": 5, "White Gems": 5, "Crystal": 5, "Iron": 5, "Gold": 5, "Quartz": 5, "Jade": 5, "Orpiment": 3.5}},
-                             "Prismatum": {"Chance": 17500000, "Multis": {"Iron": 20, "Gold": 20, "Quartz": 20, "Jade": 20, "Obsidian": 20, "Ruby": 20, "Emerald": 20, "Sapphire": 20, "Diamond": 20, "Starlight": 20, "Ion": 20, "Uranium": 20, "Bismuth": 20, "Boracite": 20, "Nissonite": 20, "Orpiment": 8.5}}},
-                            10, "Rebirths")
-  spring_geode = Geode({"Vine": {"Chance": 4, "Multis": {"Cash": 10, "Rebirths": 5}},
-                        "Dew": {"Chance": 6, "Multis": {"Cash": 25, "Multiplier": 30, "Stone": 20}},
-                        "Daisy": {"Chance": 12, "Multis": {"Cash": 100, "Stone": 25, "White Gems": 10}},
-                        "Tulip": {"Chance": 33, "Multis": {"Multiplier": 20, "Crystal": 10}},
-                        "Aster": {"Chance": 10000, "Multis": {"Stone": 1000, "Gold": 250, "Quartz": 100}},
-                        "Honeysuckle": {"Chance": 27500, "Multis": {"Rebirths": 2500, "Iron": 50, "Jade": 25}},
-                        "Trollius": {"Chance": 75000, "Multis": {"Stone": 1000, "Crystal": 250, "Gold": 200, "Jade": 100}},
-                        "Nymphea": {"Chance": 255000, "Multis": {"White Gems": 2500, "Quartz": 150, "Obsidian": 5}},
-                        "Sunflower": {"Chance": 800000, "Multis": {"Stone": 200, "Gold": 1000, "Ruby": 5}},
-                        "Yarrow": {"Chance": 3000000, "Multis": {"Cash": 1e6, "Ruby": 200, "Emerald": 200, "Sapphire": 200}},
-                        "Windflower": {"Chance": 5000000, "Multis": {"Multiplier": 10000, "Iron": 250, "Obsidian": 50, "Diamond": 15}},
-                        "Bachelor's Button": {"Chance": 12500000, "Multis": {"Rebirths": 1e5, "Gold": 500, "Emerald": 35, "Starlight": 5}}
-                        }, 25, "Stone")
-  easter_geode = Geode({"Egg": {"Chance": 4, "Multis": {"Cash": 2}},
-                        "Tainted Egg": {"Chance": 5, "Multis": {"Cash": 10, "Multiplier": 10}},
-                        "Spotted Egg": {"Chance": 8, "Multis": {"Rebirths": 10}},
-                        "Equinox Egg": {"Chance": 20, "Multis": {"Stone": 10}},
-                        "Sugar Egg": {"Chance": 15000, "Multis": {"Multiplier": 100, "White Gems": 15, "Crystal": 10}},
-                        "Time Egg": {"Chance": 50500, "Multis": {"Quartz": 25, "Obsidian": 1.1}},
-                        "Malicious Egg": {"Chance": 125000, "Multis": {"Rebirths": 10000, "Iron": 1000, "Jade": 20}},
-                        "Stained Glass Egg": {"Chance": 6000000, "Multis": {"Stone": 3, "White Gems": 3, "Crystal": 3, "Iron": 3, "Gold": 3, "Quartz": 3, "Jade": 3, "Obsidian": 3, "Ruby": 3}},
-                        "Space Egg": {"Chance": 6000000, "Multis": {"White Gems": 42, "Crystal": 42, "Obsidian": 10, "Ruby": 2}},
-                        "Gravitational Egg": {"Chance": 6000000, "Multis": {"Cash": 4, "Multiplier": 4, "Rebirths": 4, "Stone": 4, "White Gems": 4, "Crystal": 4, "Iron": 4, "Gold": 4, "Quartz": 4, "Jade": 4, "Obsidian": 4}},
-                        "EGG9000": {"Chance": 6000000, "Multis": {"Stone": 9000, "White Gems": 9000, "Crystal": 9000, "Iron": 9000, "Gold": 9000, "Quartz": 900, "Jade": 90, "Obsidian": 9}},
-                        "Dust Devil Egg": {"Chance": 6000000, "Multis": {"Multiplier": 3e6, "White Gems": 300, "Quartz": 35, "Obsidian": 3, "Ruby": 2.5}},
-                        "Black Iron Fabergé": {"Chance": 25000000, "Multis": {"Iron": 1e12, "Obsidian": 1e6, "Uranium": 1.25}},
-                        "Gilded Fabergé": {"Chance": 25000000, "Multis": {"Cash": 1e12, "Stone": 1000, "Crystal": 500, "Emerald": 100, "Sapphire": 5}},
-                        "Royal Fabergé": {"Chance": 25000000, "Multis": {"Cash": 1e9, "Gold": 1e6, "Diamond": 5, "Uranium": 1.5}},
-                        "Easter Basket": {"Chance": 100000000, "Multis": {"Cash": 100, "Multiplier": 100, "Rebirths": 100, "Stone": 100, "White Gems": 100, "Crystal": 100, "Iron": 100, "Gold": 100, "Quartz": 100, "Jade": 100, "Obsidian": 100, "Ruby": 100, "Emerald": 100, "Sapphire": 100, "Diamond": 100, "Starlight": 100, "Ion": 100, "Uranium": 100, "Bismuth": 100, "Boracite": 25, "Nissonite": 10, "Orpiment": 5, "Orpiment_2": 5, "Tetra": 10000, "Volt": 100, "Aquamarine": 15, "Lollipop": 5, "Stargazed Metal": 15, "Gyge": 5, "Auly Plate": 2}},
-                        "Egg of Destiny": {"Chance": 1000000000000, "Multis": {"Cash": Mantissa(1,303), "Multiplier": Mantissa(1,303), "Rebirths": Mantissa(1,303), "Stone": Mantissa(1,303), "White Gems": Mantissa(1,303), "Crystal": Mantissa(1,303), "Iron": Mantissa(1,303), "Gold": Mantissa(1,303), "Quartz": Mantissa(1,303), "Jade": Mantissa(1,303), "Obsidian": Mantissa(1,303), "Ruby": Mantissa(1,303), "Emerald": Mantissa(1,303), "Sapphire": Mantissa(1,303), "Diamond": Mantissa(1,303), "Starlight": Mantissa(1,303), "Ion": Mantissa(1,303), "Uranium": Mantissa(1,303), "Bismuth": Mantissa(1,303), "Boracite": Mantissa(1,303), "Nissonite": Mantissa(1,303), "Orpiment": Mantissa(1,303), "Tetra": Mantissa(1,303), "Volt": Mantissa(1,303), "Aquamarine": Mantissa(1,303), "Lollipop": Mantissa(1,303), "C0RR8PT10N": Mantissa(1,303), "Stargazed Metal": 1e100, "Gyge": 1e50, "Auly Plate": 1e25, "Shell Piece": 100000, "Prime Alpha Key": 1000}}
-                        }, 7, "Event Power")
-  fabled_geode = Geode({"Shinestone": {"Chance": 5, "Multis": {"Cash": 1e12, "Rebirths": 1e9}},
-                        "Yen": {"Chance": 5, "Multis": {"Cash": 2, "Multiplier": 2}},
-                        "Ascension": {"Chance": 5, "Multis": {"Rebirths": 800, "Stone": 400, "White Gems": 200, "Crystal": 100, "Iron": 50, "Gold": 25}},
-                        "Translucid Gem": {"Chance": 10, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2}},
-                        "Luminant Crystal": {"Chance": 10, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2}},
-                        "Exotic Metal": {"Chance": 20, "Multis": {"Cash": 2, 'Multiplier': 2, "Rebirths": 2, "Stone": 2, "Crystal": 2}},
-                        "Polyhedral Gold": {"Chance": 20, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "Crystal": 2, "Iron": 2}},
-                        "Luxurious Quartz": {"Chance": 33, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "Crystal": 2, "Iron": 2, "Gold": 2}},
-                        "Scarlet Jade": {"Chance": 33, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2}},
-                        "Reflected Obsidian": {"Chance": 100, "Multis": {"Cash": 2, "Multiplier": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2}},
-                        "Chromio": {"Chance": 100, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2}},
-                        "Clusterized Diamond": {"Chance": 200, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2, "Sapphire": 2}},
-                        "Cosmodryal": {"Chance": 200, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2, "Sapphire": 2, "Diamond": 2}},
-                        "Augmented Ion": {"Chance": 1000, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2, "Sapphire": 2, "Diamond": 2, "Starlight": 2}},
-                        "Symmetrite": {"Chance": 1000, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2, "Sapphire": 2, "Diamond": 2, "Ion": 2}},
-                        "Levigated Bismuth": {"Chance": 2000, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2, "Sapphire": 2, "Diamond": 2, "Ion": 2, "Uranium": 2}},
-                        "Niflhemic Boracite": {"Chance": 4000, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2, "Sapphire": 2, "Diamond": 2, "Ion": 2, "Uranium": 2, "Bismuth": 2}},
-                        "Encored Nissonite": {"Chance": 4000, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2, "Sapphire": 2, "Diamond": 2, "Ion": 2, "Uranium": 2, "Bismuth": 2, "Boracite": 2}},
-                        "Ethereal Orpiment": {"Chance": 12500, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2, "Sapphire": 2, "Diamond": 2, "Ion": 2, "Uranium": 2, "Bismuth": 2, "Boracite": 2, "Nissonite": 2}},
-                        "Charged Tetra": {"Chance": 30000, "Multis": {"Cash": 1.5, "Multiplier": 1.5, "Rebirths": 1.5, "Stone": 1.5, "White Gems": 1.5, "Crystal": 1.5, "Iron": 1.5, "Gold": 1.5, "Quartz": 1.5, "Jade": 1.5, "Obsidian": 1.5, "Ruby": 1.5, "Emerald": 1.5, "Sapphire": 1.5, "Diamond": 1.5, "Ion": 1.5, "Uranium": 1.5, "Bismuth": 1.5, "Boracite": 1.5, "Nissonite": 1.5, "Orpiment": 1.5}},
-                        "Overclocked Volt": {"Chance": 75000, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Obsidian": 2, "Ruby": 2, "Emerald": 2, "Sapphire": 2, "Diamond": 2, "Ion": 2, "Uranium": 2, "Bismuth": 2, "Boracite": 2, "Nissonite": 2, "Orpiment": 2}},
-                        "Agate": {"Chance": 125000, "Multis": {"Jade": 1e9, "Diamond": 1e9, "Ion": 1e5}},
-                        "Bustamite": {"Chance": 175000, "Multis": {"Iron": 1e9, "Sapphire": 1000, "Starlight": 20000}},
-                        "Polycrase": {"Chance": 262000, "Multis": {"Cash": 1e15, "Stone": 1e12, "Quartz": 1e9, "Ruby": 1e6}},
-                        "Stolzite": {"Chance": 363000, "Multis": {"Gold": 1e12, "Emerald": 1e9, "Uranium": 100}},
-                        "Zeunerite": {"Chance": 532000, "Multis": {"Jade": 1e12, "Emerald": 1e9, "Starlight": 1000, "Boracite": 100}},
-                        "Phosphophyllite": {"Chance": 750000, "Multis": {"Sapphire": 1e9, "Diamond": 2e6, "Ion": 1000, "Uranium": 400}},
-                        "Haxonite": {"Chance": 958000, "Multis": {"Ruby": 1e6, "Emerald": 1e15, "Starlight": 1e12, "Boracite": 600}},
-                        "Glaucodot": {"Chance": 987000, "Multis": {"Diamond": 1000, "Starlight": 1000, "Ion": 1000, "Uranium": 1000, "Bismuth": 1e6}},
-                        "Dyscrasite": {"Chance": 1525000, "Multis": {"Sapphire": 1e7, "Ion": 10000, "Boracite": 1000, "Nissonite": 10}},
-                        "Bazzite": {"Chance": 3321000, "Multis": {"Jade": 1e15, "Diamond": 1e9, "Bismuth": 100000, "Nissonite": 100}},
-                        "Cornubite": {"Chance": 5216000, "Multis": {"Emerald": 1e12, "Ion": 1e6, "Boracite": 100000, "Nissonite": 1000}},
-                        "Kostovite": {"Chance": 7521000, "Multis": {"Sapphire": 1e15, "Starlight": 1.9e10, "Nissonite": 10000, "Orpiment": 15}},
-                        "Minium": {"Chance": 10526000, "Multis": {"Diamond": 1e15, "Bismuth": 100000, "Orpiment": 100}},
-                        "Nyerereite": {"Chance": 22878000, "Multis": {"Ruby": 1e21, "Uranium": 1e12, "Orpiment": 650}},
-                        "Peridot": {"Chance": 60648000, "Multis": {"Obsidian": 1e99, "Starlight": 1e21, "Nissonite": 1e6, "Opriment": 5000}},
-                        "Realgar": {"Chance": 80632000, "Multis": {"Diamond": 1e22, "Ion": 1e12, "Opriment": 500, "Tetra": 1.25}},
-                        "Ereus": {"Chance": 100742000, "Multis": {"Cash": Mantissa(1,300), "Ruby": 1e33, "Bismuth": 1e15, "Nissonite": 1e9, "Tetra": 1e10, "Volt": 50000, "Aquamarine": 1000, "Lollipop": 25, "Stargazed Metal": 20, "Gyge": 5, "Auly Plate": 3, "Shell Piece": 1.1}},
-                        "Existence": {"Chance": 500000000, "Multis": {"Cash": Mantissa(1,303), "Multiplier": Mantissa(1,303), "Rebirths": Mantissa(1,303), "Stone": Mantissa(1,303), "White Gems": Mantissa(1,303), "Crystal": Mantissa(1,303), "Iron": 1e273, "Gold": 1e243, "Quartz": 1e213, "Jade": 1e183, "Obsidian": 1e153, "Ruby": 1e123, "Emerald": 1e93, "Sapphire": 1e63, "Diamond": 1e45, "Starlight": 1e30, "Ion": 1e15, "Uranium": 1e12, "Bismuth": 1e9, "Boracite": 1e6, "Nissonite": 10000, "Orpiment": 100, "Tetra": 4, "Aquamarine": 1e9, "Lollipop": 150, "C0RR8PT10N": 5, "Gyge": 97.2, "Auly Plate": 10, "Shell Piece": 3}}
-                        }, 1000, "Diamond")
-  firey_duced_geode = Geode({"Charcoal": {"Chance": 2, "Multis": {"White Gems": 4.5, "Obsidian": 2}},
-                             "Flamecrystal": {"Chance": 4, "Multis": {"Ruby": 1.3}},
-                             "Torbernite": {"Chance": 8, "Multis": {"Jade": 3, "Emerald": 1.1}},
-                             "Manganite": {"Chance": 12, "Multis": {"Obsidian": 7.5}},
-                             "Pyrrhoite": {"Chance": 40, "Multis": {"Ruby": 2, "Emerald": 1.2}},
-                             "Norbergite": {"Chance": 100, "Multis": {"Quartz": 1.75, "Sapphire": 2.75}},
-                             "Moolooite": {"Chance": 17500, "Multis": {"Ruby": 2.1, "Emerald": 2.1, "Sapphire": 2.1}},
-                             "Lizardite": {"Chance": 47000, "Multis": {"Ruby": 5, "Sapphire": 2.8}},
-                             "Kassite": {"Chance": 186000, "Multis": {"Ruby": 3.5, "Emerald": 2, "Sapphire": 1.7, "Diamond": 1.3}},
-                             "Geocronite": {"Chance": 421000, "Multis": {"Quartz": 3, "Jade": 3, "Obsidian": 3, "Ruby": 3, "Emerald": 3, "Sapphire": 3, "Diamond": 2}},
-                             "Dioptase": {"Chance": 757000, "Multis": {"Diamond": 2, "Starlight": 2, "Ion": 2}},
-                             "Corkite": {"Chance": 2500000, "Multis": {"Ruby": 60, "Ion": 4, "Uranium": 2}},
-                             "Thorium": {"Chance": 6275000, "Multis": {"Multiplier": 5, "Quartz": 5, "Obsidian": 5, "Ruby": 5, "Sapphire": 5, "Diamond": 5, "Bismuth": 5, "Boracite": 5}},
-                             "Qusongite": {"Chance": 10000000, "Multis": {"Ruby": 11, "Emerald": 9, "Sapphire": 10, "Diamond": 6, "Starlight": 8, "Ion": 5, "Uranium": 7, "Bismuth": 4, "Boracite": 2, "Nissonite": 3.5}},
-                             "Vulcanite": {"Chance": 22222222, "Multis": {"Cash": 3, "Multiplier": 3, "Rebirths": 3, "Stone": 3, "White Gems": 3, "Crystal": 3, "Iron": 3, "Gold": 3, "Quartz": 3, "Jade": 3, "Obsidian": 3, "Ruby": 3, "Emerald": 3, "Sapphire": 3, "Diamond": 3, "Starlight": 3, "Ion": 3, "Uranium": 3, "Bismuth": 3, "Boracite": 3, "Nissonite": 3, "Orpiment": 3, "Tetra": 3}},
-                             "Carnelite": {"Chance": 66666666, "Multis": {"Sapphire": 2, "Diamond": 2, "Starlight": 2, "Ion": 2, "Uranium": 2, "Bismuth": 2, "Boracite": 2, "Nissonite": 2, "Orpiment": 2, "Tetra": 2, "Volt": 2}},
-                             "Matter": {"Chance": 800800800, "Multis": {"Cash": 8e30, "Multiplier": Mantissa(1,303), "Rebirths": Mantissa(1,303), "Stone": Mantissa(1,303), "White Gems": Mantissa(1,303), "Crystal": Mantissa(1,303), "Iron": Mantissa(1,303), "Gold": Mantissa(1,303), "Quartz": Mantissa(1,300), "Jade": 1e288, "Obsidian": 1e280, "Ruby": 1e260, "Emerald": 1e260, "Sapphire": 1e260, "Diamond": 1e200, "Starlight": 1e190, "Ion": 1e150, "Uranium": 8.005e17, "Bismuth": 8.005e14, "Boracite": 8.005e11, "Nissonite": 800780, "Orpiment": 388, "Tetra": 8, "Volt": 6, "Aquamarine": 50000, "Lollipop": 200, "Lollipop_2": 1.5, "C0RR8PT10N": 10, "Stargazed Metal": 135, "Gyge": 45, "Auly Plate": 15, "Shell Piece": 5}},
-                             }, 75, "Ruby")
-  symbiotic_geode = Geode({"PROT5409-Irosfagum": {"Chance": 2, "Multis": {"Emerald": 54, "Starlight": 540, "Bismuth": 1.2, "Boracite": 1.14, "Nissonite": 1.1}},
-                           "Radiobarite": {"Chance": 4, "Multis": {"Cash": 120120120, "Multiplier": 120120, "Rebirths": 120, "Uranium": 404, "Boracite": 1.2}},
-                           "Uramarsite": {"Chance": 8, "Multis": {"Obsidian": 3, "Ruby": 15, "Emerald": 25, "Sapphire": 50, "Diamond": 100, "Ion": 555, "Uranium": 854, "Bismuth": 4, "Boracite": 3}},
-                           "Uranopolycrase": {"Chance": 12, "Multis": {"Stone": 5000, "White Gems": 50000, "Crystal": 500000, "Iron": 5e6, "Gold": 5e7, "Ion": 155, "Bismuth": 1.8}},
-                           "Yttrobetafite": {"Chance": 28, "Multis": {"Starlight": 68, "Ion": 34, "Uranium": 12, "Bismuth": 6, "Boracite": 3, "Nissonite": 1.5}},
-                           "IMA2008-047": {"Chance": 100, "Multis": {"Uranium": 47, "Bismuth": 5, "Boracite": 3}},
-                           "Ludlockite": {"Chance": 12000, "Multis": {"Sapphire": 1575, "Diamond": 157, "Starlight": 57, "Uranium": 20, "Boracite": 10, "Nissonite": 7}},
-                           "Cattite": {"Chance": 80000, "Multis": {"Multiplier": 9, "Rebirths": 9, "Stone": 9, "White Gems": 9, "Crystal": 9, "Iron": 9, "Gold": 9, "Jade": 9, "Ruby": 9, "Emerald": 9, "Diamond": 9, "Starlight": 9, "Ion": 20, "Uranium": 9, "Uranium_2": 11, "Bismuth": 9, "Bismuth_2": 7, "Boracite": 9, "Boracite": 2, "Nissonite": 9, "Nissonite": 3.5, "Orpiment": 7, "Orpiment_2": 1.6}},
-                           "Schorl": {"Chance": 300000, "Multis": {"Cash": 2.5e10, "Multiplier": 2.5e7, "Rebirths": 2.5e7, "Stone": 250000, "White Gems": 25000, "Crystal": 2500, "Uranium": 455, "Bismuth": 255, "Boracite": 15, "Nissonite": 10, "Orpiment": 8}},
-                           "Mixite": {"Chance": 4500000, "Multis": {"Cash": 69, "Multiplier": 69, "Rebirths": 69, "Stone": 69, "White Gems": 69, "Crystal": 69, "Iron": 69, "Jade": 4.5e46, "Obsidian": 4.5e46, "Starlight": 4.5e6, "Ion": 450000, "Uranium": 45000, "Bismuth": 4500, "Boracite": 450, "Nissonite": 45, "Orpiment": 7, "Tetra": 3}},
-                           "Tellurium": {"Chance": 47500000, "Multis": {"Stone": 9.4e9, "White Gems": 9e90, "Crystal": 9.4e7, "Gold": 940000, "Obsidian": 6e70, "Ruby": 24040, "Diamond": 80800, "Starlight": 8e6, "Ion": 24040, "Uranium": 1.02e7, "Bismuth": 14000, "Boracite": 4700, "Nissonite": 47.5, "Orpiment": 12, "Tetra": 3, "Volt": 2.3}},
-                           "Eyselite": {"Chance": 650000000, "Multis": {"Cash": 6e70, "Multiplier": 6e70, "Rebirths": 6e70, "Stone": 6e70, "White Gems": 6e70, "Crystal": 6e70, "Iron": 6e70, "Gold": 6e70, "Quartz": 6e70, "Jade": 6e70, "Obsidian": 4e70, "Ruby": 6e70, "Emerald": 6e70, "Sapphire": 6e70, "Diamond": 6e70, "Starlight": 6e70, "Ion": 6e70, "Uranium": 6.7066e11, "Bismuth": 6.7066e8, "Boracite": 670670, "Nissonite": 670, "Orpiment": 67, "Tetra": 6, "Volt": 5, "Aquamarine": 1e17, "Lollipop": 700, "C0RR8PT10N": 7.5, "Stargazed Metal": 101.01, "Auly Plate": 25.321, "Shell Piece": 4.32}},
-                           }, 25, "Tetra")
-  summer_geode = Geode({"Water": {"Chance": 5, "Multis": {"Stone": 1.5, "Sand": 1.6}},
-                        "Beach Ball": {"Chance": 7, "Multis": {"Stone": 2, "Sand": 1.75}},
-                        "Ice Cream": {"Chance": 13, "Multis": {"White Gems": 1.4, "Sand": 2}},
-                        "Umbrella": {"Chance": 1314, "Multis": {"Cash": 1.5, "Multiplier": 1.5, "Stone": 1.5, "White Gems": 1.5, "Sand": 1.5, "Ray": 1.5}},
-                        "Salt": {"Chance": 5294, "Multis": {"Crystal": 1.6, "Sand": 3.5, "Ray": 2.2}},
-                        "Rockbottom": {"Chance": 12379, "Multis": {"Obsidian": 2, "Patriotic Crystal": 1.25}},
-                        "Fossil": {"Chance": 58617, "Multis": {"Stone": 50, "Iron": 10, "Jade": 3, "Sand": 3, "Ray": 3}},
-                        "Bedrock": {"Chance": 532649, "Multis": {"Obsidian": 5, "Ruby": 3, "Sand": 5, "Patriotic Crystal": 1.7}},
-                        "Tryglogem": {"Chance": 7880324, "Multis": {"Crystal": 63, "Quartz": 15, "Ruby": 2, "Emerald": 2, "Sapphire": 2, "Diamond": 5, "Ion": 2, "Aureal Gem": 2}},
-                        }, 75, "Ray")
-  patriotic_geode = Geode({"American Flag": {"Chance": 2, "Multis": {"White Gems": 1.5, "Ray": 1.5}},
-                           "Fluorescent Iron": {"Chance": 6, "Multis": {"Iron": 2, "Gold": 1.5, "Sand": 2, "Ray": 1.8}},
-                           "Fluorite": {"Chance": 8195, "Multis": {"Gold": 2, "Quartz": 2, "Sand": 2.6, "Patriotic Crystal": 1.5}},
-                           "Patriotic Opal": {"Chance": 42807, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Crystal": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Sand": 2, "Ray": 2, "Patriotic Crystal": 2}},
-                           "Silver of Justice": {"Chance": 181504, "Multis": {"Iron": 10, "Gold": 10, "Quartz": 3, "Obsidian": 4, "Ruby": 1.5, "Sand": 1.5, "Ray": 2, "Patriotic Crystal": 2.5}},
-                           "Epidote of Liberty": {"Chance": 602968, "Multis": {"White Gems": 100, "Jade": 10, "Emerald": 4, "Sand": 5, "Ray": 5, "Patriotic Crystal": 3}},
-                           "Fireworks": {"Chance": 3283269, "Multis": {"Stone": 5, "Iron": 5, "Quartz": 5, "Obsidian": 5, "Emerald": 5, "Diamond": 5, "Starlight": 5, "Sand": 15, "Ray": 10, "Patriotic Crystal": 5}},
-                           "Firecracker": {"Chance": 24932184, "Multis": {"Ruby": 21, "Emerald": 21, "Sapphire": 21, "Diamond": 16, "Ion": 15, "Uranium": 2, "Boracite": 5, "Sand": 12, "Ray": 12, "Patriotic Crystal": 12}},
-                           }, 125, "Patriotic Crystal")
-  aureal_geode = Geode({"Shinepowder": {"Chance": 3, "Multis": {"Cash": 1.5, "Multiplier": 1.5, "Rebirths": 1.5, "Stone": 1.5, "White Gems": 1.5, "Iron": 1.5, "Gold": 1.5, "Quartz": 1.5, "Jade": 1.5, "Ruby": 1.5, "Emerald": 1.5, "Sapphire": 1.5, "Patriotic Crystal": 1.5}},
-                        "Lightray": {"Chance": 3, "Multis": {"Jade": 2, "Obsidian": 3, "Ruby": 2, "Ray": 2, "Patriotic Crystal": 1.5}},
-                        "Chalice": {"Chance": 3, "Multis": {"Cash": 2, "Multiplier": 2, "Rebirths": 2, "Stone": 2, "White Gems": 2, "Iron": 2, "Gold": 2, "Quartz": 2, "Jade": 2, "Patriotic Crystal": 2}},
-                        "Halo": {"Chance": 6, "Multis": {"Obsidian": 2.5, "Ruby": 2.5, "Emerald": 2.5, "Patriotic Crystal": 2.5}},
-                        "Dimwidth Diamond": {"Chance": 12, "Multis": {"Aureal Gem": 2}},
-                        "Eldritch Moonstone": {"Chance": 25, "Multis": {"Cash": 15, "Multiplier": 15, "Rebirths": 15, "Stone": 15, "White Gems": 15, "Crystal": 15, "Iron": 15, "Gold": 15, "Quartz": 15, "Jade": 15, "Star": 2, "Patriotic Crystal": 3}},
-                        "Polarstone": {"Chance": 300, "Multis": {"Gems": 2, "Mint": 2, "Metal": 2, "Press": 2, "Microparticles": 2, "Star": 2, "Robot": 2, "Prototype": 2, "Sand": 2, "Ray": 2, "Patriotic Crystal": 2}},
-                        "Ophanim": {"Chance": 5000, "Multis": {"Starlight": 2, "Aureal Gem": 2}},
-                        "Sunstone": {"Chance": 25321, "Multis": {"Jade": 2.5, "Obsidian": 2.5, "Ruby": 2.5, "Emerald": 2.5, "Sapphire": 2.5, "Diamond": 2.5, "Starlight": 1.5, "Sand": 2.5, "Ray": 2.5, "Patriotic Crystal": 2.5, "Aureal Gem": 2.5}},
-                        "Judgemental Jade": {"Chance": 72488, "Multis": {"Jade": 2.92993e43, "Aureal Gem": 5}},
-                        "Glassomophore": {"Chance": 305154, "Multis": {"Obsidian": 3, "Ion": 3, "Uranium": 3, "Gems": 3, "Sand": 3.5, "Ray": 3.5, "Patriotic Crystal": 3.5, "Aureal Gem": 3.5}},
-                        "Aurora Borealis": {"Chance": 2061827, "Multis": {"Emerald": 10, "Sapphire": 10, "Diamond": 10, "Starlight": 10, "Ion": 10, "Uranium": 10, "Aureal Gem": 10}},
-                        "Archangel Meridianiite": {"Chance": 7623836, "Multis": {"Gold": 2, "Emerald": 2, "Nissonite": 2, "Sand": 48, "Ray": 24, "Patriotic Crystal": 12, "Aureal Gem": 6}},
-                        "Overpurified Sculptanium": {"Chance": 48261628, "Multis": {"Nissonite": 10, "Gems": 10, "Mint": 10, "Metal": 10, "Press": 10, "Microparticles": 10, "Star": 10, "Robot": 10, "Prototype": 10, "Sand": 18, "Ray": 18, "Patriotic Crystal": 18, "Aureal Gem": 18}},
-                        "Bloodstone": {"Chance": 202090891, "Multis": {"Ion": 160, "Uranium": 80, "Bismuth": 40, "Boracite": 20, "Nissonite": 10, "Orpiment": 5, "Volt": 1e8, "Aquamarine": 100000, "Lollipop": 50, "C0RR8PT10N": 2.5, "Stargazed Metal": 60.43, "Auly Plate": 10, "Shell Piece": 2, "Fragment": 2}},
-                        }, 55, "Aureal Gem")
-  eden_geode = Geode({"Soul": {"Chance": 2, "Multis": {"Ion": 2, "Uranium": 3, "Patriotic Crystal": 2, "Aureal Gem": 3}},
-                      "Menace": {"Chance": 3, "Multis": {"Orpiment": 2, "Sand": 3, "Ray": 3, "Patriotic Crystal": 3, "Aureal Gem": 5, "Fragment": 2.5}},
-                      "Anger": {"Chance": 4, "Multis": {"Bismuth": 2, "Boracite": 4, "Nissonite": 2, "Press": 3, "Star": 3, "Sand": 3, "Ray": 3, "Patriotic Crystal": 10, "Aureal Gem": 3, "Fragment": 3}},
-                      "Emptiness": {"Chance": 8, "Multis": {"Ion": 3.5, "Uranium": 3.5, "Bismuth": 3.5, "Boracite": 3.5, "Nissonite": 3.5, "Fragment": 4}},
-                      "Vastness": {"Chance": 15, "Multis": {"Gems": 3, "Mint": 25, "Aureal Gem": 25}},
-                      "Fracture": {"Chance": 50, "Multis": {"Multiplier": 2, "Stone": 2, "Crystal": 2, "Gold": 2, "Jade": 2, "Ruby": 2, "Sapphire": 2, "Starlight": 2, "Uranium": 2, "Boracite": 2, "Orpiment": 2, "Press": 2, "Star": 2, "Prototype": 2, "Sand": 2, "Patriotic Crystal": 2, "Fragment": 2}},
-                      "Wickstone": {"Chance": 450, "Multis": {"Stone": 600, "Iron": 600, "Obsidian": 600, "Boracite": 5, "Gems": 6, "Mint": 14, "Sand": 4, "Ray": 4, "Patriotic Crystal": 4, "Aureal Gem": 4, "Fragment": 4}},
-                      "Chromatory": {"Chance": 2700, "Multis": {"Orpiment": 3, "Aureal Gem": 2, "Fragment": 5}},
-                      "Shatterment": {"Chance": 9400, "Multis": {"Boracite": 7, "Sand": 10, "Ray": 10, "Patriotic Crystal": 10, "Aureal Gem": 10, "Fragment": 3}},
-                      "Deepenlor": {"Chance": 41825, "Multis": {"Fragment": 10}},
-                      "Graphium": {"Chance": 105368, "Multis": {"Orpiment": 1.5, "Gems": 4, "Mint": 6, "Sand": 6, "Ray": 6, "Patriotic Crystal": 6, "Aureal Gem": 6, "Fragment": 6}},
-                      "Vayonium": {"Chance": 341723, "Multis": {"Stone": 1e6, "White Gems": 1e6, "Crystal": 1e6, "Iron": 1e6, "Gold": 1e6, "Quartz": 1e6, "Jade": 1e6, "Obsidian": 1e6, "Ruby": 1e6, "Emerald": 1e6, "Sapphire": 1e6, "Diamond": 1e6, "Starlight": 1e6, "Ion": 1e6, "Uranium": 1e6, "Bismuth": 1e6}},
-                      "Trimonia": {"Chance": 737319, "Multis": {"Ion": 96, "Uranium": 48, "Bismuth": 24, "Boracite": 12, "Nissonite": 6, "Orpiment": 3, "Metal": 5, "Sand": 15, "Ray": 12, "Patriotic Crystal": 9, "Aureal Gem": 699, "Fragment": 3}},
-                      "Defragstone": {"Chance": 924361, "Multis": {"Orpiment": 4, "Tetra": 2, "Gems": 9, "Mint": 45, "Star": 30, "Robot": 15, "Prototype": 8, "Aureal Gem": 20, "Fragment": 12}},
-                      "Monochromia": {"Chance": 1625526, "Multis": {"Emerald": 20, "Uranium": 20, "Boracite": 20, "Nissonite": 20, "Orpiment": 20, "Fragment": 20}},
-                      "Antaloptide": {"Chance": 5261367, "Multis": {"Tetra": 5, "Mint": 60, "Prototype": 13, "Fragment": 26}},
-                      "Astatine": {"Chance": 11362572, "Multis": {"Tetra": 8, "Volt": 3, "Sand": 35, "Ray": 35, "Patriotic Crystal": 35, "Aureal Gem": 35, "Fragment": 35}},
-                      "Vantablack": {"Chance": 32516272, "Multis": {"Volt": 4, "Aureal Gem": 0.1, "Fragment": 1000}},
-                      "Titanium": {"Chance": 75727188, "Multis": {"Cash": 75, "Multiplier": 75, "Rebirths": 75, "Stone": 75, "White Gems": 75, "Crystal": 75, "Iron": 75, "Gold": 75, "Quartz": 75, "Jade": 75, "Obsidian": 75, "Ruby": 75, "Emerald": 75, "Sapphire": 75, "Diamond": 75, "Starlight": 75, "Ion": 75, "Uranium": 75, "Bismuth": 75, "Boracite": 75, "Nissonite": 75, "Orpiment": 75, "Metal": 75, "Press": 75, "Microparticles": 75, "Star": 75, "Robot": 75, "Sand": 75, "Ray": 75, "Patriotic Crystal": 75, "Aureal Gem": 75, "Fragment": 75}},
-                      "Actuality": {"Chance": 950216271, "Multis": {"Cash": 1e6, "Multiplier": 1e6, "Rebirths": 1e6, "Stone": 1e6, "White Gems": 1e6, "Crystal": 1e6, "Iron": 1e6, "Gold": 1e6, "Quartz": 1e6, "Jade": 1e6, "Obsidian": 1e6, "Ruby": 1e6, "Emerald": 1e6, "Sapphire": 1e6, "Diamond": 1e6, "Starlight": 1e6, "Ion": 1e6, "Uranium": 1e6, "Bismuth": 1e6, "Boracite": 1e6, "Nissonite": 1e6, "Orpiment": 1e6, "Tetra": 1e6, "Volt": 1e6, "Aquamarine": 1e8, "Lollipop": 700, "C0RR8PT10N": 15, "Stargazed Metal": 1000, "Gyge": 100, "Auly Plate": 15.5, "Shell Piece": 3.532, "Gems": 15, "Mint": 80, "Metal": 80, "Press": 80, "Microparticles": 80, "Star": 80, "Robot": 80, "Prototype": 80, "Sand": 1e6, "Ray": 1e6, "Patriotic Crystal": 1e6, "Aureal Gem": 1e6, "Fragment": 1e6}},
-                      }, 15, "Fragment")
-  lost_geode = Geode({"Mist": {"Chance": 2, "Multis": {"Multiplier": 4, "Crystal": 2}},
-                      "Vision": {"Chance": 9, "Multis": {"Iron": 3}},
-                      "Obscurity": {"Chance": 60, "Multis": {"Cash": 10, "Multiplier": 10, "Rebirths": 10, "Crystal": 6, "Quartz": 2}},
-                      "The Mark": {"Chance": 275, "Multis": {"Cash": 8, "Multiplier": 8, "Rebirths": 8, "Stone": 8, "White Gems": 8, "Crystal": 8, "Iron": 8, "Gold": 8}},
-                      "Forgotten": {"Chance": 1500, "Multis": {"Gold": 15, "Jade": 4}},
-                      "Pestilence": {"Chance": 8000, "Multis": {"Jade": 15, "Obsidian": 2}},
-                      "Forbidden": {"Chance": 50000, "Multis": {"Obsidian": 2.25, "Ruby": 1.25, "Emerald": 1.25, "Sapphire": 1.25}},
-                      "GL1TCH": {"Chance": 300000, "Multis": {"Cash": 999, "Multiplier": 999, "Rebirths": 999, "Jade": 99, "Ruby": 2, "Sapphire": 3}},
-                      "Oblivion": {"Chance": 2500000, "Multis": {"Gold": 7, "Quartz": 20, "Jade": 50, "Ruby": 77, "Diamond": 5, "Ion": 2.5}},
-                      "Brimstone": {"Chance": 8000000, "Multis": {"Cash": 2400, "Multiplier": 2300, "Rebirths": 2200, "Stone": 2100, "White Gems": 200, "Crystal": 190, "Iron": 180, "Gold": 170, "Quartz": 160, "Jade": 150, "Obsidian": 140, "Ruby": 13, "Emerald": 12, "Sapphire": 11, "Diamond": 10, "Starlight": 9, "Ion": 8, "Uranium": 7, "Bismuth": 6, "Boracite": 5, "Nissonite": 4, "Orpiment": 3}},
-                      "ù": {"Chance": 255255255, "Multis": {"Cash": 1.01, "Lollipop": 10, "C0RR8PT10N": 1.5, "Stargazed Metal": 50, "Auly Plate": 2, "Shell Piece": 1.1, "Gems": 50}},
-                      }, 750, "Jade")
-  sinister_geode = Geode({"Perishstone": {"Chance": 2, "Multis": {"Stone": 3, "Crystal": 1.8}},
-                          "Ghostly Gem": {"Chance": 7, "Multis": {"Cash": 12, "Stone": 4.75, "White Gems": 2.8, "Iron": 2.15}},
-                          "Waxy Iron": {"Chance": 16, "Multis": {"White Gems": 1.95, "Iron": 3.1, "Gold": 1.72}},
-                          "Moonlit Quartz": {"Chance": 76, "Multis": {"Cash": 5, "Multiplier": 5, "Rebirths": 5, "Stone": 5, "White Gems": 5, "Crystal": 5, "Iron": 5, "Gold": 5, "Quartz": 5}},
-                          "Looming Crystal": {"Chance": 222, "Multis": {"Stone": 0.5, "Crystal": 1.5, "Iron": 1.5, "Gold": 2.5, "Quartz": 3, "Jade": 3.5}},
-                          "Perilous Gold": {"Chance": 666, "Multis": {"Gold": 15, "Gems": 1.08}},
-                          "Shadowy Jade": {"Chance": 2500, "Multis": {"Cash": 15, "Multiplier": 13, "Crystal": 5, "Iron": 5, "Jade": 7, "Mint": 3}},
-                          "Warped Obsidian": {"Chance": 8000, "Multis": {"Multiplier": 6.54, "Rebirths": 6.54, "Stone": 6.54, "White Gems": 6.54, "Crystal": 6.54, "Iron": 6.54, "Gold": 6.54, "Quartz": 6.54, "Jade": 6.54, "Obsidian": 2}},
-                          "Mischievous Agate": {"Chance": 15000, "Multis": {"Stone": 7, "White Gems": 10, "Crystal": 5, "Obsidian": 1.5, "Ruby": 2, "Emerald": 2, "Sapphire": 2}},
-                          "Dastard Emerald": {"Chance": 69000, "Multis": {"Gold": 52, "Emerald": 7, "Gems": 1.15, "Metal": 2}},
-                          "Rabid Diamond": {"Chance": 200000, "Multis": {"Multiplier": 70, "Rebirths": 70, "Crystal": 10, "Iron": 10, "Gold": 10, "Quartz": 10, "Jade": 10, "Obsidian": 10, "Ruby": 6, "Emerald": 6, "Sapphire": 6, "Diamond": 5}},
-                          "Preternatural Polybasite": {"Chance": 450000, "Multis": {"Cash": 300000, "Multiplier": 300000, "Rebirths": 300000, "Gold": 25, "Quartz": 30, "Jade": 80, "Starlight": 1.75, "Ion": 1.75}},
-                          "Wretched Orpiment": {"Chance": 900000, "Multis": {"Rebirths": 5.87e9, "White Gems": 1e7, "Gold": 900, "Ruby": 32, "Emerald": 16, "Diamond": 7, "Starlight": 2, "Uranium": 1.3, "Bismuth": 1.25, "Gems": 1.72}},
-                          "Cerussite": {"Chance": 1750000, "Multis": {"Rebirths": 6.66e8, "Iron": 500, "Gold": 500, "Ruby": 11, "Ion": 7, "Uranium": 2.5, "Boracite": 2}},
-                          "Yunium": {"Chance": 4000000, "Multis": {"Cash": 1e15, "Stone": 1e9, "Crystal": 1e9, "Quartz": 1e9, "Ruby": 1000, "Emerald": 1000, "Sapphire": 1000, "Starlight": 100, "Ion": 30, "Uranium": 20, "Nissonite": 3, "Orpiment": 1.5, "Tetra": 2}},
-                          "Cristobalite": {"Chance": 20000000, "Multis": {"Cash": 9.4e9, "Multiplier": 2.1345e8, "Rebirths": 6.5784e8, "Stone": 9.8765e8, "White Gems": 888888, "Crystal": 69, "Iron": 1333, "Gold": 666, "Quartz": 404, "Jade": 77, "Obsidian": 11, "Ruby": 22, "Emerald": 44, "Sapphire": 111, "Diamond": 777, "Starlight": 66, "Ion": 17, "Uranium": 4, "Bismuth": 88, "Boracite": 25, "Nissonite": 25, "Orpiment": 8, "Tetra": 3.75}},
-                          }, 10, "Orange Pumpkin")
-  aztec_geode = Geode({"Grimmetal": {"Chance": 2, "Multis": {"Ruby": 2, "Emerald": 2, "Sapphire": 2}},
-                       "Sestrum": {"Chance": 6, "Multis": {"Diamond": 2.5, "Starlight": 2.5}},
-                       "Klovonium": {"Chance": 33, "Multis": {"Obsidian": 3, "Ruby": 3, "Emerald": 3, "Sapphire": 3, "Ion": 2, "Clover": 3}},
-                       "Goose's Gold": {"Chance": 222, "Multis": {"Gold": 1.23e6, "Diamond": 3, "Starlight": 3, "Ion": 3, "Uranium": 3}},
-                       "Concillite": {"Chance": 1666, "Multis": {"Obsidian": 5, "Ruby": 5, "Emerald": 5, "Sapphire": 5, "Diamond": 5, "Starlight": 5, "Ion": 5, "Uranium": 5, "Bismuth": 2}},
-                       "Ztarrium": {"Chance": 33333, "Multis": {"Bismuth": 5, "Boracite": 2.5, "Nissonite": 2.5}},
-                       "Jongium": {"Chance": 85000, "Multis": {"Boracite": 3, "Nissonite": 3, "Orpiment": 2}},
-                       "Revoolut": {"Chance": 175000, "Multis": {"Bismuth": 8, "Boracite": 8, "Nissonite": 8, "Orpiment": 4, "Tetra": 2}},
-                       "Halandrite": {"Chance": 380000, "Multis": {"Nissonite": 100, "Orpiment": 25, "Tetra": 5, "Volt": 2}},
-                       "Zestrium": {"Chance": 710000, "Multis": {"Orpiment": 123.45, "Tetra": 12.33, "Volt": 5.55, "Aquamarine": 2}},
-                       "Limitrite": {"Chance": 989989, "Multis": {"Orpiment": 500, "Tetra": 25, "Volt": 10, "Aquamarine": 4}},
-                       "Aztekium": {"Chance": 3000000, "Multis": {"Volt": 25, "Aquamarine": 5, "Lollipop": 2, "Gems": 250, "Clover": 777}},
-                       "Swordium": {"Chance": 10000000, "Multis": {"Ruby": 1e33, "Ion": 1e6, "Orpiment": 2000, "Volt": 75, "Lollipop": 5, "C0RR8PT10N": 2}},
-                       "Shieldium": {"Chance": 10000000, "Multis": {"Sapphire": 1e33, "Boracite": 3000, "Nissonite": 3000, "Tetra": 800, "Aquamarine": 15, "Lollipop": 5, "C0RR8PT10N": 2}},
-                       "Spanchium": {"Chance": 15000000, "Multis": {"Orpiment": 123456, "Tetra": 12345, "Volt": 1234, "C0RR8PT10N": 3}},
-                       "Spearite": {"Chance": 25000000, "Multis": {"Tetra": 50000, "Volt": 3000, "Aquamarine": 250, "Lollipop": 15, "C0RR8PT10N": 5}},
-                       "Vasolonio": {"Chance": 69666999, "Multis": {"Aquamarine": 1333, "Lollipop": 42.01, "C0RR8PT10N": 6.9, "Stargazed Metal": 2}},
-                       "Megabursite": {"Chance": 277000000, "Multis": {"Tetra": 3.33e24, "Volt": 1.11e8, "Aquamarine": 65530, "Lollipop": 256, "C0RR8PT10N": 16, "Stargazed Metal": 4, "Gyge": 2}},
-                       "Tematonium": {"Chance": 750000000, "Multis": {"Orpiment": Mantissa(1,303), "Tetra": 1e100, "Volt": 1e36, "Aquamarine": 1e6, "Lollipop": 2400, "C0RR8PT10N": 120, "Stargazed Metal": 120, "Gyge": 3, "Auly Plate": 11.2, "Shell Piece": 2.22}},
-                       "Divinorum": {"Chance": 9000000000, "Multis": {"Cash": Mantissa(1,1e10), "Multiplier": Mantissa(3.33,3333), "Rebirths": Mantissa(3.33,3333), "Stone": Mantissa(3.33,3333), "White Gems": Mantissa(3.33,3333), "Crystal": Mantissa(3.33,3333), "Iron": Mantissa(3.33,3333), "Gold": Mantissa(3.33,3333), "Quartz": Mantissa(3.33,3333), "Jade": Mantissa(3.33,3333), "Obsidian": Mantissa(3.33,3333), "Ruby": Mantissa(3.33,3333), "Emerald": Mantissa(3.33,3333), "Sapphire": Mantissa(3.33,3333), "Diamond": Mantissa(3.33,3333), "Starlight": Mantissa(3.33,3333), "Ion": Mantissa(3.33,3333), "Uranium": Mantissa(3.33,3333), "Bismuth": Mantissa(3.33,3333), "Boracite": Mantissa(3.33,3333), "Nissonite": Mantissa(3.33,3333), "Orpiment": Mantissa(3.33,3333), "Tetra": Mantissa(3.33, 1000), "Volt": Mantissa(3.33, 333), "Aquamarine": 3.33e100, "Lollipop": 3.33e33, "C0RR8PT10N": 3.33e6, "Stargazed Metal": 3333, "Gyge": 333, "Auly Plate": 33, "Shell Piece": 3.3}},
-                       }, 5e35, "Clover")
-  revival_geode = Geode({"Limestone": {"Chance": 3, "Multis": {"Cash": 100, "Rebirths": 50, "White Gems": 10}},
-                         "Amber": {"Chance": 10, "Multis": {"Crystal": 35, "Iron": 20, "Gold": 15}},
-                         "Lustrous Amethyst": {"Chance": 40, "Multis": {"Crystal": 100, "Iron": 25, "Quartz": 15}},
-                         "Molten Iron": {"Chance": 90, "Multis": {"Iron": 100, "Gold": 50, "Jade": 25}},
-                         "Fools Gold": {"Chance": 200, "Multis": {"Gold": 100, "Quartz": 50, "Obsidian": 10}},
-                         "Exotic Quartz": {"Chance": 450, "Multis": {"Quartz": 200, "Jade": 50, "Obsidian": 25}},
-                         "Grossular Jade": {"Chance": 900, "Multis": {"Jade": 250, "Ruby": 50, "Emerald": 50, "Sapphire": 50}},
-                         "Purple Obsidian": {"Chance": 1700, "Multis": {"Obsidian": 500, "Diamond": 25, "Starlight": 10}},
-                         "Black Diamond": {"Chance": 2900, "Multis": {"Diamond": 250, "Starlight": 100, "Ion": 25}},
-                         "Enlightened Starlight": {"Chance": 5100, "Multis": {"Starlight": 750, "Ion": 50, "Uranium": 25}},
-                         "Supercharged Ion": {"Chance": 11000, "Multis": {"Ion": 250, "Uranium": 50, "Bismuth": 15}},
-                         "Chromatic Bismuth": {"Chance": 22500, "Multis": {"Bismuth": 100, "Boracite": 25, "Nissonite": 5}},
-                         "Sparkling Nissonite": {"Chance": 52000, "Multis": {"Nissonite": 50, "Orpiment": 10, "Tetra": 3}},
-                         "Pure Orpiment": {"Chance": 90100, "Multis": {"Orpiment": 25, "Tetra": 10, "Volt": 5}},
-                         "Indestructible Tetra": {"Chance": 160000, "Multis": {"Tetra": 45, "Volt": 25, "Aquamarine": 5}},
-                         "Hypercharged Volt": {"Chance": 520000, "Multis": {"Volt": 30, "Aquamarine": 20, "Lollipop": 10}},
-                         "Galaxium": {"Chance": 1200000, "Multis": {"Aquamarine": 250, "Lollipop": 10, "C0RR8PT10N": 3}},
-                         "Mythralite": {"Chance": 3100000, "Multis": {"Tetra": 100, "Volt": 100, "Aquamarine": 100, "C0RR8PT10N": 9}},
-                         "Phantasmite": {"Chance": 5900000, "Multis": {"Lollipop": 5, "C0RR8PT10N": 15, "Stargazed Metal": 3}},
-                         "Eclipsium": {"Chance": 12500000, "Multis": {"Aquamarine": 10000, "Lollipop": 200, "Stargazed Metal": 5, "Gyge": 1.5}},
-                         "Aetherite": {"Chance": 21000000, "Multis": {"Lollipop": 50, "C0RR8PT10N": 40, "Stargazed Metal": 10, "Gyge": 2.5, "Auly Plate": 1.2}},
-                         "Aurorite": {"Chance": 32000000, "Multis": {"Lollipop": 60, "C0RR8PT10N": 50, "Stargazed Metal": 12, "Gyge": 4, "Auly Plate": 2}},
-                         "Crysalith": {"Chance": 52000000, "Multis": {"Stargazed Metal": 5, "Gyge": 4, "Auly Plate": 3, "Shell Piece": 1.1}},
-                         "Vortexium": {"Chance": 74600000, "Multis": {"C0RR8PT10N": 1000, "Gyge": 20, "Auly Plate": 4.5, "Shell Piece": 1.5}},
-                         "Ignisium": {"Chance": 96100000, "Multis": {"C0RR8PT10N": 1e6, "Auly Plate": 10, "Shell Piece": 2}},
-                         "Luminaris": {"Chance": 210000000, "Multis": {"C0RR8PT10N": 1e8, "Stargazed Metal": 3000, "Gyge": 50, "Auly Plate": 20, "Shell Piece": 3}},
-                         "Chronicality": {"Chance": 750163471, "Multis": {"Stargazed Metal": 100000, "Gyge": 20, "Auly Plate": 100, "Shell Piece": 5, "Prime Alpha Key": 1.5}},
-                         "Amalgamation": {"Chance": 1842817456, "Multis": {"Volt": 1e20, "Aquamarine": 1e15, "Lollipop": 1e12, "C0RR8PT10N": 1e10, "Stargazed Metal": 1e6, "Gyge": 100, "Auly Plate": 250, "Shell Piece": 10, "Prime Alpha Key": 2}},
-                         "Purity": {"Chance": 17891091451, "Multis": {"Uranium": Mantissa(1,300), "Bismuth": Mantissa(1,300), "Boracite": Mantissa(1,300), "Nissonite": Mantissa(1,300), "Orpiment": Mantissa(1,300), "Tetra": Mantissa(1,300), "Volt": Mantissa(1,300), "Aquamarine": 1e45, "Lollipop": 1e40, "C0RR8PT10N": 1e20, "Prime Alpha Key": 7.5}},
-                         "Totality": {"Chance": 47145471001, "Multis": {"Ion": Mantissa(1,300), "Uranium": Mantissa(1,300), "Bismuth": Mantissa(1,300), "Boracite": Mantissa(1,300), "Nissonite": Mantissa(1,300), "Orpiment": Mantissa(1,300), "Tetra": 1e200, "Volt": 1e100, "Aquamarine": 1e55, "Lollipop": 1e50, "C0RR8PT10N": 1e30, "Prime Alpha Key": 15}},
-                         }, 10000, "Gyge")
-  #----------- AREAS --------------
+#----------- AREAS --------------
   Spawn_Buttons = {
       "Multiplier": [
           ("12 Cash: 1 Multiplier", lambda: cost_button("Cash",12,"Multiplier", 1), "Button"),
@@ -2099,10 +1479,10 @@ if __name__ == "__main__":
          ("2 Ion: 1 Sapphire (Fetch)", lambda: recovery_button_fetch(2, "Ion", 1, "Sapphire"), "Button"),
       ],
       "Geodes": [
-         ("Stone Geode: 1M Stone", lambda btn: Geode_roll(btn, stone_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-         ("White Gems Geode: 30 White Gems", lambda btn: Geode_roll(btn, gems_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-         ("Jade Geode: 500 Jade", lambda btn: Geode_roll(btn, jade_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-         ("Uranium Geode: 12 Uranium", lambda btn: Geode_roll(btn, uranium_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+         ("Stone Geode: 1M Stone", lambda btn: Geode_roll(btn, stone_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+         ("White Gems Geode: 30 White Gems", lambda btn: Geode_roll(btn, gems_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+         ("Jade Geode: 500 Jade", lambda btn: Geode_roll(btn, jade_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+         ("Uranium Geode: 12 Uranium", lambda btn: Geode_roll(btn, uranium_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Area Teleports": [
          ("Caves (req: 10 Stone)", lambda: load_check(10, "Stone", Cave_Buttons), "Button"),
@@ -2297,7 +1677,7 @@ if __name__ == "__main__":
       "Floating Purgatory": [
           ("666 Nissonite: 1k Uranium (Fetch)", lambda: recovery_button_fetch(666, "Nissonite", 1000, "Uranium"), "Button"),
           ("1 Orpiment: 60 Boracite (Sets)", lambda: recovery_button_set(1, "Orpiment", 60, "Boracite"), "Button"),
-          ("Orpiment Geode: 2 Orpiment", lambda btn: Geode_roll(btn, orpiment_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+          ("Orpiment Geode: 2 Orpiment", lambda btn: Geode_roll(btn, orpiment_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Tetratum": [
           ("10k Orpiment: 1k Bismuth (Fetch)", lambda: recovery_button_fetch(1e4, "Orpiment", 1000, "Bismuth"), "Button"),
@@ -2320,7 +1700,8 @@ if __name__ == "__main__":
           ("4 Lollipop: 100 Tetra (Fetch)", lambda: recovery_button_fetch(4, "Lollipop", 100, "Tetra"), "Button"),
       ],
       "Ω1": [
-          ("Anticovery Hall (req: 1 Testium)", lambda: load_check(1, "Testium", Anticovery_Buttons), "Button"),
+          ("Anticovery Hall (req: 1 Stargazed Metal)", lambda: load_check(1, "Stargazed Metal", Anticovery_Buttons), "Button"),
+          ("Anticovery Hall (req: 1 Gyge)", lambda: load_check(1, "Gyge", Anticovery_Buttons), "Button"),
       ],
       "???3Δ8???": [
           ("1 Stargazed Metal: 1M Gold (Sets)", lambda: recovery_button_set(1, "Stargazed Metal", 1e6, "Gold"), "Button"),
@@ -2458,7 +1839,7 @@ if __name__ == "__main__":
           ("4 Gold: 500 White Gems (Fetch)", lambda: recovery_button_fetch(4, "Gold", 500, "White Gems"), "Button"),
       ],
       "Geodes": [
-          ("Crystal Geode: 100 Crystal", lambda btn: Geode_roll(btn, crystal_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button")
+          ("Crystal Geode: 100 Crystal", lambda btn: Geode_roll(btn, crystal_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button")
       ],
       "Area Teleports": [
          ("Iron Shafts (req: 100 Crystal)", lambda: load_check(100, "Crystal", Iron_Buttons), "Button"),
@@ -2546,7 +1927,7 @@ if __name__ == "__main__":
           ("50k Gems: 70 Crystal", lambda: cost_button("Gems", 5e4, "Crystal", 70), "Button"),
       ],
       "Geodes": [
-          ("Iron Geode: 25 Iron", lambda btn: Geode_roll(btn, iron_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+          ("Iron Geode: 25 Iron", lambda btn: Geode_roll(btn, iron_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check(0, "Cash", Spawn_Buttons), "Button"),
@@ -2626,7 +2007,7 @@ if __name__ == "__main__":
           ("1e47 Stone: 800 Gems", lambda: cost_button("Stone",1e47, "Gems", 800), "Button"),
       ],
       "Geodes": [
-          ("Gold Geode: 60 Gold", lambda btn: Geode_roll(btn, gold_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+          ("Gold Geode: 60 Gold", lambda btn: Geode_roll(btn, gold_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check(0, "Cash", Spawn_Buttons), "Button"),
@@ -2736,7 +2117,7 @@ if __name__ == "__main__":
           ("15 Quartz: 100 Iron (Fetch)", lambda: recovery_button_fetch(15, "Quartz", 100, "Iron"), "Button"),
       ],
       "Geodes": [
-          ("Quartz Geode: 30 Quartz", lambda btn: Geode_roll(btn, quartz_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+          ("Quartz Geode: 30 Quartz", lambda btn: Geode_roll(btn, quartz_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check(0, "Cash", Spawn_Buttons), "Button"),
@@ -2852,7 +2233,7 @@ if __name__ == "__main__":
           ("2 Jade: 15Sx Crystal (Fetch)", lambda: recovery_button_fetch(2, "Jade", 1.5e22, "Crystal"), "Button"),
       ],
       "Geodes": [
-           ("Emoji Geode: 1k Gems", lambda btn: Geode_roll(btn, emoji_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+           ("Emoji Geode: 1k Gems", lambda btn: Geode_roll(btn, emoji_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check(0, "Cash", Spawn_Buttons), "Button"),
@@ -2943,7 +2324,7 @@ if __name__ == "__main__":
           ("100 Jade: 5.2T White Gems (Fetch)", lambda: recovery_button_fetch(100, "Jade", 5.2e12, "White Gems"), "Button"),
       ],
       "Geodes": [
-          ("Obsidian Geode: 1 Obsidian", lambda btn: Geode_roll(btn, obsidian_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+          ("Obsidian Geode: 1 Obsidian", lambda btn: Geode_roll(btn, obsidian_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check(0, "Cash", Spawn_Buttons), "Button"),
@@ -3018,9 +2399,9 @@ if __name__ == "__main__":
           ("10M Dezyp: 1 Podrillium", lambda: cost_button("Geode", "Dezyp", 1e7, "Podrillium", 1, "Geode"), "Button"),
       ],
       "Geodes": [
-          ("Ruby Geode: 100k Ruby", lambda btn: Geode_roll(btn, ruby_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Emerald Geode: 100k Emerald", lambda btn: Geode_roll(btn, emerald_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Sapphire Geode: 100k Sapphire", lambda btn: Geode_roll(btn, sapphire_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+          ("Ruby Geode: 100k Ruby", lambda btn: Geode_roll(btn, ruby_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Emerald Geode: 100k Emerald", lambda btn: Geode_roll(btn, emerald_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Sapphire Geode: 100k Sapphire", lambda btn: Geode_roll(btn, sapphire_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check(0, "Cash", Spawn_Buttons), "Button"),
@@ -3108,7 +2489,7 @@ if __name__ == "__main__":
   }
   ET_DG = {
       "Geodes": [
-          ("Diamond Geode: 2.5k Diamond", lambda btn: Geode_roll(btn, diamond_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button")
+          ("Diamond Geode: 2.5k Diamond", lambda btn: Geode_roll(btn, diamond_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button")
       ],
       "Miscellanous": [
           ("Control Panel", lambda: open_control_panel(root), "Button")
@@ -3116,7 +2497,7 @@ if __name__ == "__main__":
   }
   ET_SG = {
       "Geodes": [
-          ("Starlight Geode: 60 Starlight", lambda btn: Geode_roll(btn, starlight_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button")
+          ("Starlight Geode: 60 Starlight", lambda btn: Geode_roll(btn, starlight_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button")
       ],
       "Miscellanous": [
           ("Control Panel", lambda: open_control_panel(root), "Button")
@@ -3124,7 +2505,7 @@ if __name__ == "__main__":
   }
   ET_IG = {
       "Geodes": [
-        ("Ion Geode: 5 Ion", lambda btn: Geode_roll(btn, ion_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button")
+        ("Ion Geode: 5 Ion", lambda btn: Geode_roll(btn, ion_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button")
       ],
       "Miscellanous": [
           ("Control Panel", lambda: open_control_panel(root), "Button")
@@ -3278,7 +2659,7 @@ if __name__ == "__main__":
           ("7 Ion: 3B Gems", lambda: cost_button("Ion", 7, "Gems", 3e9), "Button"),
       ],
       "Geodes": [
-          ("Scared Geode: 1B Gems", lambda btn: Geode_roll(btn, sacred_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+          ("Scared Geode: 1B Gems", lambda btn: Geode_roll(btn, sacred_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check(0, "Cash", Spawn_Buttons), "Button"),
@@ -3323,7 +2704,7 @@ if __name__ == "__main__":
           ("1 Bismuth: 800 Diamond (Fetch)", lambda: recovery_button_fetch(1, "Bismuth", 600, "Diamond"), "Button"),
       ],
       "Geodes": [
-          ("Bismuth Geode: 50 Bismuth", lambda btn: Geode_roll(btn, bismuth_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+          ("Bismuth Geode: 50 Bismuth", lambda btn: Geode_roll(btn, bismuth_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check(0, "Cash", Spawn_Buttons), "Button"),
@@ -3383,8 +2764,8 @@ if __name__ == "__main__":
           ("50 Boracite: 1 Nissonite", lambda: reset_button( 50, "Boracite", 1, "Nissonite"), "Button"),
       ],
       "Geodes": [
-          ("Boracite Geode: 1k Boracite", lambda btn: Geode_roll(btn, boracite_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Nissonite Geode: 5 Nissonite", lambda btn: Geode_roll(btn, nissonite_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+          ("Boracite Geode: 1k Boracite", lambda btn: Geode_roll(btn, boracite_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Nissonite Geode: 5 Nissonite", lambda btn: Geode_roll(btn, nissonite_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check(0, "Cash", Spawn_Buttons), "Button"),
@@ -3912,7 +3293,7 @@ if __name__ == "__main__":
           ("1e3000 Rebirths: 100k Mint", lambda: reset_button_special( Mantissa(1,3000), "Rebirths", 100000, "Mint", ["Cash", "Multiplier", "Rebirths"]), "Button"),
       ],
       "Geodes": [
-          ("Mint Geode: 2k Mint", lambda btn: Geode_roll(btn, mint_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+          ("Mint Geode: 2k Mint", lambda btn: Geode_roll(btn, mint_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check(0, "Cash", Spawn_Buttons), "Button"),
@@ -3970,14 +3351,14 @@ if __name__ == "__main__":
           ("1.5k Robot: 1 Prototype", lambda: reset_button_special(1500, "Robot", 1, "Prototype", ["Gold", "Metal", "Press", "Microparticles", "Star", "Robot"]), "Button"),
       ],
       "Geodes": [
-          ("Deepness Geode: 25 Metal", lambda btn: Geode_roll(btn, deepness_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Oceanic Geode: 5k Metal", lambda btn: Geode_roll(btn, oceanic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Dream Geode: 200 Press", lambda btn: Geode_roll(btn, dream_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Star Geode: 7 Microparticles", lambda btn: Geode_roll(btn, star_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Holographic Geode: 750 Microparticles", lambda btn: Geode_roll(btn, holographic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Vector Geode: 100 Star", lambda btn: Geode_roll(btn, vector_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Insurgence Geode: 3 Robot", lambda btn: Geode_roll(btn, insurgence_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Nostalgic Geode: 50 Robot", lambda btn: Geode_roll(btn, nostalgic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+          ("Deepness Geode: 25 Metal", lambda btn: Geode_roll(btn, deepness_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Oceanic Geode: 5k Metal", lambda btn: Geode_roll(btn, oceanic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Dream Geode: 200 Press", lambda btn: Geode_roll(btn, dream_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Star Geode: 7 Microparticles", lambda btn: Geode_roll(btn, star_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Holographic Geode: 750 Microparticles", lambda btn: Geode_roll(btn, holographic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Vector Geode: 100 Star", lambda btn: Geode_roll(btn, vector_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Insurgence Geode: 3 Robot", lambda btn: Geode_roll(btn, insurgence_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Nostalgic Geode: 50 Robot", lambda btn: Geode_roll(btn, nostalgic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Recovery": [
           ("2 Microparticles: 1 Gold (fetch)", lambda: recovery_button_fetch(2, "Microparticles", 1, "Gold"), "Button"),
@@ -4001,23 +3382,24 @@ if __name__ == "__main__":
           ("180 Aureal Gem: 1 Fragment", lambda: reset_button_special(180, "Aureal Gem", 1, "Fragment", ["Ray", "Patriotic Crystal", "Aureal Gem"]), "Button")
       ],
       "Geodes": [
-          ("Hearted Geode: 50 Heart", lambda btn: Geode_roll(btn, hearted_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Luck Geode: 3 Clover", lambda btn: Geode_roll(btn, luck_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Clover Geode: 100M Clover", lambda btn: Geode_roll(btn, clover_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Celebrative Geode: 10 Rebirths", lambda btn: Geode_roll(btn, celebrative_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Spring Geode: 25 Stone", lambda btn: Geode_roll(btn, spring_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Easter Geode: 7 Event Power", lambda btn: Geode_roll(btn, easter_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Fabled Geode: 1k Diamond", lambda btn: Geode_roll(btn, fabled_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Firey Duced Geode: 75 Ruby", lambda btn: Geode_roll(btn, firey_duced_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Symbiotic Geode: 25 Tetra", lambda btn: Geode_roll(btn, symbiotic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Summer Geode: 75 Ray", lambda btn: Geode_roll(btn, summer_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Patriotic Geode: 125 Patriotic Crystal", lambda btn: Geode_roll(btn, patriotic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Aureal Geode: 55 Aureal Gem", lambda btn: Geode_roll(btn, aureal_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Eden Geode: 15 Fragment", lambda btn: Geode_roll(btn, eden_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Lost Geode: 750 Jade", lambda btn: Geode_roll(btn, lost_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Sinister Geode: 10 Orange Pumpkin", lambda btn: Geode_roll(btn, sinister_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Aztec Geode: 500De Clover", lambda btn: Geode_roll(btn, aztec_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Revival Geode: 10k Gyge", lambda btn: Geode_roll(btn, revival_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button")
+          ("Hearted Geode: 50 Heart", lambda btn: Geode_roll(btn, hearted_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Luck Geode: 3 Clover", lambda btn: Geode_roll(btn, luck_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Clover Geode: 100M Clover", lambda btn: Geode_roll(btn, clover_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Celebrative Geode: 10 Rebirths", lambda btn: Geode_roll(btn, celebrative_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Spring Geode: 25 Stone", lambda btn: Geode_roll(btn, spring_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Easter Geode: 7 Event Power", lambda btn: Geode_roll(btn, easter_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Fabled Geode: 1k Diamond", lambda btn: Geode_roll(btn, fabled_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Firey Duced Geode: 75 Ruby", lambda btn: Geode_roll(btn, firey_duced_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Symbiotic Geode: 25 Tetra", lambda btn: Geode_roll(btn, symbiotic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Summer Geode: 75 Ray", lambda btn: Geode_roll(btn, summer_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Patriotic Geode: 125 Patriotic Crystal", lambda btn: Geode_roll(btn, patriotic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Aureal Geode: 55 Aureal Gem", lambda btn: Geode_roll(btn, aureal_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Eden Geode: 15 Fragment", lambda btn: Geode_roll(btn, eden_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Lost Geode: 750 Jade", lambda btn: Geode_roll(btn, lost_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Sinister Geode: 10 Orange Pumpkin", lambda btn: Geode_roll(btn, sinister_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Aztec Geode: 500De Clover", lambda btn: Geode_roll(btn, aztec_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Revival Geode: 10k Gyge", lambda btn: Geode_roll(btn, revival_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Unlucky Geode: 5 Stone", lambda btn: Geode_roll(btn, unlucky_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button")
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check(0, "Cash", Spawn_Buttons), "Button"),
@@ -4718,7 +4100,7 @@ if __name__ == "__main__":
           ("10k Lollipop: 1 C0RR8PT10N", lambda: reset_button_special(10000, "Lollipop", 1, "C0RR8PT10N", ["Cash", "Multiplier", "Rebirth", "Stone", "White Gems", "Crystal", "Iron", "Gold", "Quartz", "Jade", "Obsidian", "Ruby", "Emerald", "Sapphire", "Diamond", "Starlight", "Ion", "Uranium", "Bismuth", "Boracite", "Nissonite", "Orpiment", "Tetra", "Volt", "Aquamarine", "Lollipop", "Master Cash", "Master Multiplier", "Master Rebirths", "Master Stone", "Master White Gems", "Master Crystal", "Master Iron", "Master Gold", "Master Quartz", "Master Jade", "Master Obsidian", "Master Ruby", "Master Emerald", "Master Sapphire", "Master Diamond", "Master Starlight", "Master Ion", "Master Uranium", "Master Bismuth", "Master Boracite", "Master Nissonite", "Master Orpiment", "Master Tetra", "Master Volt", "Master Aquamarine", "Master Lollipop"]), "Button")
       ],
       "Geodes": [
-          ("Cosmic Geode: 100 C0RR8PT10N", lambda btn: Geode_roll(btn, cosmic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
+          ("Cosmic Geode: 100 C0RR8PT10N", lambda btn: Geode_roll(btn, cosmic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check(0, "Cash", Spawn_Buttons), "Button"),
@@ -4771,11 +4153,11 @@ if __name__ == "__main__":
           ("111No Enchantment: 30 Spell", lambda: reset_button(1.11e32, "Enchantment", 30, "Spell"), "Button"),
       ],
       "Geodes": [
-          ("Galactic Geode: 1M Mana", lambda btn: Geode_roll(btn, galactic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Artificial Geode: 70B Enchantment", lambda btn: Geode_roll(btn, artificial_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Elemental Geode: 200De Mana", lambda btn: Geode_roll(btn, elemental_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Awakened Geode: 7e39 Enchantment", lambda btn: Geode_roll(btn, awakened_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button"),
-          ("Magical Geode: 5Sx Spell", lambda btn: Geode_roll(btn, magical_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"]), "Button"), bulk_roll), "Button")
+          ("Galactic Geode: 1M Mana", lambda btn: Geode_roll(btn, galactic_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Artificial Geode: 70B Enchantment", lambda btn: Geode_roll(btn, artificial_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Elemental Geode: 200De Mana", lambda btn: Geode_roll(btn, elemental_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Awakened Geode: 7e39 Enchantment", lambda btn: Geode_roll(btn, awakened_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button"),
+          ("Magical Geode: 5Sx Spell", lambda btn: Geode_roll(btn, magical_geode, luck, (1-(upgrades["geode_speed"]["effect"]*upgrades["geode_speed"]["current_lvl"])), bulk_roll), "Button")
       ],
       "Area Teleports": [
           ("Buttonia (req: 0 Mana)", lambda: load_world(0, "Mana", Spawn_Buttons, "Cash", "Multiplier", "Rebirths", "Gems", "Main Progression", "Buttonia", "Event Power"), "Button")
@@ -4970,31 +4352,11 @@ if __name__ == "__main__":
   layout.setColumnStretch(5,1)
   layout.setColumnStretch(6,1)
   layout.setColumnStretch(7,1)
-  def play_music():
-      '''This constantly loops background music'''
-      global world, music
-      i = random.randint(0,len(music)-1)
-      prev_i = None
-      while True:
-        while i == prev_i:
-            i = random.randint(0,len(music)-1)
-        song = AudioSegment.from_mp3(f"Program/Music/{world}/{music[i]}")
-        playback = sa.play_buffer( #Copy and paste
-              song.raw_data,
-              num_channels=song.channels,
-              bytes_per_sample=song.sample_width,
-              sample_rate=song.frame_rate
-          )
-        prev_i = i
-        i = random.randint(0,len(music)-1)
-        playback.wait_done() # This waits until the song is finished before continuing
-        music = os.listdir(f"Program/Music/{world}")
   stat_increment = Load()
-  # Run in a thread
-  if 'simpleaudio' in sys.modules and 'pydub' in sys.modules:
-    threading.Thread(target=play_music, daemon=True).start()
   cash_increase()
   gem_increase()
   event_increase()
+  root.music_manager.play_random()
   root.show()
+
   app.exec()

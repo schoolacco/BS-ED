@@ -19,7 +19,7 @@ from matplotlib.figure import Figure
 # Retrieved 2025-11-30, License - CC BY-SA 3.0
 FILE_ATTRIBUTE_HIDDEN = 0x02
 FILE_ATTRIBUTE_SYSTEM = 0x04
-def write_hidden(file_name, data):
+def write_hidden(file_name: str, data: str) -> None:
     """
     Cross platform hidden file writer.
     """
@@ -38,7 +38,7 @@ def write_hidden(file_name, data):
         if not ret: # There was an error.
             raise ctypes.WinError()
 #End of atrributions stuff
-def documents():
+def documents() -> str:
     # Windows & macOS: simple and correct
     base = Path.home() / "Documents"
     if base.exists():
@@ -59,7 +59,7 @@ def documents():
     # Fallback
     return Path.home()
 DOCUMENTS_PATH = documents()
-def blinded(parent):
+def blinded(parent: QMainWindow) -> str:
     if not os.path.exists(str(DOCUMENTS_PATH)+"\\toodarktosee"):
       print("Traceback (most recent call last):")
       print('  File "Module.py", line 128, in <module>')
@@ -68,14 +68,14 @@ def blinded(parent):
       print(colorama.Fore.BLACK + "YOU'RE JUST TOO BLIND TO SEE IT.")
       write_hidden(str(DOCUMENTS_PATH)+"\\toodarktosee", "Are you not afraid of what cannot be seen? \n You search for the impossible, what has never been found \n Yet you wish to harness its energy, the energy of DARKMATTER.")
       parent.close()
-def button_inspect(cmd, btn):
+def button_inspect(cmd, btn: QPushButton):
     signature = inspect.signature(cmd)
     params = len(signature.parameters)
     if params == 0:
         return cmd()
     else:
         return cmd(btn)
-def find_key_path(nested_dict, target_key_name, current_path=None):
+def find_key_path(nested_dict: dict, target_key_name: str, current_path: dict|None=None) -> list:
     """
     Recursively searches for a specific key name in a nested dictionary
     and returns the full path of keys to that key's location.
@@ -100,10 +100,10 @@ def find_key_path(nested_dict, target_key_name, current_path=None):
     return None
 
 class Mantissa:
-    def __init__(self, mantissa, exponent):
+    def __init__(self, mantissa: int|float, exponent: int) -> object:
         self.num = mantissa
         self.exp = exponent
-    def __mul__(a, b):
+    def __mul__(a: int|float|object, b: int|float|object) -> object:
       # a and b are (mantissa, exponent) tuples
       if isinstance(a, (int,float)):
           a = float_to_mantissa(a)
@@ -117,7 +117,7 @@ class Mantissa:
           new_mantissa /= 10
           new_exponent += 1
       return Mantissa(new_mantissa, new_exponent)
-    def __add__(a, b):
+    def __add__(a: int|float|object, b: int|float|object) -> object:
       # Ensure a has the bigger exponent
       if isinstance(a, (int,float)):
           a = float_to_mantissa(a)
@@ -136,26 +136,26 @@ class Mantissa:
         new_mantissa /= 10
         a.exp += 1
       return Mantissa(new_mantissa, a.exp)
-    def __iadd__(a, b):
+    def __iadd__(a: int|float|object, b: int|float|object) -> object:
         total = a + b
         return total
-    def __round__(self, num):
+    def __round__(self: object, num: int) -> object:
         self.num = round(self.num, num)
         return self
-    def __ge__(self, other):
+    def __ge__(self: object, other: int|float|object) -> bool:
         if isinstance(self, (int, float)):
             self = float_to_mantissa(self)
         if isinstance(other, (int, float)):
             other = float_to_mantissa(other)
         return True if self.exp > other.exp else True if self.exp == other.exp and self.num >= other.num else False
-    def __sub__(a,b):
+    def __sub__(a: int|float|object,b: int|float|object) -> object:
         if isinstance(a, (int,float)):
           a = float_to_mantissa(a)
         if isinstance(b, (int,float)):
           b = float_to_mantissa(b)
         b.num = -b.num
         return a + b
-    def __truediv__(a,b):
+    def __truediv__(a: int|float|object,b: int|float|object) -> object:
         if isinstance(a, (int,float)):
           a = float_to_mantissa(a)
         if isinstance(b, (int,float)):
@@ -166,14 +166,18 @@ class Mantissa:
             mantissa*= 10
             exp -= 1
         return Mantissa(mantissa, exp)
-    def __lt__(self, other):
+    def __lt__(self: object, other: int|float|object) -> bool:
         return not self >= other
-    def to_string(self):
+    def __gt__(self: object, other: int|float|object) -> bool:
+        return not self <= other
+    def __le__(self: object, other: int|float|object) -> bool:
+        return not self > other
+    def to_string(self: object) -> str:
        return f"{self.num:.2f}e+{self.exp}"
-    def to_dict(self):
+    def to_dict(self: object) -> dict:
         return {"__mantissa__": True, "number": self.num, "exponent": self.exp}
     @classmethod
-    def from_string(cls, string):
+    def from_string(cls, string: str) -> object:
         segments = string.split("e")
         segments = [i.strip("+") for i in segments]
         for segment in segments:
@@ -412,9 +416,9 @@ class Geode:
             print(msg)
         # Add item to inventory
         if file["Stats"].get(item):
-          file["Stats"][item] += 2 if random.randint(1,500//crit_luck) == 1 else 1
+          file["Stats"][item] += 2 if random.randint(1,int(500//crit_luck)) == 1 else 1
         else:
-          file["Stats"][item] = 2 if random.randint(1,500//crit_luck) == 1 else 1
+          file["Stats"][item] = 2 if random.randint(1,int(500//crit_luck)) == 1 else 1
         file["Stats"]["Geodes Opened"] += 1
       return file
 
@@ -1010,7 +1014,7 @@ class CY47Window(QDialog):
 
 #----- Graphite Minigame -----
 np.seterr(all="ignore")
-stylesheet = open("Program\graphite.qss", "r")
+stylesheet = open(r"Program\graphite.qss", "r")
 stylesheet = stylesheet.read()
 # ---------- CONFIG ----------
 
@@ -1125,7 +1129,7 @@ def generate_other_func(chained=False):
 def generate_level_equation(level:int, bonus=False):
     """
     Generates an equation according to the rules for levels 1-10.
-    If bonus=True, derivative/integral mode (handled outside).
+    If bonus=True, derivative/integral mode (not implemented).
     """
     terms = []
 
@@ -1231,7 +1235,7 @@ def sky_high_check(x, y):
         return False, "Trivial linear solution (y = x) is not allowed"
     
     if max_gradient_percentile(x, y) > 1.22:
-        return False, "Gradient exceeded 45°"
+        return False, "Gradient exceeded maximum angle (approx 50°)"
 
     if not reaches_height(x, y):
         return False, "Did not reach y = 100"
