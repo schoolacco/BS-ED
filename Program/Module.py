@@ -2,6 +2,7 @@ import math
 from PySide6.QtWidgets import *
 from PySide6.QtGui import *
 from PySide6.QtCore import *
+import scipy.special as sci
 import inspect
 import os
 import ctypes
@@ -143,6 +144,7 @@ class Mantissa:
         self.num = round(self.num, num)
         return self
     def __ge__(self: object, other: int|float|object) -> bool:
+        if other == math.inf: return False
         if isinstance(self, (int, float)):
             self = float_to_mantissa(self)
         if isinstance(other, (int, float)):
@@ -190,9 +192,9 @@ class Mantissa:
             return None #Invalid input
         return cls(segments[1], int(segments[0]))
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data: dict) -> object:
         return cls(data["number"], data["exponent"])
-    def to_float(self):
+    def to_float(self: object) -> float | object:
         """Convert the Mantissa to a regular float. Warning: may overflow for huge exponents."""
         value =  self.num * (10 ** self.exp) if self.exp < 300 else self
         return value
@@ -206,12 +208,12 @@ def float_to_mantissa(value: float) -> Mantissa:
       mantissa = value / (10 ** exponent)
       return Mantissa(mantissa, exponent)
 class tkinter_frames:
+  '''Not renaming this'''
 
-
-  def create_scrollable_area(parent, button_groups, bg="black", text_colour="white", voltaic_radar=False):
+  def create_scrollable_area(parent: QMainWindow, button_groups: list[QPushButton], bg: str="black", text_colour: str="white", voltaic_radar: bool=False) -> tuple:
     """
     Creates a scrollable area using PySide6.
-    Returns: (outer_container, scroll_area, content_widget)
+    Returns: (outer_container: QWidget, scroll_area: QScrollArea, content_widget: QWidget)
     """
 
     # --- Outer container widget ---
@@ -290,15 +292,7 @@ class tkinter_frames:
     return outer_container, scroll_area, content_widget
 
 class GradientLabel(QLabel):
-    def __init__(
-        self,
-        text,
-        colors,
-        angle_deg=90,
-        parent=None,
-        stroke_color=None,
-        stroke_width=0
-    ):
+    def __init__(self,text: str,colors: list[str],angle_deg: int|float=90,parent: QObject=None,stroke_color: str=None,stroke_width: int|float=0):
         super().__init__(text, parent)
 
         self.colors = colors
@@ -316,6 +310,7 @@ class GradientLabel(QLabel):
         self.setAttribute(Qt.WA_TranslucentBackground)
 
     def paintEvent(self, event):
+        '''Paint = on label change/creation'''
         painter = QPainter(self)
         painter.setRenderHints(
             QPainter.Antialiasing |
@@ -369,7 +364,7 @@ class GradientLabel(QLabel):
         painter.drawPath(path)
 
 class Geode:
-    def __init__(self, items, cost, unit):
+    def __init__(self, items: dict, cost: Mantissa|float|int, unit: str) -> object:
         """
         items: dict -> { "ItemName": rarity_weight }
         Lower weight = rarer item
@@ -380,8 +375,8 @@ class Geode:
         self.cost = cost.to_float() if isinstance(cost, Mantissa) and cost.exp < 300 else cost
         self.unit = unit
 
-    def open(self, file, luck=1.0, bulk_roll=1, crit_luck=1):
-      luck += (random.randint(100, 777) / 100) - 1
+    def open(self, file: dict, luck: float=1.0, bulk_roll: int=1, crit_luck: int=1):
+      luck += (random.randint(100, 777) / 100) - 1 #Something that was meant to be an event, but is now permanent
       for i in range(bulk_roll):
         if not isinstance(file["Stats"][self.unit],Mantissa): #Skips cost check as if value is a Mantissa cost is always negligible (prices will never be that high)
           if file["Stats"][self.unit] < self.cost:
@@ -423,7 +418,7 @@ class Geode:
       return file
 
 class VoltaicRandomizer:
-    def __init__(self, enable_count=10, interval_ms=20000, voltaic_radar=False, always_texts=None):
+    def __init__(self, enable_count: int=10, interval_ms: int=20000, voltaic_radar: bool=False, always_texts: list|None=None):
         self.enable_count = enable_count
         self.interval_ms = interval_ms
         self.buttons = []   
@@ -512,7 +507,7 @@ class VoltaicRandomizer:
 
 
 class RotatedLabel(QLabel):
-    def __init__(self, text="", angle=0, parent=None):
+    def __init__(self, text: str="", angle: int=0, parent: QObject|None=None):
         super().__init__(text, parent)
         self.angle = angle
 
@@ -529,10 +524,10 @@ class RotatedLabel(QLabel):
 
         painter.drawText(self.rect(), self.alignment(), self.text())
 
-def build_cythrex_index(stat_info, meta_data):
+def build_cythrex_index(stat_info: dict, meta_data: dict) -> dict:
     index = {}
 
-    def walk(tree):
+    def walk(tree: dict):
         for key, value in tree.items():
             if isinstance(value, dict):
                 # leaf stat = has Multis
@@ -552,7 +547,7 @@ def build_cythrex_index(stat_info, meta_data):
 
     return index
 
-def resolve_search(query: str, index: dict):
+def resolve_search(query: str, index: dict) -> list:
     query = query.strip().lower()
     if not query:
         return []
@@ -596,7 +591,7 @@ def resolve_search(query: str, index: dict):
 
 
 
-def find_key_path(nested_dict, target_key_name, current_path=None):
+def find_key_path(nested_dict: dict, target_key_name: str, current_path: list|None=None) -> list|None:
     """
     Recursively searches for a specific key name in a nested dictionary
     and returns the full path of keys to that key's location.
@@ -1034,7 +1029,10 @@ def preprocess_for_eval(expr: str) -> str:
     expr = re.sub(rf"([x)])(?=({funcs})\()", r"\1*", expr)
     expr = re.sub(r"\)\(", r")*(", expr)
     return expr
-def break_asymptotes(y, threshold=10):
+def break_asymptotes(y: np.ndarray[np.any], threshold: int=10):
+    '''
+    Break any asymptotes by turning extremely large jumps into NaNs, y is an np array
+    '''
     y = y.astype(float).copy()
 
     # Break on non-finite values
@@ -1048,7 +1046,6 @@ def break_asymptotes(y, threshold=10):
     y[jump_indices] = np.nan
 
     return y
-
 # ---------- SAFE EVAL ENV ----------
 SAFE_ENV = {
     "sin": np.sin, "cos": np.cos, "tan": np.tan,
@@ -1056,10 +1053,11 @@ SAFE_ENV = {
     "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh,
     "e": np.e, "sqrt": np.sqrt, "exp": np.exp, "ln": np.log,
     "arcsin": np.arcsin, "arccos": np.arccos, "arctan": np.arctan,
-    "arcsinh": np.arcsinh, "arccosh": np.arccosh, "arctanh": np.arctanh
+    "arcsinh": np.arcsinh, "arccosh": np.arccosh, "arctanh": np.arctanh,
+    "erf": sci.erf, "gamma": sci.gamma
 }
 
-def eval_expr(expr, x):
+def eval_expr(expr: str, x: np.ndarray[np.float64]):
     expr = preprocess_for_eval(expr)
     env = SAFE_ENV.copy()
     env["x"] = x
@@ -1071,9 +1069,9 @@ POLYNOMIAL_FUNCS = ["quadratic","cubic","quartic"]
 HYPERBOLAS = ["1/x","1/x^2","1/(x+a)^2"]
 TRIG_FUNCS = ["sin","cos","tan"]
 HYPERBOLIC_FUNCS = ["sinh","cosh","tanh"]
-OTHER_FUNCS = ["abs","sqrt","exp", "ln", "arcsin", "arccos", "arctan", "arcsinh", "arccosh", "arctanh"]
+OTHER_FUNCS = ["abs","sqrt","exp", "ln", "arcsin", "arccos", "arctan", "arcsinh", "arccosh", "arctanh", "erf", "gamma"]
 
-def random_constant(low=-5, high=5, allow_float=True):
+def random_constant(low: int=-5, high: int=5, allow_float: bool=True):
     constant = 0
     while constant == 0:
       constant =  round(random.uniform(low, high), 1) if allow_float else random.randint(low, high)
@@ -1090,7 +1088,7 @@ def generate_polynomial():
     a = random.choice([-3,-2,-1,1,2,3])
     return f"{a}*{'*'.join(factors)}"
 
-def generate_hyperbola(chain=True):
+def generate_hyperbola(chain: bool=True):
     eq = "x"
     for _ in range(random.randint(1,2) if chain else 1):
         shift = random.choice([-1,1,2])
@@ -1098,7 +1096,7 @@ def generate_hyperbola(chain=True):
         eq = f"1/({eq}+{shift})**{power}"
     return eq
 
-def generate_trig(chained=False):
+def generate_trig(chained: bool=False):
     func = random.choice(TRIG_FUNCS)
     a = random.choice([-2,-1,1,2])
     freq = random.randint(1,3)
@@ -1108,7 +1106,7 @@ def generate_trig(chained=False):
         inner = f"{random.choice([lambda: f'x**{random.randint(2,4)}', lambda: generate_hyperbola(chain=True), lambda: generate_trig(chained=True)])()}"  # can chain with simple expressions
     return f"{a}*{func}({freq}*{inner} + {shift})"
 
-def generate_hyper_trig(chained=False):
+def generate_hyper_trig(chained: bool=False):
     func = random.choice(HYPERBOLIC_FUNCS)
     a = random_constant(-2,2)
     freq = random_constant(1,3)
@@ -1118,7 +1116,7 @@ def generate_hyper_trig(chained=False):
         inner = f"{random.choice([lambda: f'x**{random.randint(2,4)}',lambda: f'x{random.randint(-10,10)}', lambda: generate_trig(chained=True), lambda: generate_hyper_trig(chained=True), lambda: generate_hyperbola(chain=True)])()}"
     return f"{a}*{func}({freq}*{inner} + {shift})"
 
-def generate_other_func(chained=False):
+def generate_other_func(chained: bool=False):
     func = random.choice(OTHER_FUNCS)
     a = random_constant(-2,2)
     inside = f"x + {random_constant(-2,2)}"
@@ -1126,7 +1124,7 @@ def generate_other_func(chained=False):
         inside = f"{random.choice([lambda:generate_trig(chained=True), lambda:generate_hyper_trig(chained=True), lambda: f'x**{random.randint(2,10)}', lambda: generate_hyperbola(chain=True), lambda:generate_other_func(chained=True)])()}"
     return f"{a}*{func}({inside})"
 
-def generate_level_equation(level:int, bonus=False):
+def generate_level_equation(level: int, bonus: bool=False):
     """
     Generates an equation according to the rules for levels 1-10.
     If bonus=True, derivative/integral mode (not implemented).
@@ -1188,7 +1186,7 @@ def generate_level_equation(level:int, bonus=False):
         return generate_linear()  # fallback
 
 # ---------- NUMERIC MATCH CHECK ----------
-def check_match_numeric(target_expr, player_expr, x, tol=TOLERANCE):
+def check_match_numeric(target_expr: str, player_expr: str, x: np.ndarray[np.float64], tol: float=TOLERANCE):
     try:
         y_target = np.array(eval_expr(target_expr, x), dtype=float)
         y_player = np.array(eval_expr(player_expr, x), dtype=float)
@@ -1199,7 +1197,7 @@ def check_match_numeric(target_expr, player_expr, x, tol=TOLERANCE):
     except Exception:
         return False
 #(15/100^0.4) * x^0.4 + 0.85x
-def max_gradient_percentile(x, y, percentile=95, xmin=0, xmax=100):
+def max_gradient_percentile(x: np.ndarray[np.float64], y: np.ndarray[np.any], percentile: int=95, xmin: int=0, xmax: int=100):
     mask = (x >= xmin) & (x <= xmax) & np.isfinite(y)
     if np.count_nonzero(mask) < 2:
         return np.inf
@@ -1209,13 +1207,13 @@ def max_gradient_percentile(x, y, percentile=95, xmin=0, xmax=100):
 
     return np.nanpercentile(slopes, percentile)
 
-def reaches_height(x, y, target=100, xmin=0, xmax=100):
+def reaches_height(x: np.ndarray[np.float64], y: np.ndarray[np.any], target: int=100, xmin: int=0, xmax: int=100):
     mask = (x >= xmin) & (x <= xmax) & np.isfinite(y)
     if not np.any(mask):
         return False
     return np.nanmax(y[mask]) >= target
 
-def is_trivial_linear(x, y, tol=1e-3):
+def is_trivial_linear(x: np.ndarray[np.float64], y: np.ndarray[np.any], tol: float=1e-3):
     finite = np.isfinite(y)
     if np.count_nonzero(finite) < 3:
         return False
@@ -1227,7 +1225,7 @@ def is_trivial_linear(x, y, tol=1e-3):
     return np.all(np.abs(slopes - 1) < tol)
 
 
-def sky_high_check(x, y):
+def sky_high_check(x: np.ndarray[np.float64], y: np.ndarray[np.any]):
     if not np.any(np.isfinite(y)):
         return False, "Graph is empty"
     
@@ -1251,13 +1249,13 @@ def sky_high_check(x, y):
 
 # ---------- GUI ----------
 class GameState:
-    def __init__(self, mode=MODE_NORMAL):
+    def __init__(self, mode: str=MODE_NORMAL):
         self.points = 0
         self.level = 1
         self.unlocks = {"sky_high": False}
         self.mode = mode
 class BolicalWorld(QDialog):
-        def __init__(self, stat_data, parent=None, game_state=None):
+        def __init__(self, stat_data: dict, parent: QObject|None=None, game_state: GameState|None=None) -> object:
             super().__init__(parent)
             self.data = stat_data
             self.setStyleSheet(stylesheet)
@@ -1333,7 +1331,7 @@ class BolicalWorld(QDialog):
             back.clicked.connect(lambda: self.stack.setCurrentWidget(self.menu))
             layout.addWidget(back)
             return page
-        def start_game(self, level):
+        def start_game(self, level: int):
             self.state.level = level
             # recreate the graph puzzle with new difficulty
             self.graph.next_graph(level)
@@ -1350,7 +1348,7 @@ class BolicalWorld(QDialog):
             self.data["Keys"]["Bolical Points"] = self.state.points
             event.accept()
 class ShopPage(QWidget):
-    def __init__(self, game_state, parent=None):
+    def __init__(self, game_state: GameState, parent: QObject|None=None) -> object:
         super().__init__(parent)
         self.state = game_state
         self.parentwin = parent
@@ -1426,13 +1424,12 @@ class ShopPage(QWidget):
       if self.parentwin.data["Stats"]["Tesseract"] >= 1:
           self.item_buttons["Tesseract"].setEnabled(False)
           self.items[3]["purchased"] = True
-    def showEvent(self, event):
+    
+    def showEvent(self, event: QShowEvent):
        super().showEvent(event)
        self.update_points()
-
-
-
-    def update_item_button(self, item):
+    
+    def update_item_button(self, item: dict):
         btn = self.item_buttons[item["name"]]
         if item["type"] == "1 purchase" and item["purchased"]:
             btn.setText("Purchased")
@@ -1442,7 +1439,7 @@ class ShopPage(QWidget):
             btn.setText(f"{item['price']} pts")
             btn.setEnabled(self.state.points >= item["price"])
 
-    def buy_item(self, item):
+    def buy_item(self, item: dict):
         if item["type"] == "1 purchase" and item["purchased"]:
             return  # Safety check
 
@@ -1473,7 +1470,7 @@ class ShopPage(QWidget):
         if self.parent():
             self.parent().setCurrentWidget(self.parent().parent().menu)
 class GraphPuzzle(QWidget):
-    def __init__(self, game_state, parent=None):
+    def __init__(self, game_state: GameState, parent: QObject|None=None):
         super().__init__(parent)
         self.state = game_state
         self.parentwin = parent
@@ -1491,7 +1488,7 @@ class GraphPuzzle(QWidget):
         layout.addWidget(self.title)
 
         # Hint
-        hint = QLabel("Enter an equation f(x). Allowed: sin, cos, tan, abs, pi, e, sinh, cosh, tanh, sqrt, exp, ln, inverse trig/hyperbolic")
+        hint = QLabel("Enter an equation f(x). Allowed: sin, cos, tan, abs, pi, e, sinh, cosh, tanh, sqrt, exp, ln, inverse trig/hyperbolic, erf, gamma")
         hint.setAlignment(Qt.AlignCenter)
         hint.setStyleSheet("color: #00aa66; font-size: 11px;")
         layout.addWidget(hint)
@@ -1612,8 +1609,7 @@ class GraphPuzzle(QWidget):
           else:
               self.parent().setCurrentWidget(self.parent().parent().difficulty_select)
 
-
-    def next_graph(self, skip=False):
+    def next_graph(self, skip: bool=False):
         """Generate next graph. If skip=True, no points are awarded."""
         # Award points if not skipped and puzzle solved
         # Clear old UI state
@@ -1744,6 +1740,6 @@ class GraphPuzzle(QWidget):
 # ---------- RUN ----------
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = BolicalWorld()
+    window = BolicalWorld(stat_data={"Stats": {"Graphite": 0, "Tesseract": 0, "Tetra": 0, "Master Tetra": 0}, "Keys": {"Bolical Points": 0, "Sky-High Structuring": False}})
     window.show()
     sys.exit(app.exec())

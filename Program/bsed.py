@@ -10,11 +10,9 @@ import ctypes
 import random
 import sys
 import warnings
-import time
 from pathlib import Path
 import colorama
 import webbrowser
-import re
 import os
 from Module import Mantissa, tkinter_frames, GradientLabel, BootScreen, CY47Window, BolicalWorld, find_key_path
 from geode import *
@@ -27,6 +25,14 @@ except ImportError:
     pass
 warnings.filterwarnings("ignore")
 app = QApplication(sys.argv)
+icon = QIcon()
+icon_file = "Program/GUI/Starglass.ico"
+icon.addFile(icon_file, QSize(16,16))
+icon.addFile(icon_file, QSize(24,24))
+icon.addFile(icon_file, QSize(32,32))
+icon.addFile(icon_file, QSize(48,48))
+icon.addFile(icon_file, QSize(256,256))
+app.setWindowIcon(icon)
 def_upgrades = {
     "cash_speed": {
       "name": "Cash Speed",
@@ -211,19 +217,19 @@ crit_luck = 1
 geode_speed= 1
 bulk_roll = 1
 voltaic_radar = True
-# Source - https://stackoverflow.com/a
+# Source - https://stackoverflow.com/a // stackoverflow's attribution copy+paste is clearly so effective as to fail to copy their own link
 # Posted by luke, modified by community. See post 'Timeline' for change history
 # Retrieved 2025-11-30, License - CC BY-SA 3.0
 FILE_ATTRIBUTE_HIDDEN = 0x02
 FILE_ATTRIBUTE_SYSTEM = 0x04
-def write_hidden(file_name, data):
+def write_hidden(file_name: str, data: str):
     # Find user's Documents folder
     docs = Path.home() / "Documents"
 
     # For *nix, prefix with .
     final_name = file_name
     if os.name != 'nt':
-        final_name = "." + file_name
+        final_name = "." + file_name #Linux stuff I believe
 
     file_path = docs / final_name
 
@@ -250,7 +256,7 @@ def blinded():
       print(colorama.Fore.BLACK + "YOU'RE JUST TOO BLIND TO SEE IT.")
       write_hidden(Path.home()/"Documents"/"toodarktosee", "Are you not afraid of what cannot be seen? \n You search for the impossible, what has never been found \n Yet you wish to harness its energy, the energy of DARKMATTER.")
       root.close()
-def secret_input(input):
+def secret_input(input: str):
     global area, sec_input
     if input == "Totality" and os.path.exists(Path.home()/"Documents"/"toodarktosee"):
         print("You're on the right track!")
@@ -277,14 +283,14 @@ def secret_input(input):
           print("An exit has opened, congratulations on your escape.")
           stat_increment["Stats"]["Galaxite"] = 1
     sec_input.clear()
-def Geode_roll(btn, geode, luck=1, geode_speed=1, bulk_roll=1):
+def Geode_roll(btn: QPushButton, geode: Geode, luck: int=1, geode_speed: int=1, bulk_roll: int=1):
     global stat_increment
     local_crit = crit_luck + upgrades["crit_luck"]["effect"]*upgrades["crit_luck"]["current_lvl"]
     local_luck = luck + upgrades["geode_luck"]["effect"]*upgrades["geode_luck"]["current_lvl"] + upgrades["super_lucky"]["effect"]*upgrades["super_lucky"]["current_lvl"]
     btn.setEnabled(False)
     stat_increment = geode.open(stat_increment, local_luck, bulk_roll, local_crit)
     QTimer.singleShot(int(geode_speed*1000), lambda: btn.setEnabled(True))
-def load_check(req, unit, buttons, new_area=None):
+def load_check(req: int|float|Mantissa, unit: str, buttons: list[tuple], new_area: str|None=None):
     global stat_increment, container, scroll_area, content, layout, area
     amount = stat_increment["Stats"][unit]
     req = float_to_mantissa(req) if isinstance(amount, Mantissa) else req
@@ -293,7 +299,7 @@ def load_check(req, unit, buttons, new_area=None):
       container, scroll_area, content = tkinter_frames.create_scrollable_area(root, buttons, voltaic_radar=voltaic_radar)
       layout.addWidget(container, 2, 1, 7, 7)
       area = new_area
-def load_world(req, unit, initial_area, cash, multiplier, rebirths, gems, reset, world_name, event_power=False, multi_logic=True):
+def load_world(req: int|float|Mantissa, unit: str, initial_area: list[tuple], cash: str, multiplier: str, rebirths: str, gems: str, reset: str, world_name: str, event_power: str|bool=False, multi_logic: bool=True):
     global stat_increment, container, scroll_area, container, content, layout, cash_type, multi_type, rebirth_type, gem_type, e_event, e_type, cash_l, multi_l, re_l, reset_key, world, music, m_logic
     amount = stat_increment["Stats"][unit]
     req = float_to_mantissa(req) if isinstance(amount, Mantissa) else req
@@ -409,7 +415,7 @@ def Save(collection: dict, upgrades: dict, secrets: dict) -> None:
             json.dump(serialize(collection), file)
         except json.JSONDecodeError: # If file is corrupted
            print("WARNING: Your back up file or main save file is CORRUPTED")
-def calculate_multi(unit):
+def calculate_multi(unit: str) -> Mantissa:
     """Calculates total multiplier for a given unit, supporting Mantissa instances."""
     global stat_increment, crit_luck, cash_type, multi_type, rebirth_type
     local_crit = crit_luck + upgrades["crit_luck"]["effect"]*upgrades["crit_luck"]["current_lvl"]
@@ -548,7 +554,7 @@ def event_increase():
       else:
           period = 60000//(upgrades["event_speed"]["effect"]*upgrades["event_speed"]["current_lvl"])
       QTimer.singleShot(period, event_increase)
-def cost_button(unit, cost, unit_2, receive):
+def cost_button(unit: str, cost: int|float|Mantissa, unit_2: str, receive: int|float|Mantissa):
     global cash_l, multi_l, stat_increment, cash_type, multi_type
 
     value = stat_increment["Stats"][unit]
@@ -581,7 +587,7 @@ def cost_button(unit, cost, unit_2, receive):
         multi_l.setText(f"{multi_type}: {multi_text}")
 
         stat_increment["Stats"]["Buttons Pressed"] += 1
-def reset_button(cost, unit, reward, unit_2):
+def reset_button(cost: int|float|Mantissa, unit: str, reward: int|float|Mantissa, unit_2: str):
     global cash_l, multi_l, re_l, stat_increment, cash_type, multi_type, rebirth_type, reset_key
 
     current_value = stat_increment["Stats"][unit]
@@ -618,7 +624,7 @@ def reset_button(cost, unit, reward, unit_2):
         multi_l.setText(f"{multi_type}: {stat_increment['Stats'][multi_type]}")
         re_l.setText(f"{rebirth_type}: {r_text}")
         stat_increment["Stats"]["Buttons Pressed"] += 1
-def reset_button_special(cost, unit, reward, unit_2, resets=[]):
+def reset_button_special(cost: int|float|Mantissa, unit: str, reward: int|float|Mantissa, unit_2: str, resets: list=[]):
     global cash_l, multi_l, re_l, stat_increment, cash_type, multi_type, rebirth_type
 
     current_value = stat_increment["Stats"][unit]
@@ -655,7 +661,7 @@ def reset_button_special(cost, unit, reward, unit_2, resets=[]):
         multi_l.setText(f"{multi_type}: {m_text}")
         re_l.setText(f"{rebirth_type}: {r_text}")
         stat_increment["Stats"]["Buttons Pressed"] += 1
-def recovery_button_set(req, unit, Set, unit_2):
+def recovery_button_set(req: int|float|Mantissa, unit: str, Set: int|float|Mantissa, unit_2: str):
     global stat_increment
     amount = stat_increment["Stats"][unit]
     if isinstance(amount, Mantissa) and not isinstance(req, Mantissa):
@@ -676,7 +682,7 @@ def recovery_button_set(req, unit, Set, unit_2):
           re_l.setText(f"{rebirth_type}: {re_msg}")
     else:
      pass
-def recovery_button_fetch(req, unit, recovery, unit_2):
+def recovery_button_fetch(req: int|float|Mantissa, unit: str, recovery: int|float|Mantissa, unit_2: str):
     global stat_increment, cash_type, multi_type, rebirth_type
     amount = stat_increment["Stats"][unit]
     if isinstance(amount, Mantissa) and not isinstance(req, Mantissa):
@@ -706,10 +712,10 @@ def recovery_button_fetch(req, unit, recovery, unit_2):
       re_l.setText(f"{rebirth_type}: {re_msg}")
     else:
      pass
-def image_load(path):
+def image_load(path: str):
     path = os.path.abspath(path)
     webbrowser.open(f"file://{path}")
-def cythrex_boot(parent=None):
+def cythrex_boot(parent: QObject|None=None):
     global main_window, boot
     window_visibility = True
     try:
@@ -738,13 +744,13 @@ def cythrex_boot(parent=None):
                 main_window.activateWindow()
         boot = None
       boot.finished.connect(start_main)
-def graphite_puzzle(parent=None, req=None):
+def graphite_puzzle(parent: QObject|None=None, req: dict|None=None):
     if req:
      if stat_increment["Stats"][req[1]] >= req[0]:
          return
     puzzle = BolicalWorld(stat_increment, parent)
     puzzle.show()
-def sloth(parent=None, time=3000, req=None):
+def sloth(parent: QObject=None, time: int=3000, req: dict|None=None):
     if req:
       if stat_increment["Stats"][req[1]] >= req[0]:
           return
@@ -754,7 +760,7 @@ def sloth(parent=None, time=3000, req=None):
         parent.input_watch = InputWatch(parent.sloth)
         QApplication.instance().installEventFilter(parent.input_watch)
     puzzle.show()
-def craft(stat, amount): #item = dict, amount = int/float/Mantissa
+def craft(stat: str, amount: int|float|Mantissa):
     if amount == None or amount < 1:
         return None
     key_1 = find_key_path(abs_stat_info,stat)[0]
@@ -775,7 +781,7 @@ def craft(stat, amount): #item = dict, amount = int/float/Mantissa
     temp = float_to_mantissa(stat_increment["Stats"][stat])
     temp += amount
     stat_increment["Stats"][stat] = temp.to_float()
-def open_control_panel(parent=None):
+def open_control_panel(parent: QObject|None=None) -> QObject:
     class ControlPanel(QDialog):
         def __init__(self, parent=None):
             super().__init__(parent)
@@ -828,12 +834,14 @@ def open_control_panel(parent=None):
                 load_check(0, "Cash", ET_IG)
             elif (x, y) == (3040.8689, 7290.8997):
                 load_check(0, "Cash", ET_Stellarite)
+            elif (x, y) == (701236212.05, 329417941.475): #Future co-ords for Darkmatter
+                load_check(0,"Cash", ET_Default)
             else:
                 load_check(0, "Cash", ET_Default)
             self.close()
     win = ControlPanel(parent)
     win.show()
-def string_to_num(string:str):
+def string_to_num(string:str) -> int|float|Mantissa:
     try:
           value = float(string)
     except ValueError:
@@ -4189,7 +4197,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check(0, "Cash", Recover_Hall_Buttons), "Button")
       ]
   }
-  def open_boosts_menu(parent):
+  def open_boosts_menu(parent: QObject|None):
     class UpgradeMenu(QDialog):
         def __init__(self, save_data, parent=None):
             super().__init__(parent)
@@ -4285,13 +4293,13 @@ if __name__ == "__main__":
     win = UpgradeMenu(upgrades, parent)
     win.show()
     return win
-  def open_admin_panel(parent):
+  def open_admin_panel(parent: QObject|None):
     if os.path.abspath("savefile.json") == r"C:\Users\wizar\Documents\GitHub\BS-ED\savefile.json":
       if not hasattr(parent, "_admin"):
           parent._admin = AdminPanel(parent, stat_increment)
       parent._admin.show()
       parent._admin.raise_()
-  def open_crafting_menu(parent):
+  def open_crafting_menu(parent: QObject|None):
       win = CraftingMenu(craftable_items, parent)
       win.show()
   stat_menu = QPushButton("Open Stat Menu")

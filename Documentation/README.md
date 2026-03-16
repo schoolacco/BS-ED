@@ -5,6 +5,4 @@ To install the necessary dependecies type:
 pip install -r requirements.txt
 ```
 
-Some dependencies imported into the code do not have use yet and hence do not need installation.
-Simpleaudio and Pydub are used, but logic exists to circumvent their use if not installed due to their further requirements.
-Tutorials for their installation shall be implemented in future.
+It is recommended that you use the most recent version of Python and have it downloaded from the [Official Python Website](https://www.python.org/downloads/) rather than using the Microsoft Store version, as it may cause errors.

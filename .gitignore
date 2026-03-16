@@ -1,0 +1,8 @@
+savefile.json
+backup.json
+_pycache__/
+Program/__pycache__/
+Tests/__pycache__/
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+Tests/test.db

@@ -1,4 +1,5 @@
 # Builtins/Must haves
+#These are copy and pasted directly for the main program for any test programs
 from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 from PySide6.QtGui import *
@@ -14,8 +15,8 @@ from pathlib import Path
 import colorama
 import webbrowser
 import re
-from Module import Mantissa, find_key_path
-from data import abs_stat_info
+from Program.Module import Mantissa, find_key_path
+from Program.data import abs_stat_info
 craftable_items = []
 for key, value in abs_stat_info.items():
  for key, value in value.items():

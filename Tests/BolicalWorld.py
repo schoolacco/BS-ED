@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import re
 import random
+import scipy.special as sci
 from functools import partial
 from PySide6.QtWidgets import *
 from PySide6.QtCore import *
@@ -50,7 +51,8 @@ SAFE_ENV = {
     "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh,
     "e": np.e, "sqrt": np.sqrt, "exp": np.exp, "ln": np.log,
     "arcsin": np.arcsin, "arccos": np.arccos, "arctan": np.arctan,
-    "arcsinh": np.arcsinh, "arccosh": np.arccosh, "arctanh": np.arctanh
+    "arcsinh": np.arcsinh, "arccosh": np.arccosh, "arctanh": np.arctanh,
+    "erf": sci.erf, "gamma": sci.gamma
 }
 
 def eval_expr(expr, x):
@@ -65,7 +67,7 @@ POLYNOMIAL_FUNCS = ["quadratic","cubic","quartic"]
 HYPERBOLAS = ["1/x","1/x^2","1/(x+a)^2"]
 TRIG_FUNCS = ["sin","cos","tan"]
 HYPERBOLIC_FUNCS = ["sinh","cosh","tanh"]
-OTHER_FUNCS = ["abs","sqrt","exp", "ln", "arcsin", "arccos", "arctan", "arcsinh", "arccosh", "arctanh"]
+OTHER_FUNCS = ["abs","sqrt","exp", "ln", "arcsin", "arccos", "arctan", "arcsinh", "arccosh", "arctanh", "erf", "gamma"]
 
 def random_constant(low=-5, high=5, allow_float=True):
     constant = 0
@@ -462,7 +464,7 @@ class GraphPuzzle(QWidget):
         layout.addWidget(self.title)
 
         # Hint
-        hint = QLabel("Enter an equation f(x). Allowed: sin, cos, tan, abs, pi, e, sinh, cosh, tanh, sqrt, exp, ln, inverse trig/hyperbolic")
+        hint = QLabel("Enter an equation f(x). Allowed: sin, cos, tan, abs, pi, e, sinh, cosh, tanh, sqrt, exp, ln, inverse trig/hyperbolic, erf, gamma")
         hint.setAlignment(Qt.AlignCenter)
         hint.setStyleSheet("color: #00aa66; font-size: 11px;")
         layout.addWidget(hint)

@@ -70,7 +70,7 @@ Table of Contents
 
 [3.1 Context Diagram 10](#31-context-diagram)
 
-[3.2 Data Flow Diagrams (Level 0 and Level 1) 10](#32-data-flow-diagrams-level-0-and-level-1)
+[3.2 Data Flow Diagram (Level 1) 10](#32-data-flow-diagram-level-1)
 
 [3.3 Structure Chart 10](#33-structure-chart)
 
@@ -114,31 +114,46 @@ Table of Contents
 
 ## Syllabus Requirements
 
-| **Syllabus Requirement** | **Template Section** | **STATUS** |
-| --- | --- | --- |
-| Identifying problem, feasibility, and requirements | Section 1.1 - 1.6 |<b><span style="background: linear-gradient(90deg, #ffff00, #ffff66, #ffff00); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">In Progress</span></b>|
-| Stakeholder and client expectations and feedback | Section 1.3, Section 6.1 |<b><span style="background: linear-gradient(90deg, #ffff00, #ffff66, #ffff00); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">In Progress</span></b>|
-| Functional and non-functional requirements | Section 1.4, 1.5 |<b><span style="background: linear-gradient(90deg, #00ff00, #88ff88, #00ff00); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Complete</span></b>|
-| Project constraints | Section 1.6 |<b><span style="background: linear-gradient(90deg, #00ff00, #88ff88, #00ff00); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Complete</span></b>|
-| Planning methodology and Gantt chart | Section 2.1 - 2.3 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
-| Tools and language justification | Section 2.2 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
-| Communication with clients and feedback loops | Section 2.4, 6.1 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
-| Context Diagram and DFDs | Section 3.1, 3.2 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
-| Structure Chart and IPO | Section 3.3, 3.4 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
-| Data Dictionary | Section 3.5 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
-| UML Class Diagram (if applicable) | Section 3.6 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
-| Code implementation and key features | Section 4.1 - 4.2 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
-| UI screenshots and explanation | Section 4.3 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
-| Version control and iterations (optional) | Section 4.4 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
-| Testing methods and test cases | Section 5.1 - 5.2 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
-| Evaluation of requirements and software effectiveness | Section 5.3 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
-| Suggestions for improvement and future development | Section 6.1 - 6.3 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
-| Analyse and respond to feedback,<br><br>evaluate the effectiveness of a software solution | Section 6.2 |<b><span style="background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;">Incomplete</span>|
+<style>
+  span.complete{
+    background: linear-gradient(90deg, #00ff00, #88ff88, #00ff00); -webkit-background-clip: text;-webkit-text-fill-color:
+    transparent;
+    font-weight: bold;
+  }
+  span.progress{
+    background: linear-gradient(90deg, #ffff00, #ffff66, #ffff00); -webkit-background-clip: text;-webkit-text-fill-color: transparent;
+    font-weight: bold;
+  }
+  span.incomplete{
+    background: linear-gradient(90deg, #ff0000, #aa0000, #ff0000); -webkit-background-clip: text;-webkit-text-fill-color: transparent;
+    font-weight: bold;
+  }
+</style>
+
+| **Syllabus Requirement**                                                                  | **Template Section**     | **STATUS**                                 |
+|-------------------------------------------------------------------------------------------|--------------------------|--------------------------------------------|
+| Identifying problem, feasibility, and requirements                                        | Section 1.1 - 1.6        | <span class="progress">In Progress</span>  |
+| Stakeholder and client expectations and feedback                                          | Section 1.3, Section 6.1 | <span class="progress">In Progress</span>  |
+| Functional and non-functional requirements                                                | Section 1.4, 1.5         | <span class="complete">Complete</span>     |
+| Project constraints                                                                       | Section 1.6              | <span class="complete">Complete</span>     |
+| Planning methodology and Gantt chart                                                      | Section 2.1 - 2.3        | <span class="complete">Complete</span>     |
+| Tools and language justification                                                          | Section 2.2              | <span class="complete">Complete</span>     |
+| Communication with clients and feedback loops                                             | Section 2.4, 6.1         | <span class="incomplete">Incomplete</span> |
+| Context Diagram and DFDs                                                                  | Section 3.1, 3.2         | <span class="incomplete">Incomplete</span> |
+| Structure Chart and IPO                                                                   | Section 3.3, 3.4         | <span class="incomplete">Incomplete</span> |
+| Data Dictionary                                                                           | Section 3.5              | <span class="incomplete">Incomplete</span> |
+| UML Class Diagram (if applicable)                                                         | Section 3.6              | <span class="incomplete">Incomplete</span> |
+| Code implementation and key features                                                      | Section 4.1 - 4.2        | <span class="incomplete">Incomplete</span> |
+| UI screenshots and explanation                                                            | Section 4.3              | <span class="incomplete">Incomplete</span> |
+| Version control and iterations (optional)                                                 | Section 4.4              | <span class="incomplete">Incomplete</span> |
+| Testing methods and test cases                                                            | Section 5.1 - 5.2        | <span class="incomplete">Incomplete</span> |
+| Evaluation of requirements and software effectiveness                                     | Section 5.3              | <span class="incomplete">Incomplete</span> |
+| Suggestions for improvement and future development                                        | Section 6.1 - 6.3        | <span class="incomplete">Incomplete</span> |
+| Analyse and respond to feedback,<br><br>evaluate the effectiveness of a software solution | Section 6.2              | <span class="incomplete">Incomplete</span> |
 
 # 1\. Identifying and Defining
+
 ## 1.1 Problem Statement
-
-
 
 **Outline** the problem or opportunity that the project addresses. Consider who is affected by this issue.
 
@@ -196,29 +211,22 @@ This project is an attempt to create a faithful recreation of the now deprecated
 
 ## 2.1 Development Methodology
 
-**Describe** the development approach used (e.g. Agile, Waterfall, WAgile).
-
-**Justify** the suitability of this methodology. You could consider…
-
-- Project size and complexity
-- Time constraints
-- Feedback and iteration requirements
+Due to the general nature of the project as a live-service game it is most logical to use the WAgile methodology as early development stages require the linear format of Waterfall whilst the later stagers benefit greatly from user feedback and the iterations of the Agile methodology. Waterfall can be used for the implementations of larger updates that may change fundamental logic whilst Agile is more useful for smaller quality of life changes or bugfixes that come with the live-service aspect of the game.
+The project itself is also large and highly complex, but also requires direct response to user feedback, hence it makes sense to use the WAgile methodology as aspects of both the Waterfall and Agile methodologies are required.
 
 ## 2.2 Tools and Technologies
 
-**Justify** the selection of software applications, engines, developer tools, programming languages, IDEs, frameworks, libraries and/or hardware components.
-
-**Explain** how these tools supported efficient and effective development.
+Python has been chosen as the primary coding language for the project with the PySide6 library being the project's core component. Python has been chosen due to my own familiarity with the programming language and my general lack of knowledge of any other language. PySide6 has been chosen for various reasons, other GUI modules were tested but were however deemed insufficient for the task at hand. Tkinter and the other various libraries that have been made for it are incapable of handling the aesthetic requirements of the project, cefpython3 was rejected due to the excessive requirement of requiring a downgrade of Python, PySide6 has proven itself capable of meeting the project's aesthetic requirements with its QSS and QPaintEvents allowing for the necessary aesthetics. PySide6's integration with matplotlib, ffmpeg and sql allow for the reduction of requirements through not needing the use of other programming libraries and reduces some of the various limitations that typically come with a GUI program with these useful tools being directly integrated into the library rather than needing further downloads.
 
 ## 2.3 Gantt Chart / Timeline
 
-Include a timeline showing key project milestones.
+![Gantt Chart](Documentation_Assests\Gantt_Chart_again.png)
 
 **Explain** how time was allocated to planning, development, testing, and evaluation.
 
 ## 2.4 Communication Plan
 
-**Explain** how client or peer feedback was obtained and incorporated.
+Client and peer feedback will be obtained through continuous playtesting, with a consistent savefile system between versions transitioning between versions will not be difficult (unless major changes are made, then a program will be given that converts the file for them), through this playtesting feedback will be obtained directly from the clients and my peers and using this feedback new feature can be added or quality of life changes can be made to incoporate their feedback into future versions of the software.
 
 ## 2.5 Resource Allocation Justification
 
@@ -234,29 +242,63 @@ This section justifies the use of modelling tools to represent system structure,
 
 ## 3.1 Context Diagram
 
-Include a context diagram showing system boundaries and external entities.
+![Context Diagram](Documentation_Assests\DFD0.png)
 
-## 3.2 Data Flow Diagrams (Level 0 and Level 1)
+## 3.2 Data Flow Diagram (Level 1)
 
-Illustrate how data moves through the system.
+![Level 1 Dataflow Diagram](Documentation_Assests\DFD1.png)
 
 ## 3.3 Structure Chart
 
-Show the modular structure of the system and relationships between modules.
+![Structure Chart](Documentation_Assests\Structure.png)
 
 ## 3.4 IPO Chart
 
-| Input | Process | Output |
-| --- | --- | --- |
-|     |     |     |
+| Input                    | Process                                                                      | Output                      |
+|--------------------------|------------------------------------------------------------------------------|-----------------------------|
+| Username + Password      | Hash password,<br>validate username and password,<br> login                  | Login user, or reject login |
+| Stat Data + Upgrade Data | Check button type,<br>go through button process,<br>return changed stat data | Stat Data                   |
+| User Query               | Search CY47 for query,<br>return results                                     | Results                     |
+| User Puzzle Input, Area  | Check area,<br>check input,<br>go through process if input is valid          | Varies (Often Stat Data)    |
+| Button Press             | Go through button functionality                                              | Varies                      |
+| File Paths               | Load and scale game assets                                                   | Assests displayed           |
+| Savefile                 | Loads savefile from json                                                     | Stat Data                   |
 
 ## 3.5 Data Dictionary
 
-| Name | Type | Description |
-| --- | --- | --- |
-| username | String | Stores user login name |
-| taskList | List | Stores user tasks |
-| sessionData | JSON | Stores session state |
+| Name                  | Data Type          | Size/Format                                                 | Description                                                               | Example Value                                                    | Constraints/Validation Rules                         |
+|-----------------------|--------------------|-------------------------------------------------------------|---------------------------------------------------------------------------|------------------------------------------------------------------|------------------------------------------------------|
+| stat_info             | Dict               | Length is equal to amount of stats in game                  | Huge dictionary that contains all the information in the game             | {"Cash": {"Multis": None}}                                       | Must be dict                                         |
+| stat_gradients        | Dict[dict]         | Length should be equal to amount of stats in game           | Huge dictionary that contains all stat gradients in the game              | {"Cash": {"Colours": {}"#ffffff", "#ffffff"}, "Angle: 90}        | Must be a dict                                       |
+| savefile              | JSON               | Contains everything                                         | Stores user savedata allowing for it to be saved between playthroughs     | {"Stats":{"Cash": 1}}                                            | Must be JSON                                         |
+| cytherax_data         | Dict               | Length is equal to amount of pages used by CY47             | Huge dictionary containing all the data used by CY47                      | {"Cash": "obtainment": "TBA", "info": "TBA}                      | Must be a dict                                       |
+| craftable_stats       | List[str]          | Length is equal to amount of craftable stats                | List containing names of all craftable stats in the game                  | ["Item1", "Item2"]                                               | Must be a list that contains only strings            |
+| default_upgrades      | Dict[dict]         | Length equal to amount of upgrades in the game              | Dictionary containg the information about all the upgrades, and the level | {"Upgrade1":{"Cost": 1, "Level": 1, "Growth": 1.1, "Effect": 1}} | Must be a nested dict                                |
+| default_keys          | Dict[bool]         | Values must be true or false                                | Dictionary of keys that exist for various reasons                         | {"Key_1": True}                                                  | Values must be boolean                               |
+| Icon                  | QIcon              | QIcon                                                       | Application Icon                                                          | QIcon("File/path", QSize(16,16))                                 | Requires minimun of file path and QSize              |
+| e_event               | bool               | True or False                                               | Flag for if event power logic is active                                   | True                                                             | Must be boolean                                      |
+| reset_key             | str                | str of any length                                           | Reference key for what progression is to be reset                         | "Main Progression"                                               | Must be a key of stat_info                           |
+| C=cash_type           | str                | str of any length                                           | What stat acts as cash for a given world                                  | "Cash"                                                           | Must be a key of the nested dicts of stat_info       |
+| multi_type            | str                | str of any length                                           | What stat acts as multiplier for a given world                            | "Multiplier"                                                     | Must be a key of the nested dicts of stat_info       |
+| rebirth_type          | str                | str of any length                                           | What stat acts as rebirths for a given world                              | "Rebirths"                                                       | Must be a key of the nested dicts of stat_info       |
+| gem_type              | str                | str of any length                                           | What stat acts as gems for a given world                                  | "Gems"                                                           | Must be a key of the nested dicts of stat_info       |
+| e_type                | str                | str of any length                                           | What stat acts as event power for a given world                           | "Event Power"                                                    | Must be a key of the nested dicts of stat_info       |
+| m_logic               | bool               | True or False                                               | Flag to determine if multiplier logic applies in a given world            | True                                                             | Must be a boolean                                    |
+| luck                  | int/float          | 0-inf (exlucsive)                                           | Luck boost used by geodes                                                 | 1                                                                | Must not be a Mantissa object                        |
+| crit_luck             | int/float          | 0-inf (exclusive)                                           | Luck for critical button presses (double the stat gain)                   | 1                                                                | Must not be a Mantissa object                        |
+| geode_speed           | int                | geode_spped <= 1                                            | Forced cooldown time between geode button presses (for testing)           | 1                                                                | Must be int                                          |
+| bulk_roll             | int/float          | 0-inf (exclusive)                                           | Amount of geodes opened in one roll                                       | 1                                                                | Must not be Mantissa obect                           |
+| voltaic_radar         | bool               | True or False                                               | P2W method to bypass specific mechanic in oen specific area               | True                                                             | Must be boolean                                      |
+| FILE_ATTRIBUTE_HIDDEN | "int"              | 0x02 (constant)                                             | File attribute to make hidden                                             | 0x02                                                             | Must be 0x02                                         |
+| FILE_ATTRIBUTE_SYSTEM | "int"              | 0x04                                                        | File attribute to make file system-level hidden                           | 0x04                                                             | Must be 0x04                                         |
+| InputWatch            | class(QObject)     | Needs object to be watched                                  | System to catch any user input                                            | InputWatch(QObject)                                              | Must have an object to watch                         |
+| ExtendedComboBox      | class(QComboBox)   | May need parent, has all requirements of original QComboBox | QComboBox with an autocomplete extension                                  | ExtendedComboBox(data, parent)                                   | Has all requirements of QComboBox                    |
+| STatMenu              | QMainWindow        | QNainWindow                                                 | GUI Window containing all stat amounts                                    | StatMenu()                                                       | Has all requirements of QMainWindow                  |
+| MusicManager          | class              | object with no attributes                                   | Class that manages the background music loop                              | MusicManager()                                                   | Requires music file paths to be played               |
+| Window                | class(QMainWindow) | QMainWindow                                                 | GUI Window                                                                | Window()                                                         | Has all requirements of QMainWindow                  |
+| AdminPanel            | class(QDialog)     | QDialog, only parent required                               | Secret dialog window for testing                                          | AdminPanel(parent)                                               | Has all requirements of QDialog                      |
+| Sloth                 | class(QDialog)     | QDialog, requires InputWatch                                | Secret window for a secret puzzle                                         | Sloth()                                                          | Has all requirements of QDialog, requires InputWatch |
+<!-- Welp, here we go, you asked for this -->
 
 ## 3.6 UML Class Diagram (if OOP)
 
@@ -314,10 +356,10 @@ Describe testing approaches, such as:
 
 ## 5.2 Test Cases and Results
 
-| Test ID | Description | Expected Result | Actual Result | Pass/Fail |
-| --- | --- | --- | --- | --- |
-| TC01 | Valid login | Success message | Success message | Pass |
-| TC02 | Invalid login | Error message | Error message | Pass |
+| Test ID | Description   | Expected Result | Actual Result   | Pass/Fail |
+|---------|---------------|-----------------|-----------------|-----------|
+| TC01    | Valid login   | Success message | Success message | Pass      |
+| TC02    | Invalid login | Error message   | Error message   | Pass      |
 
 ## 5.3 Evaluation Against Requirements
 

@@ -1,8 +1,8 @@
 from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 from PySide6.QtGui import *
-from Module import GradientLabel, Mantissa, RotatedLabel
-from bsed import cythrex_data, stat_gradients, abs_stat_info, def_stat_increment
+from Program.Module import GradientLabel, Mantissa, RotatedLabel
+from Program.data import cythrex_data, stat_gradients, abs_stat_info, def_stat_increment
 import os
 import os.path
 import random

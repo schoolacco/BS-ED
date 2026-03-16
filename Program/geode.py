@@ -672,4 +672,4 @@ unlucky_geode = Geode({"ant": {"Chance": 2},
                        "flawless grandidierite": {"Chance": 361471371},
                        "silly stat 6": {"Chance": 871471172},
                        "phosphoribosylaminoimidazolesuccinocarboxamide": {"Chance": 1381471471},
-                       "gullibillius": {"Chance": 3458172582}}, 5, "Stone")
+                       "gullibilius": {"Chance": 3458172582}}, 5, "Stone")
