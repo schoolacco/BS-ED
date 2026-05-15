@@ -21,6 +21,7 @@ brush = QBrush(QPixmap("Program/Stats/gullibilius"))
 scene.setBackgroundBrush(brush)
 # Create view to display the scene
 view = QGraphicsView(scene)
+view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
 view.setWindowTitle("QGraphicsScene Example")
 view.resize(420, 320)
 view.show()

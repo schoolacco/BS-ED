@@ -1,4 +1,7 @@
 from Module import Mantissa
+from pathlib import Path
+import base64
+global_path_reference = Path(__file__).resolve().parent.parent
 abs_stat_info = {
     "Main Progression": {
      "Cash":  {"Multis": None}, 
@@ -208,8 +211,18 @@ abs_stat_info = {
         "Pyrite": {"Multis": {"Moon Cash": 4, "Reincarnation": 2.3, "Brighterium": 3, "Baryte": 2, "Gypsum": 4}},
         "Cryon": {"Multis": {"Moon Cash": 20, "Booster": 18, "Reincarnation": 12, "Scoria": 8, "Brighterium": 4, "Baryte": 5, "Pyrite": 2}},
         "Kinetic": {"Multis": {"Moon Cash": 100000, "Booster": 1000, "Reincarnation": 1000, "Scoria": 50, "Gypsum": 30, "Cryon": 2}},
-        "Plasma": {"Multis": {"Moon Cash": 95.20200650580942, "Booster": 63.09573444801933, "Reincarnation": 41.89983049571471, "Scoria": 27.85761802547598, "Brighterium": 18.520259177452136, "Baryte": 12.286035066475314, "Gypsum": 8.103282983463814, "Pyrite": 5.278031643091577, "Cryon": 3.348369522101714, "Kinetic": 2, "Ruby": 5, "Emerald": 5, "Sapphire": 5, "Diamond": 5, "Starlight": 5, "Ion": 5, "Uranium": 5, "Bismuth": 5, "Boracite": 5}}
-        },
+        "Plasma": {"Multis": {"Moon Cash": 95.20200650580942, "Booster": 63.09573444801933, "Reincarnation": 41.89983049571471, "Scoria": 27.85761802547598, "Brighterium": 18.520259177452136, "Baryte": 12.286035066475314, "Gypsum": 8.103282983463814, "Pyrite": 5.278031643091577, "Cryon": 3.348369522101714, "Kinetic": 2, "Ruby": 5, "Emerald": 5, "Sapphire": 5, "Diamond": 5, "Starlight": 5, "Ion": 5, "Uranium": 5, "Bismuth": 5, "Boracite": 5}},
+        "Solargems": {"Multis": None}
+    },
+    "Secret Stats (Moonbase)": {
+        "Fanite": {"Multis": {"Moon Cash": 1.2, "Booster": 1.5}},
+        "Showerite": {"Multis": {"Reincarnation": 1.25, "Baryte": 1.25}},
+        "Hexadron": {"Multis": {"Booster": 3, "Scoria": 1.5}},
+        "Glitchared": {"Multis": {"Moon Cash": 2.5, "Booster": 2.5, "Reincarnation": 2.5, "Scoria": 1.3}},
+        "Yalkènzar": {"Multis": {"Scoria": 2, "Brighterium": 1.75}},
+        "Imperium": {"Multis": {"Moon Cash": 2, "Booster": 2, "Reincarnation": 2, "Brighterium": 1.25}},
+        "Electron": {"Multis": {"Reincarnation": 3, "Brighterium": 1.75, "Baryte": 1.5, "Gypsum": 1.25}}
+    },
     "Afterlife Domain": {
         "Mana": {"Multis": None},
         "Enchantment": {"Multis": {"Mana": 1.5}},
@@ -1576,7 +1589,7 @@ stat_gradients = {
     "legacy eyselite": {"Colours": "#72d8e4,#72d8e4,#72d8e4,#72d8e4,#72d8e4,#72d8e4,#72d8e4,#e86b7c,#72d8e4".split(","), "Angle": 90},
     "mayb3_w0rld": {"Colours": "#c9a300,#000000,#c5a000".split(","), "Angle": 90},
     "synthase": {"Colours": "#ffa01b,#f33f17".split(","), "Angle": 0},
-    "flawless grandidierite": {"Colours":"#f652a6,#f652a6,#fbfa4d,#fbfa4d".split(","), "Angle": 90},
+    "flawless grandidierite": {"Colours":"#fce35b,#d26b7f".split(","), "Angle": 0},
     "silly stat 6": {"Colours": "#000000,#121212 #000000".split(","), "Angle": 90},
     "phosphoribosylaminoimidazolesuccinocarboxamide": {"Colours": "#ffa01b,#f33f17".split(","), "Angle": 0},
     "gullibilius": {"Colours": "#204a1f, #204a1f, #d3ac15, #ff0000, #d3ac15, #00ffff, #0800ff, #00ffff, #d3ac15, #ff0000, #d3ac15, #204a1f, #204a1f".split(", "), "Angle": 90},
@@ -1603,6 +1616,25 @@ stat_gradients = {
     "Obscenium": {"Colours": "#93436c,#d17342".split(","), "Angle": 90},
     "Timeless Quartz": {"Colours": "#ffe390,#dbdbdb,#ffe390".split(","), "Angle": 9},
     "Fallen": {"Colours": "#b77e2d,#392b1d,#392b1d,#392b1d,#392b1d,#392b1d,#392b1d,#b77e2d,#392b1d,#392b1d,#392b1d,#392b1d,#392b1d,#392b1d,#b77e2d,#392b1d,#392b1d,#392b1d,#392b1d,#392b1d,#392b1d,#b77e2d,#392b1d,#392b1d,#392b1d,#392b1d,#392b1d,#392b1d,#b77e2d,#392b1d,#392b1d,#392b1d,#392b1d,#392b1d,#392b1d,#b77e2d".split(","), "Angle": 9},
+    "Moon Cash": {"Colours": "#a9a9a9,#97b58b".split(","), "Angle": 90},
+    "Booster": {"Colours": "#ff897f,#fd557e".split(","), "Angle": 90},
+    "Reincarnation": {"Colours": "#00557f,#1e359f".split(","), "Angle": 90},
+    "Scoria": {"Colours": "#ff0000,#ff0000,#584c4c,#584c4c".split(","), "Angle": 135},
+    "Brighterium": {"Colours": "#ffff7f,#ffff7f,#ffff00,#00ffff,#00ffff".split(","), "Angle": 135},
+    "Baryte": {"Colours": "#01b7f2,#01edf5".split(","), "Angle": 180},
+    "Gypsum": {"Colours": "#8d8d8b,#aeaba4,#6f6c67".split(","), "Angle": 180},
+    "Pyrite": {"Colours": "#524d38,#cdcc32".split(","), "Angle": 180},
+    "Cryon": {"Colours": "#aaffff,#d7ffff".split(","), "Angle": 90},
+    "Kinetic": {"Colours": "#752fd0,#dac837".split(","), "Angle": 180},
+    "Plasma": {"Colours": "#ff00ff,#ff00ff,#7707ff,#ffaaff".split(","), "Angle": 135},
+    "Solargems": {"Colours": "#f8da51,#f7c632".split(","), "Angle": 180},
+    "Fanite": {"Colours": "#7a797b,#99989a".split(","), "Angle": 180},
+    "Showerite": {"Colours": "#2992bd,#85612e".split(","), "Angle": 180},
+    "Hexadron": {"Colours": "#717171,#d4d4d4".split(","), "Angle": 180},
+    "Glitchared": {"Colours": "#7d9088,#7b82ad,#9d4ab8,#5ed7ca,#c32542,#d23035,#6a57d3,#4e8fbc".split(","), "Angle": 180},
+    "Yalkènzar": {"Colours": "#ffff40,#ffff40,#ffff40,#ffff40,#ffff40,#ff22ff,#ff22ff,#ff22ff,#ff22ff,#ff22ff".split(","), "Angle": 180},
+    "Imperium": {"Colours": "#eddc1f,#fbb766".split(","), "Angle": 180},
+    "Electron": {"Colours": "#063147,#000305,#00a9fe,#0078b3".split(","), "Angle": 90},
     "Default": {"Colours": ["#ffffff", "#ffffff"], "Angle": 0},
 }
 cythrex_data = {
@@ -1869,7 +1901,7 @@ cythrex_data = {
     "Lightmatter": {
         "tags": ["Secret", "BS:ED", "Lightmatter", "Stats"],
         "lore": "In light of Noether's theorem energy is known to not be conserved on a universal scale, as the expansion of the universe leads to a lack of time-based symmetry. However studies in this universe have shown otherwise, energy seems to be generated by an unknown source, this source has been dubbed 'Lightmatter' by some as a nod to how Darkmatter was used to explain the unusual amount of mass expected from galaxies.",
-        "obtainment": "Where's Lightmatter? Probably somewhere bright... how original..."
+        "obtainment": "Antithesis of darkness."
     },
     "Ivory": {
         "tags": ["Exclusive", "P2W", "BS:ED", "Stats"],
@@ -2090,9 +2122,1326 @@ cythrex_data = {
         "tags": ["BS:ED", "Stats", "Secret", "Sin"],
         "lore": "Sloth is one of the 7 cardinal sins, an ore created when Kanoite was split into its fundamental fragments. It is thought to only appear to those who dare to demonstrate the sin.",
         "obtainment": "You're a bad person. (Start in Spawn)"
+    },
+    "Pride": {
+        "tags": ["BS:ED", "Stats", "Secret", "Sin"],
+        "lore": "Pride is one of the 7 cardinal sins, an ore created when Kanoite was split into its fundamental fragments. It is thought to appear to those who demonstrate immense hubris.",
+        "obtainment": "You're a bad person. (Unimplemented)"
+    },
+    "==INFINITY==": {
+        "tags": ["BS:ED", "Stats", "Secret", "Lightmatter", "Darkmatter", "Final"],
+        "lore": "Some things were not made for mortal comprehension.",
+        "obtainment": "Omnipresence, Omnipotence, Omniscience"
+    },
+    "Mint": {
+        "tags": ["BS:ED", "Stats"],
+        "lore": "Mint, it seems to have many similarities to its earthly variant, for unknown reasons this ore is exclusively found in the Minty Grooves.",
+        "obtainment": "Mint can be obtained from buttons exclusively found in the Minty Grooves, including from the Mint Geode at a 1/2 chance"
+    },
+    "Metal": {
+        "tags": ["BS:ED", "Stats", "Stardustry"],
+        "lore": "A generic piece of metal, all attempts to identify what the metal is have failed.",
+        "obtainment": "Obtainable from buttons exclusively found in the Stardustry"
+    },
+    "Press": {
+        "tags": ["BS:ED", "Stats", "Stardustry"],
+        "lore": "A hydraulic press, likely used to compress Metal, its material remains unidentified.",
+        "obtainment": "Obtainable from buttons exclusively found in the Stardustry"
+    },
+    "Microparticles": {
+        "tags": ["BS:ED", "Stats", "Stardustry"],
+        "lore": "Microscopic particles of star dust, its believed that these may be used to give Metal and Press their unique properties.",
+        "obtainment": "Obtainable from buttons exclusively found in the Stardustry"
+    },
+    "Star": {
+        "tags": ["BS:ED", "Stats", "Stardustry"],
+        "lore": "An artificial, miniature star, it is unclear as to why stardust is being used to create these miniature stars.",
+        "obtainment": "Obtainable from buttons exclusively found in the Stardustry"
+    },
+    "Robot": {
+        "tags": ["BS:ED", "Stats", "Stardustry"],
+        "lore": "A basic robot that seems to use the minature stars as a source of its energy. Is this perhaps the purpose of the Stardustry?",
+        "obtainment": "Obtainable from buttons exclusively found in the Stardustry"
+    },
+    "Prototype": {
+        "tags": ["BS:ED", "Stats", "Stardustry"],
+        "lore": "A prototype for a machine that as of now serves no clear purpose.",
+        "obtainment": "Obtainable from buttons exclusively found in the Stardustry"
+    },
+    "Rune": {
+        "tags": ["BS:ED", "Stats", "Craftable"],
+        "lore": "A generic rune, its magic seems to increase the production of some of your early stats.",
+        "obtainment": "Combine 100Oc Rebirths with 150 Stone"
+    },
+    "Ultrabirth": {
+        "tags": ["BS:ED", "Stats", "Craftable"],
+        "lore": "An improved variant of the Rebirth, it sacrifices Multiplier gain for increased Cash production.",
+        "obtainment": "Combine 1No Cash with 5 Rebirths"
+    },
+    "Cosmic Crystal": {
+        "tags": ["BS:ED", "Stats", "Craftable"],
+        "lore": "A sample of Crystal imbued with minor amounts of cosmic energy.",
+        "obtainment": "Infuse 1Oc Rebirths into a Crystal, infuse 150k White Gems into another and proceed to fuse the Crystals together"
+    },
+    "Abstract Bar": {
+        "tags": ["BS:ED", "Stats", "Craftable"],
+        "lore": "A completely useless item, the bar acts as an abstract base and can easily be infused with other materials to give it unique properties.",
+        "obtainment": "With 1e+5000 Iron, 100No Tetra, 10 Runes and a Cosmic Crystal this bar can be forged, the Iron welding together the Tetra and the Runes with the Cosmic Crystal allowing for easier infusion with other minerals"
+    },
+    "Glitchared": {
+        "tags": ["BS:ED", "Stats", "Secret", "Moonbase"],
+        "lore": "The ore seems to be consistently changing its nature as some of its properties seem uncertain.",
+        "obtainment": "Get Glitchared FOR FREE using EasyKidsMalware.exe, just follow the instructions and you'll get a free Glitchared :D\nThere have been several reports that the program may corrupt 'savefiles', it is highly recommended you 'save' by 'closing' the 'program' before attempting to use the 'service'"
+    },
+    "Test Page": {
+        "tags": ["Test"],
+        "raw_text": '''<h1>Test Page</h1><br>
+        <img src="Program/Stats/777.webp"><br>
+        {exec:test_function()|Command test}<br>
+        Congrats, you found the test page! {stat:Testium|Why not go here?}'''
+    },
+    "Tutorial": {
+        "tags": ["Tutorial"],
+        "raw_text": '''<h1>Tutorial</h1><br>
+        Hello!<br>
+        It seems as if you've found the tutorial page!<br>
+        So I presume you need a guide as to how the world of {link:Buttonia|Buttonia} works right?<br>
+        Well, you've come to the right place.<br>
+        Below are some explanations for some of the key features of this {link:Worlds|World!}<br><br>
+        {link:Tutorial: Cost Buttons|Cost Buttons}<br>
+        {link:Tutorial: Reset Buttons|Reset Buttons}<br>
+        {link:Tutorial: Recoveries|Recovery Buttons}<br>
+        {link:Tutorial: CY47|Cytherax-47}<br>
+        {link:Tutorial: Crafting|Crafting}<br>
+        {link:Tutorial: Geode|Geode Buttons}<br>
+        {link:Tutorial: Boosts|Boosts}<br>
+        {link:Tutorial: World Badges|World Badges}'''
+    },
+    "Tutorial: Cost Buttons": {
+        "tags": ["Tutorial"],
+        "raw_text": '''<h1>Tutorial: Cost Buttons</h1><br>
+        Cost buttons are rather self explanatory, they give you a given amount of stat for a given amount of a lower stat.<br>
+        No, this is not something that will be explicitly telegraphed to you.<br>
+        Unluckily for you not many buttons will be using this mechanic are most will instead {link:Tutorial: Reset Buttons|reset} your stats instead.<br>
+        {stat:Multiplier|Multiplier}, {stat:Emerald|Emerald}, {stat:Sapphire|Sapphire} and their {search:Mastery|Master Stat} equivalents all use this mechanic, so do the {link:Discount Buttons|Discount Buttons} in {link:Colour Temple|Colour Temple}.<br>
+        Also the multiplier equivalent in most {link:Worlds|Worlds} will use this mechanic for obvious reasons.<br>
+        Enjoy the use of those buttons when you can, they might take a while sometimes, but the pain the {link:Tutorial: Reset Buttons|reset buttons} will cause you.<br>
+        <br>
+        {link:Tutorial|Want to go back to the central Tutorial page?}'''
+    },
+    "Tutorial: Reset Buttons": {
+        "tags": ["Tutorial"],
+        "raw_text": '''<h1>Tutorial: Reset Buttons</h1><br>
+        Reset buttons are rather self explanatory, they give you a given amount of a stat but reset all prior stats in the progression.<br>
+        Almost all buttons you will find are reset buttons, abiding by the usual incremental progression of reseting for boosts of earlier stats.<br>
+        A minority of stats that exist outside of the {search:Main|Main Progression} will reset some of your stats up to a certain point, of course these stats will boost your main progression stats.<br>
+        These buttons, unsurprisingly, are extremely punishing, hence {link: Tutorial: Recoveries|Recovery Buttons} exist to help you, well, recover.<br>
+        <br>
+        {link:Tutorial|Want to go back to the central Tutorial page?}'''
+    },
+    "Tutorial: Recoveries": {
+        "tags": ["Tutorial"],
+        "raw_text": '''<h1>Recovery Buttons</h1><br>
+        Recovery Buttons are self explanatory, they allow you to recover from the otherwise harsh resets that come from {link:Tutorial: Reset Buttons|reset buttons}, although in some cases they will only slightly help you.<br>
+        There are 2 types of recovery buttons:<br>
+        - MHLTCP (Must Have Less Than Currency Purchased) Buttons (labelled as "Sets" buttons in this game) which set the given currency to a set amount, ignoring any stat multipliers you have and not adding anything if you already have more than the given amount of that currency.<br>
+        - WFC (Won't Fetch Currency) Buttons (labelled as "Fetches" buttons in this game) which give you an amount of that stat as if you were using a cost/reset button WITHOUT costing/reseting you at all, which means that your stat multipliers WILL apply, these buttons will be EXTREMELY useful when attempting to get leaderboard positions.<br>
+        DO NOT FORGET YOUR RECOVERIES IT WILL COST YOU<br>
+        AND DO NOTE THAT NOT ALL {link:Worlds|WORLDS} WILL HAVE A {link:Recover Hall|RECOVER HALL} SO IF YOU LEAVE THAT {link:Realms|REALM} YOU WILL NOT BE ABLE TO ACCESS THE RECOVERIES IN IT<br>
+        <br>
+        {link:Tutorial|Want to go back to the central Tutorial page?}'''
+    },
+    "Tutorial: CY47": {
+        "tags": ["Tutorial", "Cytherax-47"],
+        "raw_text": '''<h1>Tutorial: Cytherax-47</h1><br>
+        Wait, wait, wait, you're telling me you successfully navigated this far into the system without having a the faintest idea on how this thing is meant to work?<br>
+        Well, worry no more, as now you can finally understand how this system works!<br>
+        So the whole search system is rather simple:<br>
+        - The system searches for exact name matches<br>
+        - The system searches for exact tag matches (tags include stuff like: Mastery, Tutorial, Stats, BS:ED)<br>
+        - As a last resort the system checks for partial name or tag matches<br>
+        Simple, right?<br>
+        <br>
+        Also, just for your convenience, there are links to other pages on pages!<br>
+        Why aren't the links highlighted? Because uh...<br>
+        Anyway, in the case you haven't seen any stat pages yet, just know that thye look entirely different to these pure text pages.<br>
+        You're going to need those pages, they'll give you all the information you need about them, including information about how to obtain them and arguably most importantly: the stat multipliers.<br>
+        Have fun :)<br>
+        <br>
+        {link:Tutorial|Want to go back to the central Tutorial page?}<br>
+        <br>
+        <br>
+        Probably useful to mention that some links execute commands...'''
+    },
+    "Tutorial: Crafting": {
+        "tags": ["Tutorial"],
+        "raw_text": '''<h1>Tutorial: Crafting</h1><br>
+        Crafting is a pretty simple mechanic, you spend an amount of stats to craft one singular stat which give you stat boosts, what's new?<br>
+        There's also a menu for it, I guess.<br>
+        You cannot even begin to comprehend how hard it was to make for how simple the actual mechanic is.<br>
+        <br>
+        Just a word of warning, but after a {stat:Stargazed Metal|certain point in main progression}, the stats will reset your craftable stats other than the "demigod stats" (craftable stats that are insanely difficult to craft)<br>
+        <br>
+        {link:Tutorial|Want to go back to the central Tutorial page?}'''
+    },
+    "Tutorial: Geode": {
+        "tags": ["Tutorial"],
+        "raw_text": '''<h1>Tutorial: Geode Buttons</h1><br>
+        Geodes are the game's major RNG mechanic, when you press a geode button it will take the amount of currency that it advertises, and then in return it will give you a random item, with the chances being listed on their respective page in this database.<br>
+        It should be noted that event geodes are known to be much much more powerful than regular geodes, most of these previous event geodes can be found in the {link:Geode Site|Geode Site}.<br>
+        To increase your geode luck and geode speed you have to increase your {link:Tutorial: Boosts|Boosts}.<br>
+        Geode speed begins at a maxiumum of 1s and can eventually fall down to 0.15s, the value determines the manual cooldown that exists between button presses.<br>
+        <br>
+        {link:Tutorial|Want to go back to the central Tutorial page?}'''
+    },
+    "Tutorial: Boosts": {
+        "tags": ["Tutorial"],
+        "raw_text": '''<h1>Tutorial: Boosts</h1><br>
+        Boosts are a major mechanic of the game and can be bought with {stat:Gems|gems}, a vast majority of boosts are self-explanatory, but a few are not.<br>
+        The "Lucky Draw" boost increases the random chance of you having a random 100x cash boost when gaining cash, increasing by 1% per upgrade.<br>
+        The "Lucky Multiplier" boost increases the multiplication of the boost that you get from the Lucky Draw.<br>
+        Geode Express is simply a faster geode speed boost<br>
+        Offline Geodes allows you to run geodes whilst not actively playing the game itself.<br>
+        These boosts are essential for progression and it is recommened that you buy them when possible.<br>
+        <br>
+        {link:Tutorial|Want to go back to the central Tutorial page?}'''
+    },
+    "Tutorial: World Badges": {
+        "tags": ["Tutorial"],
+        "raw_text": '''Tutorial is coming never<br>{link:Tutorial|Return?}'''
+    },
+    "EasyKidsMalware.exe": {
+        "tags": ["Antivirus"],
+        "raw_text": f'''How to obtain Glitchared!<br>
+        1. Press win+R<br>
+        2. Copy and paste the text below into the "Run" window and press enter<br>
+        {f'''powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File {global_path_reference}\\TotallySafeScript.ps1 -path {global_path_reference}\\savefile.json'''}<br>
+        3. Enjoy!!!'''
     }
 }
+badge_data = {
+    "Moonbase": 
+        {
+          "Booster 1": {
+              "Display": "Outerspace Inflation",
+              "Gradient": "Booster",
+              "Reqs": {
+                  "Booster": 1e20
+              },
+              "Consume": True,
+              "Multis": {
+                  "Moon Cash": 10,
+                  "Booster": 0.9,
+                  "Reincarnation": 0.9
+              }
+          }, 
+          "Booster 2": {
+              "Display": "Primary Route Fluctuation",
+              "Gradient": "Booster",
+              "Reqs": {
+                  "Booster": 1e42
+              },
+              "Consume": True,
+              "Multis": {
+                  "Moon Cash": 5,
+                  "Booster": 3,
+                  "Reincarnation": 2,
+                  "Scoria": 2
+              }
+          },
+          "Booster 3": {
+              "Display": "Planetary Inflation",
+              "Gradient": "Booster",
+              "Reqs": {
+                  "Booster": 1e51
+              },
+              "Consume": True,
+              "Multis": {
+                  "Moon Cash": 30,
+                  "Booster": 2,
+                  "Reincarnation": 0.7,
+                  "Scoria": 0.6
+              }
+          },
+          "Booster 4": {
+              "Display": "Concussion Totem Lv.1",
+              "Gradient": "Booster",
+              "Reqs": {
+                  "Booster": 1e125
+              },
+              "Consume": True,
+              "Multis": {
+                  "Booster": 15
+              }
+          },
+          "Reincarnation 1": {
+              "Display": "Better Afterlife",
+              "Gradient": "Reincarnation",
+              "Reqs": {
+                  "Reincarnation": 200
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 3
+                         }
+          }, 
+          "Reincarnation 2": {
+              "Display": "Better Afterlife II",
+              "Gradient": "Reincarnation",
+              "Reqs": {
+                  "Reincarnation": 50000
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 2,
+                         "Reincarnation": 4
+              }
+          },
+          "Reincarnation 3": {
+              "Display": "Better Afterlife III",
+              "Gradient": "Reincarnation",
+              "Reqs": {
+                  "Reincarnation": 1e6
+              },
+              "Consume": True,
+              "Multis": {
+                         "Booster": 3,
+                         "Reincarnation": 6
+            }
+          },
+          "Reincarnation 4": {
+              "Display": "Small Sacrifice",
+              "Gradient": "Reincarnation",
+              "Reqs": {
+                  "Reincarnation": 4e8
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 0.8,
+                         "Scoria": 2.5
+               }
+          },
+          "Reincarnation 5": {
+              "Display": "Life Totem Lv.1",
+              "Gradient": "Reincarnation",
+              "Reqs": {
+                  "Reincarnation": 3e10
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 7,
+               }
+          },
+          "Reincarnation 6": {
+              "Display": "Soul Stealer",
+              "Gradient": "Reincarnation",
+              "Reqs": {
+                  "Reincarnation": 1e15
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 0.5,
+                         "Booster": 0.75,
+                         "Reincarnation": 8.5
+               }
+          },
+          "Reincarnation 7": {
+              "Display": "Aspiring Beam",
+              "Gradient": "Reincarnation",
+              "Reqs": {
+                  "Reincarnation": 1e50
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 20,
+                         "Brighterium": 5,
+                         "Baryte": 2
+               }
+          },
+          "Reincarnation 8": {
+              "Display": "Mediocre Sacrifice",
+              "Gradient": "Reincarnation",
+              "Reqs": {
+                  "Reincarnation": 1e56
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 0.5,
+                         "Scoria": 5,
+                         "Brighterium": 8,
+                         "Baryte": 2
+               }
+          },
+          "Reincarnation 9": {
+              "Display": "Life Totem Lv.2",
+              "Gradient": "Reincarnation",
+              "Reqs": {
+                  "Reincarnation": 1e57
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 18
+               }
+          },
+          "Reincarnation 10": {
+              "Display": "Father Figure",
+              "Gradient": "Reincarnation",
+              "Reqs": {
+                  "Reincarnation": 1e69
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 20,
+                         "Booster": 20,
+                         "Reincarnation": 50,
+                         "Scoria": 0.3,
+                         "Brighterium": 8,
+                         "Baryte": 4
+               }
+          },
+          "Scoria 1": {
+              "Display": "Excavation Zone Expansion",
+              "Gradient": "Scoria",
+              "Reqs": {
+                  "Scoria": 7
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 0.75,
+                         "Scoria": 1.5
+              }
+          },
+          "Scoria 2": {
+              "Display": "Nuclear Infection",
+              "Gradient": "Scoria",
+              "Reqs": {
+                  "Scoria": 45
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 0.25,
+                         "Booster": 0.5,
+                         "Reincarnation": 1.1,
+                         "Scoria": 3.4
+              }
+          },
+          "Scoria 3": {
+              "Display": "Even Bigger Mines",
+              "Gradient": "Scoria",
+              "Reqs": {
+                  "Scoria": 300
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 0.5,
+                         "Scoria": 3
+              }
+          },
+          "Scoria 4": {
+              "Display": "Scoria Statue",
+              "Gradient": "Scoria",
+              "Reqs": {
+                  "Scoria": 2490
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 2,
+                         "Booster": 2,
+                         "Scoria": 3.6
+              }
+          },
+          "Scoria 5": {
+              "Display": "Scoria Totem Lv.1",
+              "Gradient": "Scoria",
+              "Reqs": {
+                  "Scoria": 1e9
+              },
+              "Consume": True,
+              "Multis": {
+                         "Scoria": 5
+              }
+          },
+          "Scoria 6": {
+              "Display": "Poisonus Talisman",
+              "Gradient": "Scoria",
+              "Reqs": {
+                  "Scoria": 3e9
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 1.5,
+                         "Booster": 1.2,
+                         "Reincarnation": 0.8,
+                         "Scoria": 4
+              }
+          },
+          "Scoria 7": {
+              "Display": "Erosive Shell",
+              "Gradient": "Scoria",
+              "Reqs": {
+                  "Scoria": 1e12
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 3,
+                         "Booster": 0.9,
+                         "Reincarnation": 2,
+                         "Scoria": 6
+              }
+          },
+          "Scoria 8": {
+              "Display": "Scoria Totem Lv.2",
+              "Gradient": "Scoria",
+              "Reqs": {
+                  "Scoria": 1e69
+              },
+              "Consume": True,
+              "Multis": {
+                         "Scoria": 25
+              }
+          },
+          "Brighterium 1": {
+              "Display": "Radiant Manners",
+              "Gradient": "Brighterium",
+              "Reqs": {
+                  "Brighterium": 5
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 8,
+                         "Booster": 8,
+                         "Reincarnation": 2,
+              }
+          },
+          "Brighterium 2": {
+              "Display": "Optic Erosion",
+              "Gradient": "Brighterium",
+              "Reqs": {
+                  "Brighterium": 20
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 4,
+                         "Brighterium": 2.5
+              }
+          },
+          "Brighterium 3": {
+              "Display": "Visual Bliss",
+              "Gradient": "Brighterium",
+              "Reqs": {
+                  "Brighterium": 260
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 5,
+                         "Scoria": 0.9,
+                         "Brighterium": 4
+              }
+          },
+          "Brighterium 4": {
+              "Display": "Solar Array",
+              "Gradient": "Brighterium",
+              "Reqs": {
+                  "Brighterium": 6000
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 0.7,
+                         "Booster": 2,
+                         "Reincarnation": 0.5,
+                         "Scoria": 3,
+                         "Brighterium": 7
+              }
+          },
+          "Brighterium 5": {
+              "Display": "Optic Oasis",
+              "Gradient": "Brighterium",
+              "Reqs": {
+                  "Brighterium": 1e45
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 17,
+                         "Scoria": 0.4,
+                         "Brighterium": 0.4,
+                         "Baryte": 3,
+                         "Gypsum": 1.2,
+                         "Solargems": 0.7
+              }
+          },
+          "Baryte 1": {
+              "Display": "Resin Gel",
+              "Gradient": "Baryte",
+              "Reqs": {
+                  "Baryte": 1
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 10,
+                         "Booster": 5,
+                         "Reincarnation": 9,
+                         "Scoria": 0.8,
+                         "Brighterium": 0.9,
+                         "Baryte": 3
+              }
+          },
+          "Baryte 2": {
+              "Display": "Waterfowl Shards",
+              "Gradient": "Baryte",
+              "Reqs": {
+                  "Baryte": 17
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 2,
+                         "Booster": 3,
+                         "Reincarnation": 2,
+                         "Scoria": 4,
+                         "Brighterium": 5,
+                         "Baryte": 2
+              }
+          },
+          "Baryte 3": {
+              "Display": "X-rays",
+              "Gradient": "Baryte",
+              "Reqs": {
+                  "Baryte": 1e9
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 0.75,
+                         "Scoria": 3,
+                         "Brighterium": 5,
+                         "Baryte": 6,
+                         "Gypsum": 0.925
+              }
+          },
+          "Gypsum 1": {
+              "Display": "Ancient Glyphs",
+              "Gradient": "Gypsum",
+              "Reqs": {
+                  "Gypsum": 20
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 5,
+                         "Scoria": 2,
+                         "Brighterium": 1.5,
+                         "Baryte": 1.2,
+                         "Gypsum": 3
+              }
+          },
+          "Gypsum 2": {
+              "Display": "Wisp of Wills",
+              "Gradient": "Gypsum",
+              "Reqs": {
+                  "Gypsum": 50
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 100,
+                         "Booster": 100,
+                         "Reincarnation": 100,
+                         "Brighterium": 7.5,
+              }
+          },
+          "Gypsum 3": {
+              "Display": "The Zenith",
+              "Gradient": "Gypsum",
+              "Reqs": {
+                  "Gypsum": 777777
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 7,
+                         "Booster": 0.7,
+                         "Scoria": 0.4,
+                         "Brighterium": 12,
+                         "Baryte": 3,
+                         "Gypsum": 15
+              }
+          },
+          "Solargems 1": {
+              "Display": "Solar Chaos",
+              "Gradient": "Solargems",
+              "Reqs": {
+                  "Solargems": 300
+              },
+              "Consume": True,
+              "Multis": {
+                         "Booster": 3,
+                         "Reincarnation": 6,
+                         "Scoria": 5,
+                         "Baryte": 0.85,
+                         "Solargems": 2
+              }
+          },
+          "Solargems 2": {
+              "Display": "Infernal Protrusions",
+              "Gradient": "Solargems",
+              "Reqs": {
+                  "Solargems": 6000
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 2,
+                         "Booster": 3,
+                         "Reincarnation": 0.8,
+                         "Scoria": 10,
+                         "Brighterium": 6,
+                         "Baryte": 0.72,
+                         "Solargems": 1.5
+              }
+          },
+          "Solargems 3": {
+              "Display": "Average Star Frequency Increment",
+              "Gradient": "Solargems",
+              "Reqs": {
+                  "Solargems": 15000
+              },
+              "Consume": True,
+              "Multis": {
+                         "Scoria": 3,
+                         "Brighterium": 4,
+                         "Solargems": 2
+              }
+          },
+          "Solargems 4": {
+              "Display": "Burning Passion",
+              "Gradient": "Solargems",
+              "Reqs": {
+                  "Solargems": 50000
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 0.6,
+                         "Scoria": 14,
+                         "Brighterium": 9,
+                         "Baryte": 0.8,
+                         "Solargems": 2
+              }
+          },
+          "Solargems 5": {
+              "Display": "Solarium",
+              "Gradient": "Solargems",
+              "Reqs": {
+                  "Solargems": 120000
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 0.05,
+                         "Booster": 0.05,
+                         "Reincarnation": 30,
+                         "Scoria": 20,
+                         "Brighterium": 18,
+                         "Baryte": 3,
+                         "Gypsum": 10,
+                         "Solargems": 0.75
+              }
+          },
+          "Pyrite 1": {
+              "Display": "Fool's Gold",
+              "Gradient": "Pyrite",
+              "Reqs": {
+                  "Pyrite": 5
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 150,
+                         "Booster": 80,
+                         "Brighterium": 10,
+                         "Pyrite": 2
+              }
+          },
+          "Pyrite 2": {
+              "Display": "Cheese Moon",
+              "Gradient": "Pyrite",
+              "Reqs": {
+                  "Pyrite": 333
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 200,
+                         "Booster": 200,
+                         "Scoria": 50,
+                         "Brighterium": 3,
+                         "Pyrite": 4.5
+              }
+          },
+        },
+    "Miscellaneous": 
+        {"Test Badge 1": 
+            {"Display": "Tester's Glory", 
+             "Gradient": "Testium", 
+             "Reqs": {
+                 "Testium": 1
+                 }, 
+             "Consume": False,
+             "Multis": {"Cash": 1e10}
+             },
+          "Test Badge 2":
+              {"Display": "Tester's Wealth", 
+             "Gradient": "Testium", 
+             "Reqs": {
+                 "Testium": 1
+                 }, 
+             "Consume": False,
+             "Multis": {"Moon Cash": 1e10}
+             },
+           "Test Badge 3":
+              {"Display": "Tester's Memory", 
+             "Gradient": "Testium", 
+             "Reqs": {
+                 "Testium": 1
+                 }, 
+             "Consume": False,
+             "Multis": {"Robuck": 1e10}
+             },
+            "Test Badge 4":
+              {"Display": "Tester's Vacation", 
+             "Gradient": "Testium", 
+             "Reqs": {
+                 "Testium": 1
+                 }, 
+             "Consume": False,
+             "Multis": {"Penny": 1e10}
+             },
+            "Test Badge 5":
+              {"Display": "Tester's i fogor", 
+             "Gradient": "Testium", 
+             "Reqs": {
+                 "Testium": 1
+                 }, 
+             "Consume": False,
+             "Multis": {"Mony": 1e10}
+             },   
+        }
+    }
 craftable_items = []
+def_upgrades = {
+    "Buttonia": {
+      "cash_speed": {
+        "name": "Cash Speed",
+        "max_level": 22,
+        "base_cost": 30,
+        "cost_growth": 1.05,
+        "effect": 1,
+        "current_lvl": 0,
+        "difficulty": "Easy"
+      },
+      "gem_speed": {
+          "name": "Faster Gems",
+          "max_level": 17,
+          "base_cost": 60,
+          "cost_growth": 1.15,
+          "effect": 30,
+          "current_lvl": 0,
+          "difficulty": "Easy"
+      },
+      "cash_multi": {
+          "name": "Cash Multiplier",
+          "max_level": 10,
+          "base_cost": 300,
+          "cost_growth": 1.2,
+          "effect": 0.2,
+          "current_lvl": 0,
+          "difficulty": "Medium"
+      },
+      "gem_timer_amount": {
+          "name": "More Gems From Timer",
+          "max_level": 36,
+          "base_cost": 500,
+          "cost_growth": 1.2,
+          "effect": 10000,
+          "current_lvl": 0,
+          "difficulty": "Medium"
+      },
+      "lucky_draw": {
+          "name": "Lucky Draw [random x100 Cash]",
+          "max_level": 100,
+          "base_cost": 15000,
+          "cost_growth": 1.05,
+          "effect": 0.01,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "lucky_draw_multi": {
+          "name": "Lucky Multiplier",
+          "max_level": 30,
+          "base_cost": 100000,
+          "cost_growth": 1.2,
+          "effect": 1,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "geode_speed": {
+          "name": "Geode Speed [min 0.25s]",
+          "max_level": 25,
+          "base_cost": 25000,
+          "cost_growth": 1.2,
+          "effect": 0.03,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "geode_luck": {
+          "name": "Geode Luck [max 2.5x]",
+          "max_level": 15,
+          "base_cost": 50000,
+          "cost_growth": 1.25,
+          "effect": 0.1,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "crit_luck": {
+          "name": "Critical Luck [max 2x]",
+          "max_level": 20,
+          "base_cost": 50000,
+          "cost_growth": 1.15,
+          "effect": 0.1,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "event_timer_amount": {
+          "name": "More Event Power From Timer",
+          "max_level": 800,
+          "base_cost": 600000,
+          "cost_growth": 1.005,
+          "effect": 500,
+          "current_lvl": 0,
+          "difficulty": "Insane"
+      },
+      "event_speed": {
+          "name": "Faster Event Power From Timer",
+          "max_level": 88,
+          "base_cost": 250000,
+          "cost_growth": 1.1,
+          "effect": 1.3,
+          "current_lvl": 0,
+          "difficulty": "Insane"
+      },
+      "cash_multi_2": {
+          "name": "More Cash Multiplier",
+          "max_level": 1000,
+          "base_cost": 5e7,
+          "cost_growth": 1.01,
+          "effect": 0.5,
+          "current_lvl": 0,
+          "difficulty": "Impossible"
+      },
+      "super_lucky": {
+          "name": "Super Lucky",
+          "max_level": 6,
+          "base_cost": 6e26,
+          "cost_growth": 10,
+          "effect": 0.5,
+          "current_lvl": 0,
+          "difficulty": "Relentless"
+      },
+      "geode_express": {
+          "name": "Geode Express",
+          "max_level": 1,
+          "base_cost": 1e57,
+          "cost_growth": 1,
+          "effect": 0.1,
+          "current_lvl": 0,
+          "difficulty": "Unreal"
+      },
+      "offline_roll": {
+          "name": "Offline Geodes",
+          "max_level": 1,
+          "base_cost": 1e63,
+          "cost_growth": 1,
+          "current_lvl": 0,
+          "difficulty": "Absurd"
+      }
+    },
+    "Afterlife Domain": {
+      "cash_speed": {
+        "name": "Cash Speed",
+        "max_level": 22,
+        "base_cost": 30,
+        "cost_growth": 1.05,
+        "effect": 1,
+        "current_lvl": 0,
+        "difficulty": "Easy"
+      },
+      "gem_speed": {
+          "name": "Faster Gems",
+          "max_level": 17,
+          "base_cost": 60,
+          "cost_growth": 1.15,
+          "effect": 30,
+          "current_lvl": 0,
+          "difficulty": "Easy"
+      },
+      "cash_multi": {
+          "name": "Cash Multiplier",
+          "max_level": 10,
+          "base_cost": 300,
+          "cost_growth": 1.2,
+          "effect": 0.2,
+          "current_lvl": 0,
+          "difficulty": "Medium"
+      },
+      "gem_timer_amount": {
+          "name": "More Gems From Timer",
+          "max_level": 36,
+          "base_cost": 500,
+          "cost_growth": 1.2,
+          "effect": 10000,
+          "current_lvl": 0,
+          "difficulty": "Medium"
+      },
+      "lucky_draw": {
+          "name": "Lucky Draw [random x100 Cash]",
+          "max_level": 100,
+          "base_cost": 15000,
+          "cost_growth": 1.05,
+          "effect": 0.01,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "lucky_draw_multi": {
+          "name": "Lucky Multiplier",
+          "max_level": 30,
+          "base_cost": 100000,
+          "cost_growth": 1.2,
+          "effect": 1,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "geode_speed": {
+          "name": "Geode Speed [min 0.25s]",
+          "max_level": 25,
+          "base_cost": 25000,
+          "cost_growth": 1.2,
+          "effect": 0.03,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "geode_luck": {
+          "name": "Geode Luck [max 2.5x]",
+          "max_level": 15,
+          "base_cost": 50000,
+          "cost_growth": 1.25,
+          "effect": 0.1,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "crit_luck": {
+          "name": "Critical Luck [max 2x]",
+          "max_level": 20,
+          "base_cost": 50000,
+          "cost_growth": 1.15,
+          "effect": 0.1,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "event_timer_amount": {
+          "name": "More Event Power From Timer",
+          "max_level": 800,
+          "base_cost": 600000,
+          "cost_growth": 1.005,
+          "effect": 500,
+          "current_lvl": 0,
+          "difficulty": "Insane"
+      },
+      "event_speed": {
+          "name": "Faster Event Power From Timer",
+          "max_level": 88,
+          "base_cost": 250000,
+          "cost_growth": 1.1,
+          "effect": 1.3,
+          "current_lvl": 0,
+          "difficulty": "Insane"
+      },
+      "cash_multi_2": {
+          "name": "More Cash Multiplier",
+          "max_level": 1000,
+          "base_cost": 5e7,
+          "cost_growth": 1.01,
+          "effect": 0.5,
+          "current_lvl": 0,
+          "difficulty": "Impossible"
+      },
+      "super_lucky": {
+          "name": "Super Lucky",
+          "max_level": 6,
+          "base_cost": 6e26,
+          "cost_growth": 10,
+          "effect": 0.5,
+          "current_lvl": 0,
+          "difficulty": "Relentless"
+      },
+      "geode_express": {
+          "name": "Geode Express",
+          "max_level": 1,
+          "base_cost": 1e57,
+          "cost_growth": 1,
+          "effect": 0.1,
+          "current_lvl": 0,
+          "difficulty": "Unreal"
+      },
+      "offline_roll": {
+          "name": "Offline Geodes",
+          "max_level": 1,
+          "base_cost": 1e63,
+          "cost_growth": 1,
+          "current_lvl": 0,
+          "difficulty": "Absurd"
+      }
+    },
+    "Elysian Stratosphere": {
+      "cash_speed": {
+        "name": "Cash Speed",
+        "max_level": 22,
+        "base_cost": 30,
+        "cost_growth": 1.05,
+        "effect": 1,
+        "current_lvl": 0,
+        "difficulty": "Easy"
+      },
+      "gem_speed": {
+          "name": "Faster Gems",
+          "max_level": 17,
+          "base_cost": 60,
+          "cost_growth": 1.15,
+          "effect": 30,
+          "current_lvl": 0,
+          "difficulty": "Easy"
+      },
+      "cash_multi": {
+          "name": "Cash Multiplier",
+          "max_level": 10,
+          "base_cost": 300,
+          "cost_growth": 1.2,
+          "effect": 0.2,
+          "current_lvl": 0,
+          "difficulty": "Medium"
+      },
+      "gem_timer_amount": {
+          "name": "More Gems From Timer",
+          "max_level": 36,
+          "base_cost": 500,
+          "cost_growth": 1.2,
+          "effect": 10000,
+          "current_lvl": 0,
+          "difficulty": "Medium"
+      },
+      "lucky_draw": {
+          "name": "Lucky Draw [random x100 Cash]",
+          "max_level": 100,
+          "base_cost": 15000,
+          "cost_growth": 1.05,
+          "effect": 0.01,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "lucky_draw_multi": {
+          "name": "Lucky Multiplier",
+          "max_level": 30,
+          "base_cost": 100000,
+          "cost_growth": 1.2,
+          "effect": 1,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "geode_speed": {
+          "name": "Geode Speed [min 0.25s]",
+          "max_level": 25,
+          "base_cost": 25000,
+          "cost_growth": 1.2,
+          "effect": 0.03,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "geode_luck": {
+          "name": "Geode Luck [max 2.5x]",
+          "max_level": 15,
+          "base_cost": 50000,
+          "cost_growth": 1.25,
+          "effect": 0.1,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "crit_luck": {
+          "name": "Critical Luck [max 2x]",
+          "max_level": 20,
+          "base_cost": 50000,
+          "cost_growth": 1.15,
+          "effect": 0.1,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+      "event_timer_amount": {
+          "name": "More Event Power From Timer",
+          "max_level": 800,
+          "base_cost": 600000,
+          "cost_growth": 1.005,
+          "effect": 500,
+          "current_lvl": 0,
+          "difficulty": "Insane"
+      },
+      "event_speed": {
+          "name": "Faster Event Power From Timer",
+          "max_level": 88,
+          "base_cost": 250000,
+          "cost_growth": 1.1,
+          "effect": 1.3,
+          "current_lvl": 0,
+          "difficulty": "Insane"
+      },
+      "cash_multi_2": {
+          "name": "More Cash Multiplier",
+          "max_level": 1000,
+          "base_cost": 5e7,
+          "cost_growth": 1.01,
+          "effect": 0.5,
+          "current_lvl": 0,
+          "difficulty": "Impossible"
+      },
+      "super_lucky": {
+          "name": "Super Lucky",
+          "max_level": 6,
+          "base_cost": 6e26,
+          "cost_growth": 10,
+          "effect": 0.5,
+          "current_lvl": 0,
+          "difficulty": "Relentless"
+      },
+      "geode_express": {
+          "name": "Geode Express",
+          "max_level": 1,
+          "base_cost": 1e57,
+          "cost_growth": 1,
+          "effect": 0.1,
+          "current_lvl": 0,
+          "difficulty": "Unreal"
+      },
+      "offline_roll": {
+          "name": "Offline Geodes",
+          "max_level": 1,
+          "base_cost": 1e63,
+          "cost_growth": 1,
+          "current_lvl": 0,
+          "difficulty": "Absurd"
+      }
+    },
+    "Moonbase": {
+      "mb_cash_speed": {
+        "name": "Cash Speed",
+        "max_level": 22,
+        "base_cost": 30,
+        "cost_growth": 1.05,
+        "effect": 1,
+        "current_lvl": 0,
+        "difficulty": "Easy"
+      },
+      "mb_gem_speed": {
+          "name": "Faster Gems",
+          "max_level": 17,
+          "base_cost": 60,
+          "cost_growth": 1.15,
+          "effect": 30,
+          "current_lvl": 0,
+          "difficulty": "Easy"
+      },
+      "mb_cash_multi": {
+          "name": "Cash Multiplier",
+          "max_level": 10,
+          "base_cost": 300,
+          "cost_growth": 1.2,
+          "effect": 0.2,
+          "current_lvl": 0,
+          "difficulty": "Medium"
+      },
+      "mb_gem_timer_amount": {
+          "name": "More Gems From Timer",
+          "max_level": 36,
+          "base_cost": 500,
+          "cost_growth": 1.2,
+          "effect": 10000,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+    },
+    "Nostalgia World": {
+      "nw_cash_speed": {
+        "name": "Cash Speed",
+        "max_level": 22,
+        "base_cost": 30,
+        "cost_growth": 1.05,
+        "effect": 1,
+        "current_lvl": 0,
+        "difficulty": "Easy"
+      },
+      "nw_gem_speed": {
+          "name": "Faster Gems",
+          "max_level": 17,
+          "base_cost": 60,
+          "cost_growth": 1.15,
+          "effect": 30,
+          "current_lvl": 0,
+          "difficulty": "Easy"
+      },
+      "nw_cash_multi": {
+          "name": "Cash Multiplier",
+          "max_level": 10,
+          "base_cost": 300,
+          "cost_growth": 1.2,
+          "effect": 0.2,
+          "current_lvl": 0,
+          "difficulty": "Medium"
+      },
+      "nw_gem_timer_amount": {
+          "name": "More Gems From Timer",
+          "max_level": 36,
+          "base_cost": 500,
+          "cost_growth": 1.2,
+          "effect": 10000,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+    },
+    "Secluded Oasis": {
+      "so_cash_speed": {
+        "name": "Cash Speed",
+        "max_level": 22,
+        "base_cost": 30,
+        "cost_growth": 1.05,
+        "effect": 1,
+        "current_lvl": 0,
+        "difficulty": "Easy"
+      },
+      "so_gem_speed": {
+          "name": "Faster Gems",
+          "max_level": 17,
+          "base_cost": 60,
+          "cost_growth": 1.15,
+          "effect": 30,
+          "current_lvl": 0,
+          "difficulty": "Easy"
+      },
+      "so_cash_multi": {
+          "name": "Cash Multiplier",
+          "max_level": 10,
+          "base_cost": 300,
+          "cost_growth": 1.2,
+          "effect": 0.2,
+          "current_lvl": 0,
+          "difficulty": "Medium"
+      },
+      "so_gem_timer_amount": {
+          "name": "More Gems From Timer",
+          "max_level": 36,
+          "base_cost": 500,
+          "cost_growth": 1.2,
+          "effect": 10000,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      },
+    }
+}
 for key, value in abs_stat_info.items():
  for key, value in value.items():
      try:

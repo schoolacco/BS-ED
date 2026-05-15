@@ -8,11 +8,14 @@ from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from matplotlib.widgets import Cursor
+import warnings
+warnings.filterwarnings("ignore")
 np.seterr(all="ignore")
 stylesheet = open("Tests/graphite.qss", "r")
 stylesheet = stylesheet.read()
 # ---------- CONFIG ----------
-
+# 100(x/100)^1.01
 TOLERANCE = 0.01  # Allowed error for match check
 MODE_NORMAL = "normal"
 MODE_SKY_HIGH = "sky_high"
@@ -154,14 +157,19 @@ def generate_level_equation(level:int, bonus=False):
         return random.choice(choices)()
     elif level == 7:
         # Chaining of all prior content, no addition
-        choices = [lambda: generate_hyperbola(chain=True),
-                   lambda: generate_trig(chained=True),
-                   lambda: generate_hyper_trig(chained=True)]
-        return random.choice(choices)()
+        equation = ""
+        while len(equation) < 20:
+          choices = [lambda: generate_trig(chained=True),
+                     lambda: generate_hyper_trig(chained=True)]
+          equation = random.choice(choices)()
+        return equation
     elif level == 8:
         # Level 7 + other functions, chaining allowed
-        choices = [lambda: generate_other_func(chained=True)]
-        return random.choice(choices)()
+        equation = ""
+        while len(equation) < 20:
+          choices = [lambda: generate_other_func(chained=True)]
+          equation =  random.choice(choices)()
+        return equation
     elif level == 9:
         # Addition of functions, no chaining
         for _ in range(random.randint(4,8)):
@@ -195,7 +203,7 @@ def check_match_numeric(target_expr, player_expr, x, tol=TOLERANCE):
     except Exception:
         return False
 #(15/100^0.4) * x^0.4 + 0.85x
-def max_gradient_percentile(x, y, percentile=95, xmin=0, xmax=100):
+def max_gradient_percentile(x, y, percentile=100, xmin=0, xmax=100):
     mask = (x >= xmin) & (x <= xmax) & np.isfinite(y)
     if np.count_nonzero(mask) < 2:
         return np.inf
@@ -223,19 +231,21 @@ def is_trivial_linear(x, y, tol=1e-3):
     return np.all(np.abs(slopes - 1) < tol)
 
 
-def sky_high_check(x, y):
+def sky_high_check(x, y, expr):
     if not np.any(np.isfinite(y)):
         return False, "Graph is empty"
     
     if is_trivial_linear(x, y):
         return False, "Trivial linear solution (y = x) is not allowed"
     
-    if max_gradient_percentile(x, y) > 1.22:
+    if max_gradient_percentile(x, y) > 1.01:
         return False, "Gradient exceeded 45°"
 
     if not reaches_height(x, y):
         return False, "Did not reach y = 100"
     # Must touch origin
+    if len(expr) <= 12 or re.search(r"1\*", expr):
+        return False, "Trivial solutions are not allowed"
     idx = np.argmin(np.abs(x - 0))
     y_at_zero = y[idx]
     
@@ -458,7 +468,7 @@ class GraphPuzzle(QWidget):
         layout.setSpacing(6)
 
         # Title
-        self.title = QLabel(f"Bolical World | LEVEL {'?'}")
+        self.title = QLabel("Bolical World | LEVEL ?")
         self.title.setAlignment(Qt.AlignCenter)
         self.title.setStyleSheet("color: #00ff88; font-size: 18px; font-weight: bold;")
         layout.addWidget(self.title)
@@ -482,7 +492,6 @@ class GraphPuzzle(QWidget):
             }
         """)
         layout.addWidget(self.input)
-
         # Canvas
         self.fig = Figure(facecolor="black")
         self.canvas = FigureCanvas(self.fig)
@@ -496,6 +505,19 @@ class GraphPuzzle(QWidget):
         self.canvas.mpl_connect("motion_notify_event", self.on_motion)
         self.canvas.mpl_connect("key_press_event", self.on_key)
         self.ax = self.fig.add_subplot(111)
+        self.cursor = Cursor(self.ax, useblit=True, color="#00ff88", linewidth=1)
+        self.coord_label = QLabel("x: 0.00 | y: 0.00")
+        self.coord_label.setStyleSheet("""
+            QLabel {
+                color: #00ff88;
+                background-color: #001100;
+                border: 1px solid #00aa66;
+                padding: 4px;
+                font-family: Consolas;
+            }
+        """)
+        
+        layout.addWidget(self.coord_label)
         self._style_axes()
 
         # Back/Skip buttons
@@ -565,7 +587,7 @@ class GraphPuzzle(QWidget):
             self.ax.set_ylim(0,110)
         else:
             self.ax.set_xlim(-10,10) 
-            self.ax.set_ylim(-20,20)
+            self.ax.set_ylim(-10,10)
     def update_graph(self): 
         if self.solved: 
             return 
@@ -586,7 +608,7 @@ class GraphPuzzle(QWidget):
           self.player_line.set_data(x, y_player)
 
           if self.state.mode == MODE_SKY_HIGH:
-             success, reason = sky_high_check(x, y_player)
+             success, reason = sky_high_check(x, y_player, expr)
              self.sky_lbl.setText(reason)
              if success:
                  self.on_success()
@@ -691,9 +713,17 @@ class GraphPuzzle(QWidget):
         self._press_event = event.xdata, event.ydata, self.ax.get_xlim(), self.ax.get_ylim() 
     def on_release(self, event): 
         self._press_event = None 
-    def on_motion(self, event): 
-        if self._press_event is None or event.inaxes != self.ax: 
-            return 
+    def on_motion(self, event):
+        if event.xdata is not None and event.ydata is not None:
+            self.coord_label.setText(
+                f"x: {event.xdata:.4f} | y: {event.ydata:.4f}"
+            )
+        else:
+            self.coord_label.setText("Outside graph")
+            return
+    
+        if self._press_event is None:
+            return
         xpress, ypress, (x0, x1), (y0, y1) = self._press_event 
         dx = xpress - event.xdata 
         dy = ypress - event.ydata 
@@ -716,7 +746,7 @@ class GraphPuzzle(QWidget):
       self.sky_lbl.setText(
           "Goal: Reach y = 100\n"
           "Constraints:\n"
-          "• Mustn't be overly steep a majority of the time (max = approx 50°)\n"
+          "• Mustn't be overly steep (max = approx 45°)\n"
           "• 0 ≤ x ≤ 100\n"
           "• Must touch origin (0,0)\n"
           "• No skipping allowed\n"

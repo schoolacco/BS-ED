@@ -15,6 +15,9 @@ import re
 from functools import partial
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from matplotlib.widgets import Cursor
+import weakref
+global_path_reference = Path(__file__).resolve().parent.parent
 # Source - https://stackoverflow.com/a
 # Posted by luke, modified by community. See post 'Timeline' for change history
 # Retrieved 2025-11-30, License - CC BY-SA 3.0
@@ -101,7 +104,7 @@ def find_key_path(nested_dict: dict, target_key_name: str, current_path: dict|No
     return None
 
 class Mantissa:
-    def __init__(self, mantissa: int|float, exponent: int) -> object:
+    def __init__(self, mantissa: int|float, exponent: int|float) -> object:
         self.num = mantissa
         self.exp = exponent
     def __mul__(a: int|float|object, b: int|float|object) -> object:
@@ -173,7 +176,12 @@ class Mantissa:
     def __gt__(self: object, other: int|float|object) -> bool:
         return not self <= other
     def __le__(self: object, other: int|float|object) -> bool:
-        return not self > other
+        if other == math.inf: return True
+        if isinstance(self, (int, float)):
+            self = float_to_mantissa(self)
+        if isinstance(other, (int, float)):
+            other = float_to_mantissa(other)
+        return True if self.exp < other.exp else True if self.exp == other.exp and self.num <= other.num else False
     def to_string(self: object) -> str:
        return f"{self.num:.2f}e+{self.exp}"
     def to_dict(self: object) -> dict:
@@ -207,16 +215,37 @@ def float_to_mantissa(value: float) -> Mantissa:
       exponent = int(math.floor(math.log10(abs(value))))
       mantissa = value / (10 ** exponent)
       return Mantissa(mantissa, exponent)
-class tkinter_frames:
-  '''Not renaming this'''
-
-  def create_scrollable_area(parent: QMainWindow, button_groups: list[QPushButton], bg: str="black", text_colour: str="white", voltaic_radar: bool=False) -> tuple:
+class Realm:
+  '''A realm, more info later'''
+  instances = set()
+  def __init__(self, parent: QMainWindow, button_groups: dict[str: list[tuple]], requirement: int|float|Mantissa|list[int|float|Mantissa]=0, unit: str|list[str]="Cash", name: str="Placeholder", bg: str="black", text_color: str="white", voltaic_radar: bool=False, *args, **kwargs):
+      super().__init__(*args, **kwargs)
+      self.parent = parent
+      self.btn_groups = button_groups
+      if isinstance(requirement, int|float|Mantissa):
+          requirement = [requirement]
+      self.req = requirement
+      if isinstance(unit, str):
+          unit = [unit]
+      self.unit = unit
+      self.id = name
+      self.bg = bg
+      self.color = text_color
+      self.voltaic = voltaic_radar
+      self.instances.add(self)
+  
+  def create_scrollable_area(self) -> tuple[QWidget,QScrollArea,QWidget]:
     """
     Creates a scrollable area using PySide6.
     Returns: (outer_container: QWidget, scroll_area: QScrollArea, content_widget: QWidget)
     """
 
     # --- Outer container widget ---
+    parent = self.parent #Defining arguments as I'm too lazy to add self to everything after the revamp of this class
+    button_groups = self.btn_groups
+    bg = self.bg
+    text_color = self.color
+    voltaic_radar = self.voltaic
     outer_container = QWidget(parent)
     outer_layout = QVBoxLayout(outer_container)
     outer_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -231,14 +260,14 @@ class tkinter_frames:
 
     # --- Scrollable content widget ---
     content_widget = QWidget()
-    content_widget.setStyleSheet(f"background-color: {bg}; color: {text_colour};")
+    content_widget.setStyleSheet(f"background-color: {bg}; color: {text_color};")
 
     grid = QGridLayout(content_widget)
     grid.setAlignment(Qt.AlignTop)
 
     scroll_area.setWidget(content_widget)
     if "Unknown" in button_groups.keys():
-        parent.voltaic_random = VoltaicRandomizer(enable_count=50, interval_ms=20000, voltaic_radar=voltaic_radar, always_texts=["Spawn (req: 0 Cash)","Recover Hall (req: 0 Cash)"])
+        parent.voltaic_random = VoltaicRandomiser(enable_count=50, interval_ms=20000, voltaic_radar=voltaic_radar, always_texts=["Spawn (req: 0 Cash)","Recover Hall (req: 0 Cash)"])
         num = 10 if voltaic_radar else 100
         if random.randint(1,num) != 1:
           del button_groups["Unknown"]
@@ -250,37 +279,33 @@ class tkinter_frames:
         # Group Title
         group_label = QLabel(group_name)
         group_label.setStyleSheet(
-            f"color: {text_colour}; background-color: {bg}; font-weight: bold; font-size: 14px;"
+            f"color: {text_color}; background-color: {bg}; font-weight: bold; font-size: 14px;"
         )
         grid.addWidget(group_label, 0, col_index, alignment=Qt.AlignHCenter)
 
         # Buttons inside group
-        for row_index, (text, command, type) in enumerate(buttons, start=1):
-            if type == "Button":
-              obj = QPushButton(text)
-            elif type == "Label":
-              obj = QLabel(text)
-            obj.setStyleSheet(
-                f"""
-                QPushButton {{
-                    background-color: {bg};
-                    color: {text_colour};
-                    padding: 6px;
-                    border: 1px solid {text_colour};
-                }}
-                QPushButton:hover {{
-                    background-color: #222;
-                }}
-                QLabel {{
-                    background-color: {bg};
-                    color: {text_colour}
-                }}
-                """
-            )
+        for row_index, tuple_reference in enumerate(buttons, start=1):
+            if len(tuple_reference) == 2:
+                (text, command) = tuple_reference
+                obj = Button(text, command)
+            else:
+                (text, command, type) = tuple_reference
+                if type == "Label":
+                  obj = QLabel(text)
+                elif type.split(" ")[0] == "Hold":
+                    obj = HoldButton(text, command, int(type.split(" ")[1]))
+            if isinstance(obj, QLabel):
+              obj.setStyleSheet(
+                  f"""
+                  QLabel {{
+                      background-color: {bg};
+                      color: {text_color}
+                  }}
+                  """
+              )
             grid.addWidget(obj, row_index, col_index, alignment=Qt.AlignTop)
-            if type == "Button":
+            if len(tuple_reference) == 2:
               if not parent.voltaic_random:  
-                obj.clicked.connect(lambda _, b=obj, cmd=command: button_inspect(cmd, b))
                 continue
               index = len(parent.voltaic_random.buttons)
               parent.voltaic_random.buttons.append({"btn": obj, "command": command})
@@ -288,9 +313,44 @@ class tkinter_frames:
                 parent.voltaic_random.always_indices.add(index)
     if parent.voltaic_random:
         parent.voltaic_random.start()
-        button_groups["Unknown"] = [("", lambda: blinded(parent))]
+        button_groups["Unknown"] = [Button("", lambda: blinded(parent))]
     return outer_container, scroll_area, content_widget
+  @classmethod
+  def get_instance_by_id(cls, id: str) -> object:
+      instances = list(cls.instances)
+      for item in instances:
+          if item.id == id:
+              return item
+  @classmethod
+  def load_realm(cls, stat_increment: dict, name):
+    self = cls.get_instance_by_id(name)
+    for unit, req in zip(self.unit, self.req):
+      amount = stat_increment["Stats"][unit]
+      req = float_to_mantissa(req) if isinstance(amount, Mantissa) else req
+      if amount >= req:
+        container, scroll_area, content = self.create_scrollable_area()
+        return container, scroll_area, content, stat_increment
+      else:
+        return False
 
+class World(Realm):
+  weakref.WeakSet()
+  instances = weakref.WeakSet()
+  def __init__(self, parent: QMainWindow, initial_area: str, cash: str="Cash", multiplier: str="Multiplier", rebirths: str="Rebirths", gems: str="Gems", reset: str="Main Progression", world_name: str="Buttonia", event_power: str|bool=False, multi_logic: bool=True, upgrade_reference: str="", voltaic_radar: bool=False, requirement: int|float|Mantissa|list[int|float|Mantissa]=0, unit: str|list[str]="Cash", bg: str="black", text_color: str="white", *args, **kwargs):
+      super().__init__(parent, requirement, unit, bg, text_color, voltaic_radar,  *args, **kwargs)
+      self.area = initial_area
+      self.cash = cash
+      self.multi = multiplier
+      self.rebirth = rebirths
+      self.gem = gems
+      self.e_power = event_power
+      self.reset = reset
+      self.name = world_name
+      self.m_logic = multi_logic
+      self.upgrade_ref = upgrade_reference
+  def load_world(self):
+      path = f"{global_path_reference}/Program/Music/{self.name}" if Path(f"{global_path_reference}/Program/Music/{self.name}").exists() else f"{global_path_reference}/Program/Music/Buttonia"
+      return Realm.get_instance_by_id(self.area), self.cash, self.multi, self.rebirth, self.gem, self.e_power, self.reset, self.m_logic, self.name, self.upgrade_ref, path
 class GradientLabel(QLabel):
     def __init__(self,text: str,colors: list[str],angle_deg: int|float=90,parent: QObject=None,stroke_color: str=None,stroke_width: int|float=0):
         super().__init__(text, parent)
@@ -417,8 +477,8 @@ class Geode:
         file["Stats"]["Geodes Opened"] += 1
       return file
 
-class VoltaicRandomizer:
-    def __init__(self, enable_count: int=10, interval_ms: int=20000, voltaic_radar: bool=False, always_texts: list|None=None):
+class VoltaicRandomiser:
+    def __init__(self, enable_count: int=10, interval_ms: int=20000, voltaic_radar: bool=False, always_texts: list|None=None) -> object:
         self.enable_count = enable_count
         self.interval_ms = interval_ms
         self.buttons = []   
@@ -505,7 +565,33 @@ class VoltaicRandomizer:
                   }
               """)
 
-
+class Button(QPushButton):
+    execution = False
+    def __init__(self, text, function, death: bool=False, bg: str="black", text_color: str="white") -> object:
+        super().__init__(text)
+        self.txt = text
+        self.func = function 
+        self.death = death
+        self.clicked.connect(self.execute) 
+        self.setStyleSheet(
+                f"""
+                QPushButton {{
+                    background-color: {bg};
+                    color: {text_color};
+                    padding: 6px;
+                    border: 1px solid {text_color};
+                }}
+                QPushButton:hover {{
+                    background-color: #222;
+                }}
+                """
+            )
+    def execute(self):
+        if self.death and self.execution:
+            self.destroy()
+        else:
+            func = lambda _, b=self, cmd=self.func: button_inspect(cmd, b)
+            func(self)
 class RotatedLabel(QLabel):
     def __init__(self, text: str="", angle: int=0, parent: QObject|None=None):
         super().__init__(text, parent)
@@ -527,7 +613,7 @@ class RotatedLabel(QLabel):
 def build_cythrex_index(stat_info: dict, meta_data: dict) -> dict:
     index = {}
 
-    def walk(tree: dict):
+    def walk(tree):
         for key, value in tree.items():
             if isinstance(value, dict):
                 # leaf stat = has Multis
@@ -544,7 +630,21 @@ def build_cythrex_index(stat_info: dict, meta_data: dict) -> dict:
             "tags": [t.lower() for t in meta.get("tags", [])],
             "has_meta": stat in meta_data
         }
-
+    keys = []
+    for cat, item in stat_info.items():
+      if cat not in ("Geode", "Afterlife Domain (Geode)"):
+        for key in item.keys():
+            keys.append(key)
+      else:
+        for g_cat, g_item in item.items():
+            for key in g_item.keys():
+              keys.append(key)
+    for item in list(set(meta_data.keys()) ^ set(keys)):
+        index[item.lower()] = {
+            "name": item,
+            "tags": [t.lower() for t in meta_data.get(stat, {}).get("tags", [])],
+            "has_meta": True
+        }
     return index
 
 def resolve_search(query: str, index: dict) -> list:
@@ -589,8 +689,6 @@ def resolve_search(query: str, index: dict) -> list:
               seen.add(key)
     return results
 
-
-
 def find_key_path(nested_dict: dict, target_key_name: str, current_path: list|None=None) -> list|None:
     """
     Recursively searches for a specific key name in a nested dictionary
@@ -600,7 +698,7 @@ def find_key_path(nested_dict: dict, target_key_name: str, current_path: list|No
         current_path = []
 
     for key, value in nested_dict.items():
-        if key != "Multis": # Don't take the wrong path
+        if key not in ["Multis", "Recipe"]: # Don't take the wrong path
           new_path = current_path + [key]
 
           if key == target_key_name:
@@ -742,6 +840,38 @@ class CY47Window(QDialog):
   
           elif child_layout is not None:
               self._clear_layout(child_layout)
+    @staticmethod
+    def _parse_text(text: str) -> str:
+        pattern = r"\{(.*?)\|(.*?)\}"
+        
+        def repl(match):
+            command = match.group(1)
+            text = match.group(2)
+            return f'<a href="{command}" style="color:#00ff00; text-decoration:none;">{text}</a>'
+        html = re.sub(pattern, repl, text)
+        html = html.replace("<h1>", '<div style="font-size:24px; font-weight:bold;"><br>').replace("</h1>", "</div>")
+        return f"""
+        <div style="font-family: Consolas; font-size: 14px;">
+        {html}
+        </div>
+        """
+    def handle_link(self, url: QUrl):
+        command = url.toString()
+        if command.startswith("stat:"):
+            stat = command.split(":", 1)[1]
+            self.generate_content(stat)
+        elif command == "back":
+            self.show_default_page()
+        elif command.startswith("search:"):
+            query = command.split(":", 1)[1]
+            self.search.setText(query)
+            self.on_search()
+        elif command.startswith("link:"):
+            page = command.split(":", 1)[1]
+            self.build_page(self.meta_data[page]["raw_text"])
+        elif command.startswith("exec:"):
+            command = command.split(":", 1)[1]
+            exec(command)
 
     def clear_page(self):
       if self.current_page is not None:
@@ -823,13 +953,13 @@ class CY47Window(QDialog):
         self.image = QLabel(self)
         image = self.gradients.get(stat, self.gradients["Default"]).get("File", None)
         if image == None:
-          files = [f for f in os.listdir("Program/Stats") if os.path.isfile(os.path.join("Program/Stats", f))]
+          files = [f for f in os.listdir(f"{global_path_reference}/Program/Stats") if os.path.isfile(os.path.join(f"{global_path_reference}/Program/Stats", f))]
           if f"{stat}.webp" in files:
-            self.image.setPixmap(QPixmap(f"Program/Stats/{stat}.webp"). scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.image.setPixmap(QPixmap(f"{global_path_reference}/Program/Stats/{stat}.webp"). scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
           else:
-            self.image.setPixmap(QPixmap(f"Program/Stats/Missing.webp"). scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.image.setPixmap(QPixmap(f"{global_path_reference}/Program/Stats/Missing.webp"). scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         else:
-            self.image.setPixmap(QPixmap(f"Program/Stats/{image}.webp"). scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.image.setPixmap(QPixmap(f"{global_path_reference}/Program/Stats/{image}.webp"). scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.image.setFixedSize(500,500)
         self.image.setFrameShape(QFrame.Box)
         self.image.setAlignment(Qt.AlignCenter)
@@ -896,6 +1026,36 @@ class CY47Window(QDialog):
         
         self.page_container.addLayout(self.content)
         self.current_page = self.content
+    
+    def build_page(self, text: str):
+      self.clear_page()
+      
+      layout = QVBoxLayout()
+      layout.setAlignment(Qt.AlignCenter)
+      
+      parsed_text = self._parse_text(text)
+  
+      content = QTextBrowser()
+      content.setHtml(parsed_text)
+  
+      content.setOpenExternalLinks(False)
+      content.setOpenLinks(False)
+      content.anchorClicked.connect(self.handle_link)
+      content.viewport().setCursor(Qt.ArrowCursor)
+  
+      content.setStyleSheet("""
+          QTextBrowser {
+              background-color: black;
+              color: #00ff00;
+              border: none;
+              font-family: Consolas;
+          }
+       """)
+  
+      layout.addWidget(content)
+  
+      self.page_container.addLayout(layout)
+      self.current_page = layout
 
     def show_no_results_page(self, query):
         self.clear_page()
@@ -931,10 +1091,10 @@ class CY47Window(QDialog):
           return
   
       results = resolve_search(query, self.index)
-  
       if results:
           if len(results) == 1 and results[0].lower() == query.lower():
-              self.generate_content(results[0])
+              func = lambda r=results[0]: self.generate_content(r) if "Stats" in self.meta_data[r]["tags"] else self.build_page(self.meta_data[r]["raw_text"])
+              func()
           else:
               self.show_results_page(results, query)
 
@@ -992,7 +1152,7 @@ class CY47Window(QDialog):
               }
           """)
   
-          btn.clicked.connect(lambda _, r=result: self.generate_content(r))
+          btn.clicked.connect(lambda _, r=result: self.generate_content(r) if "Stats" in self.meta_data[r]["tags"] else self.build_page(self.meta_data[r]["raw_text"]))
           btn.setFont(QFont("Consolas", 10))
           btn.setCursor(Qt.PointingHandCursor)
           layout.addWidget(btn)
@@ -1009,7 +1169,7 @@ class CY47Window(QDialog):
 
 #----- Graphite Minigame -----
 np.seterr(all="ignore")
-stylesheet = open(r"Program\graphite.qss", "r")
+stylesheet = open(f"{global_path_reference}/Program/graphite.qss", "r")
 stylesheet = stylesheet.read()
 # ---------- CONFIG ----------
 
@@ -1156,14 +1316,19 @@ def generate_level_equation(level: int, bonus: bool=False):
         return random.choice(choices)()
     elif level == 7:
         # Chaining of all prior content, no addition
-        choices = [lambda: generate_hyperbola(chain=True),
-                   lambda: generate_trig(chained=True),
-                   lambda: generate_hyper_trig(chained=True)]
-        return random.choice(choices)()
+        equation = ""
+        while len(equation) < 20:
+          choices = [lambda: generate_trig(chained=True),
+                     lambda: generate_hyper_trig(chained=True)]
+          equation =  random.choice(choices)()
+        return equation
     elif level == 8:
         # Level 7 + other functions, chaining allowed
-        choices = [lambda: generate_other_func(chained=True)]
-        return random.choice(choices)()
+        equation = ""
+        while len(equation) < 20:
+          choices = [lambda: generate_other_func(chained=True)]
+          equation =  random.choice(choices)()
+        return equation
     elif level == 9:
         # Addition of functions, no chaining
         for _ in range(random.randint(4,8)):
@@ -1225,18 +1390,20 @@ def is_trivial_linear(x: np.ndarray[np.float64], y: np.ndarray[np.any], tol: flo
     return np.all(np.abs(slopes - 1) < tol)
 
 
-def sky_high_check(x: np.ndarray[np.float64], y: np.ndarray[np.any]):
+def sky_high_check(x: np.ndarray[np.float64], y: np.ndarray[np.any], expr: str):
     if not np.any(np.isfinite(y)):
         return False, "Graph is empty"
     
     if is_trivial_linear(x, y):
         return False, "Trivial linear solution (y = x) is not allowed"
     
-    if max_gradient_percentile(x, y) > 1.22:
-        return False, "Gradient exceeded maximum angle (approx 50°)"
+    if max_gradient_percentile(x, y) > 1.01:
+        return False, "Gradient exceeded maximum angle (approx 45°)"
 
     if not reaches_height(x, y):
         return False, "Did not reach y = 100"
+    if len(expr) <= 12 or re.search(r"1\*", expr):
+        return False, "Trivial solutions are not allowed"
     # Must touch origin
     idx = np.argmin(np.abs(x - 0))
     y_at_zero = y[idx]
@@ -1512,6 +1679,19 @@ class GraphPuzzle(QWidget):
         self.canvas.mpl_connect("motion_notify_event", self.on_motion)
         self.canvas.mpl_connect("key_press_event", self.on_key)
         self.ax = self.fig.add_subplot(111)
+        self.cursor = Cursor(self.ax, useblit=True, color="#00ff88", linewidth=1)
+        self.coord_label = QLabel("x: 0.00 | y: 0.00")
+        self.coord_label.setStyleSheet("""
+            QLabel {
+                color: #00ff88;
+                background-color: #001100;
+                border: 1px solid #00aa66;
+                padding: 4px;
+                font-family: Consolas;
+            }
+        """)
+        
+        layout.addWidget(self.coord_label)
         self._style_axes()
 
         # Back/Skip buttons
@@ -1570,7 +1750,7 @@ class GraphPuzzle(QWidget):
             self.ax.set_ylim(0,110)
         else:
             self.ax.set_xlim(-10,10) 
-            self.ax.set_ylim(-20,20)
+            self.ax.set_ylim(-10,10)
     def update_graph(self): 
         if self.solved: 
             return 
@@ -1591,7 +1771,7 @@ class GraphPuzzle(QWidget):
           self.player_line.set_data(x, y_player)
 
           if self.state.mode == MODE_SKY_HIGH:
-             success, reason = sky_high_check(x, y_player)
+             success, reason = sky_high_check(x, y_player, expr)
              self.sky_lbl.setText(reason)
              if success:
                  self.on_success()
@@ -1698,9 +1878,17 @@ class GraphPuzzle(QWidget):
         self._press_event = event.xdata, event.ydata, self.ax.get_xlim(), self.ax.get_ylim() 
     def on_release(self, event): 
         self._press_event = None 
-    def on_motion(self, event): 
-        if self._press_event is None or event.inaxes != self.ax: 
-            return 
+    def on_motion(self, event):
+        if event.xdata is not None and event.ydata is not None:
+            self.coord_label.setText(
+                f"x: {event.xdata:.4f} | y: {event.ydata:.4f}"
+            )
+        else:
+            self.coord_label.setText("Outside graph")
+            return
+    
+        if self._press_event is None:
+            return
         xpress, ypress, (x0, x1), (y0, y1) = self._press_event 
         dx = xpress - event.xdata 
         dy = ypress - event.ydata 
@@ -1736,6 +1924,122 @@ class GraphPuzzle(QWidget):
       self.player_line, = self.ax.plot([], [], linewidth=2, color="#00ff88")
       self.skip_btn.setDisabled(True)
       self.canvas.draw_idle()
+
+class BadgesWindow(QDialog):
+ instances = weakref.WeakSet()
+ def __init__(self, badge_data: dict, gradients: dict, stat_increment: dict, parent: QObject=None) -> object:
+     super().__init__(parent)
+     self.instances.clear()
+     self.gradients = gradients
+     self.data = badge_data
+     self.setMinimumSize(750,750)
+     self.setMaximumSize(750,750)
+     self.setStyleSheet("background-color: black")
+     self.setWindowTitle("World Badges")
+     self.labels_reference = {}
+     self.increment = stat_increment
+     container_layout = QHBoxLayout(self)
+     container = QWidget()
+     scroll = QScrollArea()
+     scroll.setWidgetResizable(True)
+     scroll.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+     scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+     central_layout = QHBoxLayout(container)
+     layout = QVBoxLayout()
+     for cat in self.data.keys():
+         category_label = QLabel(cat)
+         category_label.setStyleSheet("font-weight: bold; font-size: 24px; margin-top: 8px;")
+         layout.addWidget(category_label)
+         for id in self.data[cat].keys():
+             ref = self.data[cat][id]
+             text = f"{ref['Display']}: {'Owned' if stat_increment["Badges"][id] else 'Not Owned'}"
+             button = QPushButton()
+             button.clicked.connect(lambda checked, c=cat, i=id: self.multi_edit(c, i))
+             button.setStyleSheet("""QPushButton {background-color: black;
+                                  border: none;}""")
+             button.setFocusPolicy(Qt.NoFocus)
+             label = GradientLabel(text, self.gradients[ref["Gradient"]]["Colours"], self.gradients[ref["Gradient"]]["Angle"], parent=button)
+             layout.addWidget(button)
+             self.labels_reference[id] = label
+     multi_layout = QVBoxLayout()
+     self.multiplier_list = QListWidget()
+     self.multiplier_list.setFixedWidth(150)
+     self.multiplier_list.setStyleSheet('''QListWidget {
+         background-color: black;
+         }''')
+     multiplier_header = QLabel("Stat Multipliers:")
+     multiplier_header.setStyleSheet('''QLabel {
+         background-color: black;
+         }''')
+     multi_layout.addWidget(multiplier_header, 1)
+     multi_layout.addWidget(self.multiplier_list, 20)
+     central_layout.addLayout(layout)
+     container.setLayout(central_layout)
+     scroll.setWidget(container)
+     container_layout.addWidget(scroll, 4)
+     container_layout.addLayout(multi_layout, 1)
+     self.setLayout(container_layout)
+     BadgesWindow.instances.add(self)
+ def multi_edit(self, category: str, badge: str):
+     self.multiplier_list.clear()
+     if self.data[category][badge]["Multis"]:
+       for Stat, multi in self.data[category][badge]["Multis"].items():
+           if Stat and multi:
+             self.multiplier_list.addItem(f"{Stat} x{multi if not isinstance(multi, Mantissa) else multi.to_string()}")
+     else:
+         self.multiplier_list.addItem("Nothing")
+ def update_badges(self):
+    for id, lbl in self.labels_reference.items():
+        name = lbl.text().split(":")[0]
+        lbl.setText(f"{name}: {'Owned' if self.increment["Badges"][id] else 'Not Owned'}")        
+
+class CollapsibleSection(QWidget):
+    def __init__(self, title: str, build_callback) -> object:
+        super().__init__()
+        self.built = False
+        self.build_callback = build_callback
+
+        self.layout = QVBoxLayout(self)
+
+        self.button = QPushButton(title)
+        self.button.setCheckable(True)
+        self.button.setStyleSheet("text-align: left; font-weight: bold; font-size: 18px; border: none;")
+
+        self.content = QWidget()
+        self.content_layout = QVBoxLayout(self.content)
+        self.content_layout.setAlignment(Qt.AlignTop)
+        self.content.setVisible(False)
+
+        self.button.clicked.connect(self.toggle)
+
+        self.layout.addWidget(self.button)
+        self.layout.addWidget(self.content)
+
+    def toggle(self):
+        if not self.built:
+            self.build_callback(self.content_layout)
+            self.built = True
+
+        self.content.setVisible(self.button.isChecked())
+
+class HoldButton(QPushButton):
+    def __init__(self, text: str, hold_time: int, command, parent: QObject|None=None):
+        super().__init__(text, parent)
+        self.time = hold_time
+        self.cmd = command
+        self.timer = QTimer()
+        self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self._force_release)
+        self.pressed.connect(self._on_press)
+        self.released.connect(self._on_release)
+    def _force_release(self):
+        self.setDown(False)
+        self.cmd()
+    def _on_press(self):
+        self.timer.start(self.time)
+    def _on_release(self):
+        if self.timer.isActive():
+            self.timer.stop()
 
 # ---------- RUN ----------
 if __name__ == "__main__":

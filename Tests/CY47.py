@@ -1,11 +1,13 @@
 from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 from PySide6.QtGui import *
-from Program.Module import GradientLabel, Mantissa, RotatedLabel
-from Program.data import cythrex_data, stat_gradients, abs_stat_info, def_stat_increment
+from Module import GradientLabel, Mantissa, RotatedLabel
+from data import cythrex_data, stat_gradients, abs_stat_info
+from bsed import def_stat_increment
 import os
 import os.path
 import random
+import re
 def build_cythrex_index(stat_info, meta_data):
     index = {}
 
@@ -26,10 +28,25 @@ def build_cythrex_index(stat_info, meta_data):
             "tags": [t.lower() for t in meta.get("tags", [])],
             "has_meta": stat in meta_data
         }
-
+    keys = []
+    for cat, item in abs_stat_info.items():
+      if cat not in ("Geode", "Afterlife Domain (Geode)"):
+        for key in item.keys():
+            keys.append(key)
+      else:
+        for g_cat, g_item in item.items():
+            for key in g_item.keys():
+              keys.append(key)
+    for item in list(set(meta_data.keys()) ^ set(keys)):
+        index[item.lower()] = {
+            "name": item,
+            "tags": [t.lower() for t in meta_data.get(stat, {}).get("tags", [])],
+            "has_meta": True
+        }
     return index
 
-
+def test_function():
+    print("Test")
 
 CYTHREX_INDEX = build_cythrex_index(abs_stat_info, cythrex_data)
 
@@ -103,7 +120,7 @@ class BootScreen(QWidget):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
 
-        # ── Rotated title ───────────────────────
+        # Rotated title
         self.title = RotatedLabel("CYTHERAX-47", angle=20)
         self.title.setFont(QFont("Consolas", 32, QFont.Bold))
         self.title.setStyleSheet("color: #00ff00;")
@@ -115,7 +132,7 @@ class BootScreen(QWidget):
         layout.addWidget(self.title)
         layout.addStretch()
 
-        # ── Loading bar ────────────────────────
+        # Loading bar
         self.bar_container = QHBoxLayout()
         self.bar_container.setSpacing(4)
         self.bar_container.setAlignment(Qt.AlignCenter)
@@ -137,7 +154,7 @@ class BootScreen(QWidget):
 
         layout.addLayout(self.bar_container)
 
-        # ── Animation timer ────────────────────
+        # Animation timer
         self.index = 0
         self.timer = QTimer(self)
         self.timer.singleShot(random.randint(100,1000), self.advance)
@@ -173,10 +190,10 @@ class CY47Window(QWidget):
             background-color: black;
             }''')
 
-        # ── Header ─────────────────────────────────────────────
+        # Header 
         header = QHBoxLayout()
 
-        title = QLabel("Cythrex-47")
+        title = QLabel("Cytherax-47")
         title.setStyleSheet('''QLabel {
             color: green;
             background-color: black;
@@ -203,7 +220,7 @@ class CY47Window(QWidget):
         self.current_page = None
         self.show_default_page()
         self.image = None
-    def _clear_layout(self, layout):
+    def _clear_layout(self, layout: QLayout):
       while layout.count():
           item = layout.takeAt(0)
   
@@ -216,7 +233,38 @@ class CY47Window(QWidget):
   
           elif child_layout is not None:
               self._clear_layout(child_layout)
-
+    @staticmethod
+    def _parse_text(text: str) -> str:
+        pattern = r"\{(.*?)\|(.*?)\}"
+        
+        def repl(match):
+            command = match.group(1)
+            text = match.group(2)
+            return f'<a href="{command}" style="color:#00ff00; text-decoration:none;">{text}</a>'
+        html = re.sub(pattern, repl, text)
+        html = html.replace("<h1>", '<div style="font-size:24px; font-weight:bold;"><br>').replace("</h1>", "</div>")
+        return f"""
+        <div style="font-family: Consolas; font-size: 14px;">
+        {html}
+        </div>
+        """
+    def handle_link(self, url: QUrl):
+        command = url.toString()
+        if command.startswith("stat:"):
+            stat = command.split(":", 1)[1]
+            self.generate_content(stat)
+        elif command == "back":
+            self.show_default_page()
+        elif command.startswith("search:"):
+            query = command.split(":", 1)[1]
+            self.search.setText(query)
+            self.on_search()
+        elif command.startswith("link:"):
+            page = command.split(":", 1)[1]
+            self.build_page(self.meta_data[page]["raw_text"])
+        elif command.startswith("exec:"):
+            command = command.split(":", 1)[1]
+            exec(command)
     def clear_page(self):
       if self.current_page is not None:
           self._clear_layout(self.current_page)
@@ -261,7 +309,7 @@ class CY47Window(QWidget):
         self.content = QHBoxLayout()
         self.right_panel = QVBoxLayout()
 
-        # Stat name (gradient handled later via stylesheet)
+        # Stat name
         self.stat_name = GradientLabel(stat, stat_gradients.get(stat, stat_gradients["Default"])["Colours"], stat_gradients.get(stat, stat_gradients["Default"])["Angle"], stroke_color=stat_gradients.get(stat, stat_gradients["Default"]).get("S_Colour", None), stroke_width=stat_gradients.get(stat, stat_gradients["Default"]).get("S_Width", None))
         self.stat_name.setFont(QFont("Segoe UI", 22, QFont.Bold))
         self.stat_name.setAlignment(Qt.AlignCenter)
@@ -293,22 +341,22 @@ class CY47Window(QWidget):
 
         mid_row.addLayout(left_info, 3)
 
-        # Right image
+        # Center image
         self.image = QLabel(self)
         image = stat_gradients.get(stat, stat_gradients["Default"]).get("File", None)
         if image == None:
-          files = [f for f in os.listdir("Stats") if os.path.isfile(os.path.join("Stats", f))]
+          files = [f for f in os.listdir("Program/Stats") if os.path.isfile(os.path.join("program/Stats", f))]
           if f"{stat}.webp" in files:
-            self.image.setPixmap(QPixmap(f"Stats/{stat}.webp"). scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.image.setPixmap(QPixmap(f"Program/Stats/{stat}.webp"). scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
           else:
-            self.image.setPixmap(QPixmap(f"Stats/Missing.webp"). scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.image.setPixmap(QPixmap(f"Program/Stats/Missing.webp"). scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         else:
-            self.image.setPixmap(QPixmap(f"Stats/{image}.webp"). scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.image.setPixmap(QPixmap(f"Program/Stats/{image}.webp"). scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.image.setFixedSize(500,500)
-        self.image.setFrameShape(QFrame.Box)
+        #self.image.setFrameShape(QFrame.Box)
         self.image.setAlignment(Qt.AlignCenter)
         self.image.setStyleSheet('''QLabel {
-            background-color: black;
+            background-color: #001100;
             }''')
         mid_row.addWidget(self.image, 2)
 
@@ -369,6 +417,36 @@ class CY47Window(QWidget):
         
         self.page_container.addLayout(self.content)
         self.current_page = self.content
+    
+    def build_page(self, text: str):
+      self.clear_page()
+      
+      layout = QVBoxLayout()
+      layout.setAlignment(Qt.AlignCenter)
+      
+      parsed_text = self._parse_text(text)
+  
+      content = QTextBrowser()
+      content.setHtml(parsed_text)
+  
+      content.setOpenExternalLinks(False)
+      content.setOpenLinks(False)
+      content.anchorClicked.connect(self.handle_link)
+      content.viewport().setCursor(Qt.ArrowCursor)
+  
+      content.setStyleSheet("""
+          QTextBrowser {
+              background-color: black;
+              color: #00ff00;
+              border: none;
+              font-family: Consolas;
+          }
+       """)
+  
+      layout.addWidget(content)
+  
+      self.page_container.addLayout(layout)
+      self.current_page = layout
 
     def show_no_results_page(self, query):
         self.clear_page()
@@ -406,7 +484,8 @@ class CY47Window(QWidget):
       results = resolve_search(query, CYTHREX_INDEX)
       if results:
           if len(results) == 1 and results[0].lower() == query.lower():
-              self.generate_content(results[0])
+              func = lambda r=results[0]: self.generate_content(r) if "Stats" in cythrex_data[r]["tags"] else self.build_page(cythrex_data[r]["raw_text"])
+              func()
           else:
               self.show_results_page(results, query)
 
@@ -463,8 +542,7 @@ class CY47Window(QWidget):
                   background-color: #002200;
               }
           """)
-  
-          btn.clicked.connect(lambda _, r=result: self.generate_content(r))
+          btn.clicked.connect(lambda _, r=result: self.generate_content(r) if "Stats" in cythrex_data[r]["tags"] else self.build_page(cythrex_data[r]["raw_text"]))
           btn.setFont(QFont("Consolas", 10))
           btn.setCursor(Qt.PointingHandCursor)
           layout.addWidget(btn)

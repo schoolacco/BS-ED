@@ -155,11 +155,7 @@ Table of Contents
 
 ## 1.1 Problem Statement
 
-**Outline** the problem or opportunity that the project addresses. Consider who is affected by this issue.
-
-**Explain** why this problem or opportunity is significant.
-
-**Justify** the development of a software solution as an appropriate response.
+It is well known that in the present day many of those in the younger generations suffer from a deficit in their attention spans, leading to lack of motivation. This can lead to difficulty of learning in the classroom as they fail to have the patience and attention required for a long-term reward such as knowledge. an incremental game such as the one being produced creates a sense of progress while performing repetitve and long-term tasks awarding persistence whilst still giving the sense of progression of the short-term and with it being a game rather than a basic progress tracker it can bring more users in, and through entertaining those users they can begin to properly appreciate long-term benefits.
 
 ## 1.2 Project Purpose and Boundaries
 
@@ -167,9 +163,7 @@ This project is an attempt to create a faithful recreation of the now deprecated
 
 ## 1.3 Stakeholder Requirements
 
-**Identify** stakeholders (client, users, teacher, peers).
-
-**Describe** their needs, expectations, and how these influenced the project direction.
+The stakeholders are primarly the users, a game is made to entertain and engage the user. Considering this is an incremental game it should have reasonable progression, being quick at first and taking longer the deeper the user is into the system, allowing them to slowly adjust to longer times between significant milestones in progress, this requires the game to have proper balancing to ensure that the difficulty curve is gradual enough to avoid being too easy but also to avoid too much difficulty in progression. A game with only one main mechanic repeated ad nauseam fails to be entertaining, hence several mechanics are to be introduced to add some level of variety to the gameplay.
 
 ## 1.4 Functional Requirements
 
@@ -293,7 +287,7 @@ This section justifies the use of modelling tools to represent system structure,
 | FILE_ATTRIBUTE_SYSTEM | "int"              | 0x04                                                        | File attribute to make file system-level hidden                           | 0x04                                                             | Must be 0x04                                         |
 | InputWatch            | class(QObject)     | Needs object to be watched                                  | System to catch any user input                                            | InputWatch(QObject)                                              | Must have an object to watch                         |
 | ExtendedComboBox      | class(QComboBox)   | May need parent, has all requirements of original QComboBox | QComboBox with an autocomplete extension                                  | ExtendedComboBox(data, parent)                                   | Has all requirements of QComboBox                    |
-| STatMenu              | QMainWindow        | QNainWindow                                                 | GUI Window containing all stat amounts                                    | StatMenu()                                                       | Has all requirements of QMainWindow                  |
+| StatMenu              | QMainWindow        | QNainWindow                                                 | GUI Window containing all stat amounts                                    | StatMenu()                                                       | Has all requirements of QMainWindow                  |
 | MusicManager          | class              | object with no attributes                                   | Class that manages the background music loop                              | MusicManager()                                                   | Requires music file paths to be played               |
 | Window                | class(QMainWindow) | QMainWindow                                                 | GUI Window                                                                | Window()                                                         | Has all requirements of QMainWindow                  |
 | AdminPanel            | class(QDialog)     | QDialog, only parent required                               | Secret dialog window for testing                                          | AdminPanel(parent)                                               | Has all requirements of QDialog                      |
@@ -302,7 +296,7 @@ This section justifies the use of modelling tools to represent system structure,
 
 ## 3.6 UML Class Diagram (if OOP)
 
-Include a class diagram if your project uses an OOP approach.
+![UML Class Diagram](Documentation_Assests/UML.png)
 
 **Explain** the class structure and relationships.
 
