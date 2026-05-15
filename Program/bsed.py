@@ -4626,8 +4626,7 @@ if __name__ == "__main__":
   layout.addWidget(multi_l, 0, 2, 1, 1)
   layout.addWidget(re_l, 0, 3, 1, 1)
   root.setCentralWidget(central)
-  print([instance.id for instance in Realm.instances])
-  container, scroll_area, content = Realm.get_instance_by_id("S").create_scrollable_area() #Is the class name outdated? Absolutely, but I can't be bothered to change it
+  container, scroll_area, content = Realm.get_instance_by_id("S").create_scrollable_area() #Load in the GUI
   layout.addWidget(container, 2, 1, 9, 9)
   # Lock top rows
   layout.setRowStretch(0, 0)
