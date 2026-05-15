@@ -55,6 +55,7 @@ for cat, badge in badge_data.items():
       def_stat_increment["Badges"][key] = False
 def_stat_increment["Stats"]["Testium"] = 1
 stat_increment = def_stat_increment
+stat_increment["Keys"] = secrets
 abs_stat_info["Exclusive"]["Ivory"] = {"Multis": {item: 1.5 for item in def_stat_increment["Stats"].keys()}}
 def_stat_increment["Stats"]["Ivory"] = 0
 e_event = True
@@ -2861,7 +2862,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 10, "Nissonite", "FP", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Tetratum
       "Boracite": [
           ("1e63 Bismuth: 20T Boracite", lambda: reset_button( 1e63, "Bismuth", 2e13, "Boracite")),
           ("1e78 Bismuth: 500T Boracite", lambda: reset_button( 1e78, "Bismuth", 5e14, "Boracite")),

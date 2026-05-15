@@ -309,7 +309,7 @@ class BolicalWorld(QMainWindow):
             page = QWidget()
             layout = QVBoxLayout(page)
             
-            guide = QLabel("Goal: Guess the equation of the graph. Use sin, cos, tan, etc.\nYou earn points by matching the target equation. Difficulty increases points although graphs will become exponentially harder.\nLevel 1 graphs give you 1 point\nLevel 2 graphs give you 3 points\nLevel 3 graphs give you 5 points\nLevel 4 graphs give you 10 points\nLevel 5 graphs give you 30 points\nLevel 6 graphs give you 50 points\nLevel 7 graphs give you 100 points\nLevel 8 graphs give you 500 points\nLevel 9 graphs give you 10,000 points and are not recommended\nLevel 10 graphs give you 1,000,000 points but are nearly imposssible to crack.")
+            guide = QLabel("Goal: Guess the equation of the graph. Use sin, cos, tan, etc.\nYou earn points by matching the target equation. Difficulty increases points although graphs will become exponentially harder.\nLevel 1 graphs give you 1 point\nLevel 2 graphs give you 3 points\nLevel 3 graphs give you 5 points\nLevel 4 graphs give you 10 points\nLevel 5 graphs give you 30 points\nLevel 6 graphs give you 50 points\nLevel 7 graphs give you 100 points\nLevel 8 graphs give you 500 points\nLevel 9 graphs give you 10,000 points and are not recommended\nLevel 10 graphs give you 1,000,000 points but are nearly imposssible to crack.\nAll graphs will display values for -10 <= x <= 10")
             guide.setWordWrap(True)
             guide.setStyleSheet("color: #00ff88; font-size: 14px;")
             layout.addWidget(guide)
