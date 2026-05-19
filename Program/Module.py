@@ -294,6 +294,8 @@ class Realm:
                   obj = QLabel(text)
                 elif type.split(" ")[0] == "Hold":
                     obj = HoldButton(text, command, int(type.split(" ")[1]))
+                elif type.split(" ")[0] == "Gluttony":
+                    obj = Gluttony(text, int(type.split(" ")[1]))
             if isinstance(obj, QLabel):
               obj.setStyleSheet(
                   f"""
@@ -591,7 +593,10 @@ class Button(QPushButton):
             self.destroy()
         else:
             func = lambda _, b=self, cmd=self.func: button_inspect(cmd, b)
-            func(self)
+            try:
+              func(self)
+            except TypeError:
+                pass
 class RotatedLabel(QLabel):
     def __init__(self, text: str="", angle: int=0, parent: QObject|None=None):
         super().__init__(text, parent)
@@ -2022,7 +2027,7 @@ class CollapsibleSection(QWidget):
 
         self.content.setVisible(self.button.isChecked())
 
-class HoldButton(QPushButton):
+class HoldButton(Button):
     def __init__(self, text: str, hold_time: int, command, parent: QObject|None=None):
         super().__init__(text, parent)
         self.time = hold_time
@@ -2040,6 +2045,25 @@ class HoldButton(QPushButton):
     def _on_release(self):
         if self.timer.isActive():
             self.timer.stop()
+class Gluttony(HoldButton):
+    def __init__(self, texts: list[str], hold_time: int, parent: QObject|None=None):
+        self.txts = texts
+        text = texts[0]
+        self.increment = 0
+        super().__init__(text, hold_time, parent)
+    def _force_release(self):
+        self.setDown(False)
+        self.setText((lambda n=self.text()[::-1].split(" ", 2): f"{n[2][::-1]} {int(n[1][::-1])-1} HP")())
+        if int(self.text()[::-1].split(" ",2)[1][::-1]) <= 0:
+            self.increment += 1
+            if self.increment >= len(self.txts):
+                self.deleteLater()
+                return
+            self.setText(self.txts[self.increment])
+    def _on_press(self):
+        super()._on_press()
+    def _on_release(self):
+        super()._on_release()
 
 # ---------- RUN ----------
 if __name__ == "__main__":

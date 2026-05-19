@@ -2120,13 +2120,18 @@ cythrex_data = {
     },
     "Sloth": {
         "tags": ["BS:ED", "Stats", "Secret", "Sin"],
-        "lore": "Sloth is one of the 7 cardinal sins, an ore created when Kanoite was split into its fundamental fragments. It is thought to only appear to those who dare to demonstrate the sin.",
+        "lore": "Sloth is one of the 7 cardinal sins, an ore created when Kanoite was split into its fundamental fragments. It is thought to only appear to those who dare to demonstrate immense amounts of lethargy.",
         "obtainment": "You're a bad person. (Start in Spawn)"
     },
     "Pride": {
         "tags": ["BS:ED", "Stats", "Secret", "Sin"],
         "lore": "Pride is one of the 7 cardinal sins, an ore created when Kanoite was split into its fundamental fragments. It is thought to appear to those who demonstrate immense hubris.",
         "obtainment": "You're a bad person. (Unimplemented)"
+    },
+    "Gluttony": {
+        "tags": ["BS:ED", "Stats", "Secret", "Sin"],
+        "lore": "Sloth is one of the 7 cardinal sins, an ore created when Kanoite was split into its fundamental fragments. It is thought to only appear to those who prove themselves to be gluttonous.",
+        "obtainment": "You're a bad person. (Start in the Quartz Walkway)"
     },
     "==INFINITY==": {
         "tags": ["BS:ED", "Stats", "Secret", "Lightmatter", "Darkmatter", "Final"],

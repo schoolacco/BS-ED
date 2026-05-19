@@ -743,6 +743,11 @@ def sloth(parent: QObject=None, time: int=3000, req: dict|None=None):
         parent.input_watch = InputWatch(parent.sloth)
         QApplication.instance().installEventFilter(parent.input_watch)
     puzzle.show()
+def gluttony_check(button: QPushButton):
+    global stat_increment
+    if len(button.parent().children()) == 12:
+        if stat_increment["Stats"]["Gluttony"] < 1:
+          stat_increment["Stats"]["Gluttony"] = 1
 def craft(stat: str, amount: int|float|Mantissa):
     if amount == None or amount < 1:
         return None
@@ -2143,7 +2148,34 @@ if __name__ == "__main__":
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check("S")),
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
-      ]
+      ],
+      "                                                                                                                                                                                        ": [],
+      "                                                                                  ": [
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("", None, "Label"),
+          ("A Banquet only for You?", lambda: load_check("Gluttony"))
+      ],
+      "                                                                                                                                                                                                                                                                                             ": []
   }, 75, "Gold", "QW", voltaic_radar=voltaic_radar)
   Realm(root, {
       "Multiplier": [
@@ -4570,6 +4602,38 @@ if __name__ == "__main__":
           ("Spawn (req: 0 Moon Cash)", lambda: load_check("S(M)")),
       ]
   }, 50, "Gypsum", "Sat", voltaic_radar=voltaic_radar)
+  Realm(root, {
+      "Apple": [
+          (["Apple: 1 HP"], None, "Gluttony 20"),
+      ] * 8,
+      "Pear": [
+          (["Pear: 2 HP"], None, "Gluttony 20"),
+      ] * 32,
+      "Fat Orange": [
+          (["Fat Orange (Outermost Layer): 10 HP", "Fat Orange (Outer Layer): 5 HP", "Fat Orange (Inner Layer): 3 HP", "Fat Orange (Innermost Layer): 1 HP"], None, "Gluttony 20")
+      ] * 4,
+      "Hard Steak": [
+          (["Hard Steak: 30 HP"], None, "Gluttony 150")
+      ] * 2,
+      "Long Candy": [
+          (["Long Candy: 25 HP"], None, "Gluttony 20")
+      ] * 12,
+      "Huge Grape": [
+          (["Stem: 50 HP"], None, "Gluttony 100"),
+          ([*["Grape: 7 HP"]*17,*["Grape: 2 HP"]*2], None, "Gluttony 20")
+      ] * 4,
+      "Watermelon": [
+          (["Rind: 10 HP"], None, "Gluttony 100"),
+          (["Pulp: 10 HP"]*24, None, "Gluttony 20")
+      ] * 24,
+      "Cucumber": [
+          (["COCUMBER (BOSS): 200 HP"], None, "Gluttony 150")
+      ],
+      "The Exit": [
+          ("Spawn (req: 0 Cash)", lambda: load_check("S")),
+          ("Are you finished?", lambda btn: gluttony_check(btn))
+      ]
+  }, 0, "Cash", "Gluttony")
 #----------- WORLDS --------------
   Elysian_Stratosphere = World(root, "EH", "Master Cash", "Master Multiplier", "Master Rebirths", "Master Gems", "Mastery", "Elysian Stratosphere", "Master Event Power")
   Afterlife_Domain = World(root, "AD", "Mana", "Enchantment", "Spell", "Gems", "Afterlife Domain", "Afterlife Domain", "Event Power", multi_logic=False)
