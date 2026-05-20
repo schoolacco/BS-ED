@@ -1,20 +1,21 @@
 # Builtins/Must haves
-from PySide6.QtWidgets import *
-from PySide6.QtCore import *
-from PySide6.QtGui import *
-from PySide6.QtMultimedia import *
-from PySide6.QtSql import *
+from PySide6.QtWidgets import QDialog, QScrollArea, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QPushButton, QLineEdit, QGridLayout, QMessageBox, QApplication, QComboBox, QCompleter, QMainWindow, QGroupBox, QDoubleSpinBox, QSizePolicy, QLayout
+from PySide6.QtCore import QTimer, QObject, QEvent, QSortFilterProxyModel, QSize, QUrl
+from PySide6.QtGui import QIcon, Qt, QPixmap, QCloseEvent, QPainter, QColor, QHideEvent, QShowEvent, QPaintEvent
+from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+import PySide6.QtSql #Future use
 import json
 import math
 import ctypes
 import random
 import sys
-import weakref
 import warnings
 from pathlib import Path
 import colorama
 import webbrowser
 import os
+import weakref
+from typing import Self
 from Module import Mantissa, Realm, GradientLabel, BootScreen, CY47Window, BolicalWorld, BadgesWindow, CollapsibleSection, World, find_key_path
 from geode import *
 from data import abs_stat_info, stat_gradients, cythrex_data, craftable_items, badge_data, def_upgrades, global_path_reference
@@ -82,10 +83,13 @@ bulk_roll = 1
 voltaic_radar = True
 class UpgradeMenu(QDialog):
         instances = weakref.WeakSet()
-        def __init__(self, save_data, parent=None):
+        def __init__(self, save_data: dict, parent: QObject|None=None) -> Self:
             global world
             super().__init__(parent)
+            for instance in self.instances:
+             instance.close()
             self.instances.clear()
+            self.instances.add(self)
     
             self.save_data = save_data
     
@@ -111,7 +115,7 @@ class UpgradeMenu(QDialog):
             outer.addWidget(scroll)
             self.instances.add(self)
     
-        def add_upgrade_row(self, upgrade_id, info):
+        def add_upgrade_row(self, upgrade_id: str, info: dict):
             level = self.save_data[world][upgrade_id].get("current_lvl", 0)
             cost = upgrade_cost(info, level)
     
@@ -147,7 +151,7 @@ class UpgradeMenu(QDialog):
     
             self.layout.addWidget(row)
     
-        def buy_upgrade(self, upgrade_id, info, level_label, cost_label, buy_button):
+        def buy_upgrade(self, upgrade_id: str, info: dict, level_label: QLabel, cost_label: QLabel, buy_button: QPushButton):
             global world
             level = self.save_data[world][upgrade_id].get("current_lvl", 0)
     
@@ -181,6 +185,68 @@ class UpgradeMenu(QDialog):
             for window in cls.instances:
              window.close()
             cls.instances.clear()
+class ControlPanel(QDialog):
+        instances = weakref.WeakSet()
+        def __init__(self, parent: QObject|None=None) -> Self:
+            super().__init__(parent)
+            for instance in self.instances:
+                instance.close()
+            self.instances.clear()
+            self.instances.add(self)
+            self.setWindowTitle("Choose location...")
+            self.x_entry = QLineEdit()
+            self.y_entry = QLineEdit()
+            self.x_entry.setPlaceholderText("Insert x-coordinate...")
+            self.y_entry.setPlaceholderText("Insert y-coordinate...")
+            self.go_button = QPushButton(text="Go!")
+            self.x_entry.setStyleSheet(stylesheet)
+            self.y_entry.setStyleSheet(stylesheet)
+            self.go_button.setStyleSheet(stylesheet)
+            self.go_button.clicked.connect(self.move)
+            
+            layout = QVBoxLayout(self)
+            self.content = QWidget()
+            self.content.setStyleSheet(stylesheet)
+            self.grid = QGridLayout(self.content)
+            self.grid.setAlignment(Qt.AlignTop)
+            self.grid.addWidget(self.x_entry, 1, 1)
+            self.grid.addWidget(QLabel(text="   "), 1, 2)
+            self.grid.addWidget(self.y_entry, 1, 3)
+            self.grid.addWidget(self.go_button, 2, 2)
+            
+            layout.addWidget(self.content)
+        def move(self):
+            try:
+             x = float(self.x_entry.text())
+             y = float(self.y_entry.text())
+            except ValueError:
+                QMessageBox.warning(self, "Invalid Input", "Please insert valid coordinates.")
+                return
+            if x == y == 0:
+                load_check("ET")
+            elif (x, y) == (1935.5286, 1769.196):
+                load_check("ETR")
+            elif (x, y) == (472.739, 1407.0948):
+                load_check("ETE")
+            elif (x, y) == (260.9568, 105.5747):
+                load_check("ETS")
+            elif (x, y) == (230.6099, 369.4198):
+                load_check("ETD")
+            elif (x, y) == (154.7922, 923.732):
+                load_check("ETSL")
+            elif (x, y) == (723.3226, 1851.4675):
+                load_check("ETDG")
+            elif (x, y) == (154.7922, 923.732):
+                load_check("ETSG")
+            elif (x, y) == (371.111, 1954.4598):
+                load_check("ETIG")
+            elif (x, y) == (3040.8689, 7290.8997):
+                load_check("ETSL")
+            elif (x, y) == (701236212.05, 329417941.475): #Future co-ords for Darkmatter
+                load_check("ETD")
+            else:
+                load_check("ETD")
+            self.close()
 # Source - https://stackoverflow.com/a // stackoverflow's attribution copy+paste is clearly so effective as to fail to copy their own link
 # Posted by luke, modified by community. See post 'Timeline' for change history
 # Retrieved 2025-11-30, License - CC BY-SA 3.0
@@ -711,7 +777,7 @@ def cythrex_boot(parent: QObject|None=None):
     if boot == None and window_visibility:
       boot = BootScreen(parent)
       boot.show()
-  
+      main_window = None
       def start_main():
         global main_window, boot
         if main_window == None:
@@ -726,7 +792,12 @@ def cythrex_boot(parent: QObject|None=None):
                 main_window.raise_()
                 main_window.activateWindow()
         boot = None
+      def reset():
+            global boot, main_window
+            boot = None
+            main_window = None
       boot.finished.connect(start_main)
+      boot.closed.connect(reset)
 def graphite_puzzle(parent: QObject|None=None, req: dict|None=None):
     if req:
      if stat_increment["Stats"][req[1]] >= req[0]:
@@ -770,63 +841,6 @@ def craft(stat: str, amount: int|float|Mantissa):
     temp += amount
     stat_increment["Stats"][stat] = temp.to_float()
 def open_control_panel(parent: QObject|None=None) -> QObject:
-    class ControlPanel(QDialog):
-        def __init__(self, parent=None):
-            super().__init__(parent)
-            self.setWindowTitle("Choose location...")
-            self.x_entry = QLineEdit()
-            self.y_entry = QLineEdit()
-            self.x_entry.setPlaceholderText("Insert x-coordinate...")
-            self.y_entry.setPlaceholderText("Insert y-coordinate...")
-            self.go_button = QPushButton(text="Go!")
-            self.x_entry.setStyleSheet(stylesheet)
-            self.y_entry.setStyleSheet(stylesheet)
-            self.go_button.setStyleSheet(stylesheet)
-            self.go_button.clicked.connect(self.move)
-            
-            layout = QVBoxLayout(self)
-            self.content = QWidget()
-            self.content.setStyleSheet(stylesheet)
-            self.grid = QGridLayout(self.content)
-            self.grid.setAlignment(Qt.AlignTop)
-            self.grid.addWidget(self.x_entry, 1, 1)
-            self.grid.addWidget(QLabel(text="   "), 1, 2)
-            self.grid.addWidget(self.y_entry, 1, 3)
-            self.grid.addWidget(self.go_button, 2, 2)
-            
-            layout.addWidget(self.content)
-        def move(self):
-            try:
-             x = float(self.x_entry.text())
-             y = float(self.y_entry.text())
-            except ValueError:
-                QMessageBox.warning(self, "Invalid Input", "Please insert valid coordinates.")
-                return
-            if x == y == 0:
-                load_check("ET")
-            elif (x, y) == (1935.5286, 1769.196):
-                load_check("ETR")
-            elif (x, y) == (472.739, 1407.0948):
-                load_check("ETE")
-            elif (x, y) == (260.9568, 105.5747):
-                load_check("ETS")
-            elif (x, y) == (230.6099, 369.4198):
-                load_check("ETD")
-            elif (x, y) == (154.7922, 923.732):
-                load_check("ETSL")
-            elif (x, y) == (723.3226, 1851.4675):
-                load_check("ETDG")
-            elif (x, y) == (154.7922, 923.732):
-                load_check("ETSG")
-            elif (x, y) == (371.111, 1954.4598):
-                load_check("ETIG")
-            elif (x, y) == (3040.8689, 7290.8997):
-                load_check("ETSL")
-            elif (x, y) == (701236212.05, 329417941.475): #Future co-ords for Darkmatter
-                load_check("ETD")
-            else:
-                load_check("ETD")
-            self.close()
     win = ControlPanel(parent)
     win.show()
 def string_to_num(string:str) -> int|float|Mantissa:
@@ -918,7 +932,7 @@ if __name__ == "__main__":
   icon.addFile(icon_file, QSize(256,256))
   app.setWindowIcon(icon)
   class StatMenu(QMainWindow):
-    def __init__(self, parent: QObject|None=None) -> object:
+    def __init__(self, parent: QObject|None=None) -> Self:
         super().__init__(parent)
 
         self.setWindowTitle("Stats Menu")
@@ -963,7 +977,7 @@ if __name__ == "__main__":
               section = CollapsibleSection(category, lambda layout, s=stats, c=category: self._build_stats(layout, s, c))
   
           self.content_layout.addWidget(section)
-    def _build_geodes(self, layout, stats, category):
+    def _build_geodes(self, layout: QLayout, stats: dict, category: str):
       for geode, geode_stats in stats.items():
   
           def make_builder(gs=geode_stats, c=category, g=geode):
@@ -971,7 +985,7 @@ if __name__ == "__main__":
   
           geode_section = CollapsibleSection(geode, make_builder())
           layout.addWidget(geode_section)
-    def _build_geode_stats(self, layout, geode_stats, category, geode):
+    def _build_geode_stats(self, layout: QLayout, geode_stats: dict, category: str, geode: str):
       key = (category, geode)
   
       self.hidden_geode_stats[key] = set()
@@ -985,11 +999,11 @@ if __name__ == "__main__":
               layout.addWidget(row)
           else:
               self.hidden_geode_stats[key].add(stat_name)
-    def _build_stats(self, layout, stats, category):
+    def _build_stats(self, layout: QLayout, stats: dict, category: str):
       for stat_name in stats.keys():
           row = self._create_stat_row(category, stat_name)
           layout.addWidget(row)
-    def _create_stat_row(self, category, stat_name):
+    def _create_stat_row(self, category: str, stat_name: str) -> QWidget:
       container = QWidget()
       row = QHBoxLayout(container)
   
@@ -1032,7 +1046,7 @@ if __name__ == "__main__":
       self.stat_labels[(category, stat_name)] = value_label
   
       return container
-    def _get_insert_index(self, category, geode, stat_name):
+    def _get_insert_index(self, category: str, geode: str, stat_name: str) -> int:
       full_order = list(abs_stat_info[category][geode].keys())
   
       target_index = full_order.index(stat_name)
@@ -1047,7 +1061,7 @@ if __name__ == "__main__":
               visible_before += 1
   
       return visible_before
-    def update_stats(self, stat_increment):
+    def update_stats(self, stat_increment: dict):
         stats = stat_increment["Stats"]
     
         for (category, stat_name), label in list(self.stat_labels.items()):
@@ -1084,15 +1098,15 @@ if __name__ == "__main__":
           # Remove revealed stats from hidden set
           for stat_name in to_remove:
               hidden_stats.remove(stat_name)
-    def showEvent(self, event):
+    def showEvent(self, event: QShowEvent):
         self.timer.start(50)
         super().showEvent(event)
     
-    def hideEvent(self, event):
+    def hideEvent(self, event: QHideEvent):
         self.timer.stop()
         super().hideEvent(event)
   class MusicManager: #Pydub + simpleaudio worked well, but this helps to reduce compatibility and download issues.
-    def __init__(self):
+    def __init__(self) -> Self:
         self.audio_output = QAudioOutput()
         self.player = QMediaPlayer()
         self.player.setAudioOutput(self.audio_output)
@@ -1115,7 +1129,7 @@ if __name__ == "__main__":
     def stop(self):
         self.player.stop()
   class Window(QMainWindow):
-      def __init__(self):
+      def __init__(self) -> Self:
           super().__init__()
           self.stat_window = StatMenu(self)
           self.music_manager = MusicManager()
@@ -1134,7 +1148,7 @@ if __name__ == "__main__":
             self.stat_window.raise_()
             self.stat_window.activateWindow()
   class AdminPanel(QDialog):
-    def __init__(self, parent: QObject|None, player_state: dict):
+    def __init__(self, parent: QObject|None, player_state: dict) -> Self:
         super().__init__(parent)
         self.player = player_state
 
@@ -1218,7 +1232,7 @@ if __name__ == "__main__":
         if value is None:
           return
         bulk_roll = value
-    def get_value(self, input: QLineEdit):
+    def get_value(self, input: QLineEdit) -> None|int|float|Mantissa:
       try:
           value = float(input.text())
       except ValueError:
@@ -1242,8 +1256,13 @@ if __name__ == "__main__":
         stat = self.stat_select.currentText()
         self.player["Stats"][stat] += self.get_value(self.stat_value) * direction
   class Sloth(QDialog):
-      def __init__(self, time: int=3000, parent: QObject|None=None):
+      instances = weakref.WeakSet()
+      def __init__(self, time: int=3000, parent: QObject|None=None) -> Self:
           super().__init__(parent)
+          for instance in self.instances:
+            instance.close()
+          self.instances.clear()
+          self.instances.add(self)
           self.setWindowFlags(Qt.Window|Qt.FramelessWindowHint|Qt.WindowStaysOnTopHint|Qt.WindowTransparentForInput)
           self.setAttribute(Qt.WA_TranslucentBackground)
           self.setGeometry(self.screen().geometry())
@@ -1271,7 +1290,7 @@ if __name__ == "__main__":
            self.complete()
            return
        self.update()
-      def paintEvent(self, event):
+      def paintEvent(self, event: QPaintEvent):
           painter = QPainter(self)
           painter.setRenderHint(QPainter.Antialiasing)
           opacity = (self.progress / 100.0)**1.2
@@ -1305,8 +1324,13 @@ if __name__ == "__main__":
           self._violate()
           super().resizeEvent(event)
   class CraftingMenu(QDialog):
-    def __init__(self, items: list, parent: QObject|None=None):
+    instances = weakref.WeakSet()
+    def __init__(self, items: list, parent: QObject|None=None) -> Self:
         super().__init__(parent)
+        for instance in self.instances:
+            instance.close()
+        self.instances.clear()
+        self.instances.add(self)
         self.setMinimumSize(600, 400)
         self.setMaximumSize(600, 400)
         self.items = items

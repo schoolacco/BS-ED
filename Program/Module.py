@@ -1,7 +1,8 @@
 import math
-from PySide6.QtWidgets import *
-from PySide6.QtGui import *
-from PySide6.QtCore import *
+from PySide6.QtWidgets import QMainWindow, QPushButton, QWidget, QScrollArea, QVBoxLayout, QHBoxLayout, QSizePolicy, QGridLayout, QLabel, QDialog, QFrame, QLineEdit, QLayout, QTextEdit, QListWidget, QTextBrowser, QStackedWidget, QApplication
+from PySide6.QtGui import QColor, QFont, QPainter, QFontMetrics, QPainterPath, QPen, QLinearGradient, QPalette, QCloseEvent, QPixmap, QShowEvent
+from PySide6.QtCore import Qt, QObject, QPointF,QTimer, Signal, QUrl
+from PySide6.QtTest import QSignalSpy
 import scipy.special as sci
 import inspect
 import os
@@ -17,6 +18,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.widgets import Cursor
 import weakref
+from typing import Self, Callable, Any
 global_path_reference = Path(__file__).resolve().parent.parent
 # Source - https://stackoverflow.com/a
 # Posted by luke, modified by community. See post 'Timeline' for change history
@@ -104,10 +106,10 @@ def find_key_path(nested_dict: dict, target_key_name: str, current_path: dict|No
     return None
 
 class Mantissa:
-    def __init__(self, mantissa: int|float, exponent: int|float) -> object:
+    def __init__(self, mantissa: int|float, exponent: int|float) -> Self:
         self.num = mantissa
         self.exp = exponent
-    def __mul__(a: int|float|object, b: int|float|object) -> object:
+    def __mul__(a: int|float|Self, b: int|float|Self) -> Self:
       # a and b are (mantissa, exponent) tuples
       if isinstance(a, (int,float)):
           a = float_to_mantissa(a)
@@ -121,7 +123,7 @@ class Mantissa:
           new_mantissa /= 10
           new_exponent += 1
       return Mantissa(new_mantissa, new_exponent)
-    def __add__(a: int|float|object, b: int|float|object) -> object:
+    def __add__(a: int|float|Self, b: int|float|Self) -> Self:
       # Ensure a has the bigger exponent
       if isinstance(a, (int,float)):
           a = float_to_mantissa(a)
@@ -140,27 +142,27 @@ class Mantissa:
         new_mantissa /= 10
         a.exp += 1
       return Mantissa(new_mantissa, a.exp)
-    def __iadd__(a: int|float|object, b: int|float|object) -> object:
+    def __iadd__(a: int|float|Self, b: int|float|Self) -> Self:
         total = a + b
         return total
-    def __round__(self: object, num: int) -> object:
+    def __round__(self: Self, num: int) -> Self:
         self.num = round(self.num, num)
         return self
-    def __ge__(self: object, other: int|float|object) -> bool:
+    def __ge__(self: Self, other: int|float|Self) -> bool:
         if other == math.inf: return False
         if isinstance(self, (int, float)):
             self = float_to_mantissa(self)
         if isinstance(other, (int, float)):
             other = float_to_mantissa(other)
         return True if self.exp > other.exp else True if self.exp == other.exp and self.num >= other.num else False
-    def __sub__(a: int|float|object,b: int|float|object) -> object:
+    def __sub__(a: int|float|Self,b: int|float|Self) -> Self:
         if isinstance(a, (int,float)):
           a = float_to_mantissa(a)
         if isinstance(b, (int,float)):
           b = float_to_mantissa(b)
         b.num = -b.num
         return a + b
-    def __truediv__(a: int|float|object,b: int|float|object) -> object:
+    def __truediv__(a: int|float|Self,b: int|float|Self) -> Self:
         if isinstance(a, (int,float)):
           a = float_to_mantissa(a)
         if isinstance(b, (int,float)):
@@ -171,23 +173,23 @@ class Mantissa:
             mantissa*= 10
             exp -= 1
         return Mantissa(mantissa, exp)
-    def __lt__(self: object, other: int|float|object) -> bool:
+    def __lt__(self: Self, other: int|float|Self) -> bool:
         return not self >= other
-    def __gt__(self: object, other: int|float|object) -> bool:
+    def __gt__(self: Self, other: int|float|Self) -> bool:
         return not self <= other
-    def __le__(self: object, other: int|float|object) -> bool:
+    def __le__(self: Self, other: int|float|Self) -> bool:
         if other == math.inf: return True
         if isinstance(self, (int, float)):
             self = float_to_mantissa(self)
         if isinstance(other, (int, float)):
             other = float_to_mantissa(other)
         return True if self.exp < other.exp else True if self.exp == other.exp and self.num <= other.num else False
-    def to_string(self: object) -> str:
+    def to_string(self: Self) -> str:
        return f"{self.num:.2f}e+{self.exp}"
-    def to_dict(self: object) -> dict:
+    def to_dict(self: Self) -> dict:
         return {"__mantissa__": True, "number": self.num, "exponent": self.exp}
     @classmethod
-    def from_string(cls, string: str) -> object:
+    def from_string(cls, string: str) -> Self:
         segments = string.split("e")
         segments = [i.strip("+") for i in segments]
         for segment in segments:
@@ -200,9 +202,9 @@ class Mantissa:
             return None #Invalid input
         return cls(segments[1], int(segments[0]))
     @classmethod
-    def from_dict(cls, data: dict) -> object:
+    def from_dict(cls, data: dict) -> Self:
         return cls(data["number"], data["exponent"])
-    def to_float(self: object) -> float | object:
+    def to_float(self: Self) -> float | Self:
         """Convert the Mantissa to a regular float. Warning: may overflow for huge exponents."""
         value =  self.num * (10 ** self.exp) if self.exp < 300 else self
         return value
@@ -218,7 +220,7 @@ def float_to_mantissa(value: float) -> Mantissa:
 class Realm:
   '''A realm, more info later'''
   instances = set()
-  def __init__(self, parent: QMainWindow, button_groups: dict[str: list[tuple]], requirement: int|float|Mantissa|list[int|float|Mantissa]=0, unit: str|list[str]="Cash", name: str="Placeholder", bg: str="black", text_color: str="white", voltaic_radar: bool=False, *args, **kwargs):
+  def __init__(self, parent: QMainWindow, button_groups: dict[str: list[tuple]], requirement: int|float|Mantissa|list[int|float|Mantissa]=0, unit: str|list[str]="Cash", name: str="Placeholder", bg: str="black", text_color: str="white", voltaic_radar: bool=False, on_leave=None, *args, **kwargs) -> Self:
       super().__init__(*args, **kwargs)
       self.parent = parent
       self.btn_groups = button_groups
@@ -318,13 +320,13 @@ class Realm:
         button_groups["Unknown"] = [Button("", lambda: blinded(parent))]
     return outer_container, scroll_area, content_widget
   @classmethod
-  def get_instance_by_id(cls, id: str) -> object:
+  def get_instance_by_id(cls, id: str) -> Self:
       instances = list(cls.instances)
       for item in instances:
           if item.id == id:
               return item
   @classmethod
-  def load_realm(cls, stat_increment: dict, name):
+  def load_realm(cls, stat_increment: dict, name: str) -> tuple[QWidget, QScrollArea, QWidget, dict]|bool:
     self = cls.get_instance_by_id(name)
     for unit, req in zip(self.unit, self.req):
       amount = stat_increment["Stats"][unit]
@@ -350,7 +352,7 @@ class World(Realm):
       self.name = world_name
       self.m_logic = multi_logic
       self.upgrade_ref = upgrade_reference
-  def load_world(self):
+  def load_world(self) -> tuple[Realm,str,str,str,str,str|bool,str,bool,str,str,str]:
       path = f"{global_path_reference}/Program/Music/{self.name}" if Path(f"{global_path_reference}/Program/Music/{self.name}").exists() else f"{global_path_reference}/Program/Music/Buttonia"
       return Realm.get_instance_by_id(self.area), self.cash, self.multi, self.rebirth, self.gem, self.e_power, self.reset, self.m_logic, self.name, self.upgrade_ref, path
 class GradientLabel(QLabel):
@@ -426,7 +428,7 @@ class GradientLabel(QLabel):
         painter.drawPath(path)
 
 class Geode:
-    def __init__(self, items: dict, cost: Mantissa|float|int, unit: str) -> object:
+    def __init__(self, items: dict, cost: Mantissa|float|int, unit: str) -> Self:
         """
         items: dict -> { "ItemName": rarity_weight }
         Lower weight = rarer item
@@ -480,7 +482,7 @@ class Geode:
       return file
 
 class VoltaicRandomiser:
-    def __init__(self, enable_count: int=10, interval_ms: int=20000, voltaic_radar: bool=False, always_texts: list|None=None) -> object:
+    def __init__(self, enable_count: int=10, interval_ms: int=20000, voltaic_radar: bool=False, always_texts: list|None=None) -> Self:
         self.enable_count = enable_count
         self.interval_ms = interval_ms
         self.buttons = []   
@@ -569,7 +571,7 @@ class VoltaicRandomiser:
 
 class Button(QPushButton):
     execution = False
-    def __init__(self, text, function, death: bool=False, bg: str="black", text_color: str="white") -> object:
+    def __init__(self, text: str, function: Callable, death: bool=False, bg: str="black", text_color: str="white") -> Self:
         super().__init__(text)
         self.txt = text
         self.func = function 
@@ -720,9 +722,16 @@ def find_key_path(nested_dict: dict, target_key_name: str, current_path: list|No
     return None
 class BootScreen(QDialog):
     finished = Signal()
+    closed = Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QObject|None=None) -> Self:
         super().__init__(parent)
+        self.spy = QSignalSpy(self.finished)
+        if parent:
+          self.parent().hide()
+          for child in self.parent().children():
+              if isinstance(child, (QDialog, QMainWindow)) and child != self:
+                  child.hide()
         self.setFixedSize(600, 400)
         self.setStyleSheet("background-color: black;")
         self.setWindowTitle("Loading...")
@@ -779,14 +788,25 @@ class BootScreen(QDialog):
             self.index += 1
             self.timer.singleShot(random.randint(50,500), self.advance)
         else:
-            self.timer.stop()
-            QTimer.singleShot(300, self.finish)
+            try:
+              self.timer.stop()
+              QTimer.singleShot(300, self.finish)
+            except RuntimeError:
+                pass
 
     def finish(self):
         self.finished.emit()
         self.close()
+    def closeEvent(self, event: QCloseEvent):
+        if self.spy.count() < 1 and self.parent():
+            self.parent().show()
+            self.closed.emit()
+        self.timer.stop()
+        self.timer.deleteLater()
+        event.accept()
+        return None
 class CY47Window(QDialog):
-    def __init__(self, stat_info, meta_data, stat_list, stat_gradients, parent=None):
+    def __init__(self, stat_info: dict, meta_data: dict, stat_list: list, stat_gradients: dict, parent: QObject|None=None) -> Self:
         super().__init__(parent)
         self.setWindowTitle("CY-47 :: SYSTEM INTERFACE")
         self.resize(1000, 650)
@@ -832,7 +852,7 @@ class CY47Window(QDialog):
         self.current_page = None
         self.show_default_page()
         self.image = None
-    def _clear_layout(self, layout):
+    def _clear_layout(self, layout: QLayout):
       while layout.count():
           item = layout.takeAt(0)
   
@@ -912,7 +932,7 @@ class CY47Window(QDialog):
       self.page_container.addLayout(layout)
       self.current_page = layout
 
-    def generate_content(self, stat):
+    def generate_content(self, stat: str):
         # Right: main info panel
         if stat not in self.meta_data:
           self.show_default_page()
@@ -1062,7 +1082,7 @@ class CY47Window(QDialog):
       self.page_container.addLayout(layout)
       self.current_page = layout
 
-    def show_no_results_page(self, query):
+    def show_no_results_page(self, query: str):
         self.clear_page()
     
         layout = QVBoxLayout()
@@ -1106,7 +1126,7 @@ class CY47Window(QDialog):
       else:
           self.show_no_results_page(query)
 
-    def show_results_page(self, results, query):
+    def show_results_page(self, results: list, query: str):
       self.clear_page()
   
       outer = QVBoxLayout()
@@ -1171,6 +1191,7 @@ class CY47Window(QDialog):
     def closeEvent(self, event: QCloseEvent):
         event.ignore()
         self.hide()
+        self.parent().show()
 
 #----- Graphite Minigame -----
 np.seterr(all="ignore")
@@ -1222,7 +1243,7 @@ SAFE_ENV = {
     "erf": sci.erf, "gamma": sci.gamma
 }
 
-def eval_expr(expr: str, x: np.ndarray[np.float64]):
+def eval_expr(expr: str, x: np.ndarray[np.float64]) -> Any:
     expr = preprocess_for_eval(expr)
     env = SAFE_ENV.copy()
     env["x"] = x
@@ -1236,24 +1257,24 @@ TRIG_FUNCS = ["sin","cos","tan"]
 HYPERBOLIC_FUNCS = ["sinh","cosh","tanh"]
 OTHER_FUNCS = ["abs","sqrt","exp", "ln", "arcsin", "arccos", "arctan", "arcsinh", "arccosh", "arctanh", "erf", "gamma"]
 
-def random_constant(low: int=-5, high: int=5, allow_float: bool=True):
+def random_constant(low: int=-5, high: int=5, allow_float: bool=True) -> float:
     constant = 0
     while constant == 0:
       constant =  round(random.uniform(low, high), 1) if allow_float else random.randint(low, high)
     return constant
 
-def generate_linear():
+def generate_linear() -> str:
     a = random.randint(-10,10)
     b = random.randint(-10,10)
     return f"{a}*x + {b}"
 
-def generate_polynomial():
+def generate_polynomial() -> str:
     degree = random.randint(2,4)
     factors = [f"(x - {random.randint(-5,5)})" for _ in range(degree)]
     a = random.choice([-3,-2,-1,1,2,3])
     return f"{a}*{'*'.join(factors)}"
 
-def generate_hyperbola(chain: bool=True):
+def generate_hyperbola(chain: bool=True) -> str:
     eq = "x"
     for _ in range(random.randint(1,2) if chain else 1):
         shift = random.choice([-1,1,2])
@@ -1261,7 +1282,7 @@ def generate_hyperbola(chain: bool=True):
         eq = f"1/({eq}+{shift})**{power}"
     return eq
 
-def generate_trig(chained: bool=False):
+def generate_trig(chained: bool=False) -> str:
     func = random.choice(TRIG_FUNCS)
     a = random.choice([-2,-1,1,2])
     freq = random.randint(1,3)
@@ -1271,7 +1292,7 @@ def generate_trig(chained: bool=False):
         inner = f"{random.choice([lambda: f'x**{random.randint(2,4)}', lambda: generate_hyperbola(chain=True), lambda: generate_trig(chained=True)])()}"  # can chain with simple expressions
     return f"{a}*{func}({freq}*{inner} + {shift})"
 
-def generate_hyper_trig(chained: bool=False):
+def generate_hyper_trig(chained: bool=False) -> str:
     func = random.choice(HYPERBOLIC_FUNCS)
     a = random_constant(-2,2)
     freq = random_constant(1,3)
@@ -1281,7 +1302,7 @@ def generate_hyper_trig(chained: bool=False):
         inner = f"{random.choice([lambda: f'x**{random.randint(2,4)}',lambda: f'x{random.randint(-10,10)}', lambda: generate_trig(chained=True), lambda: generate_hyper_trig(chained=True), lambda: generate_hyperbola(chain=True)])()}"
     return f"{a}*{func}({freq}*{inner} + {shift})"
 
-def generate_other_func(chained: bool=False):
+def generate_other_func(chained: bool=False) -> str:
     func = random.choice(OTHER_FUNCS)
     a = random_constant(-2,2)
     inside = f"x + {random_constant(-2,2)}"
@@ -1289,7 +1310,7 @@ def generate_other_func(chained: bool=False):
         inside = f"{random.choice([lambda:generate_trig(chained=True), lambda:generate_hyper_trig(chained=True), lambda: f'x**{random.randint(2,10)}', lambda: generate_hyperbola(chain=True), lambda:generate_other_func(chained=True)])()}"
     return f"{a}*{func}({inside})"
 
-def generate_level_equation(level: int, bonus: bool=False):
+def generate_level_equation(level: int, bonus: bool=False) -> str:
     """
     Generates an equation according to the rules for levels 1-10.
     If bonus=True, derivative/integral mode (not implemented).
@@ -1356,7 +1377,7 @@ def generate_level_equation(level: int, bonus: bool=False):
         return generate_linear()  # fallback
 
 # ---------- NUMERIC MATCH CHECK ----------
-def check_match_numeric(target_expr: str, player_expr: str, x: np.ndarray[np.float64], tol: float=TOLERANCE):
+def check_match_numeric(target_expr: str, player_expr: str, x: np.ndarray[np.float64], tol: float=TOLERANCE) -> bool:
     try:
         y_target = np.array(eval_expr(target_expr, x), dtype=float)
         y_player = np.array(eval_expr(player_expr, x), dtype=float)
@@ -1367,7 +1388,7 @@ def check_match_numeric(target_expr: str, player_expr: str, x: np.ndarray[np.flo
     except Exception:
         return False
 #(15/100^0.4) * x^0.4 + 0.85x
-def max_gradient_percentile(x: np.ndarray[np.float64], y: np.ndarray[np.any], percentile: int=95, xmin: int=0, xmax: int=100):
+def max_gradient_percentile(x: np.ndarray[np.float64], y: np.ndarray[np.any], percentile: int=95, xmin: int=0, xmax: int=100) -> float:
     mask = (x >= xmin) & (x <= xmax) & np.isfinite(y)
     if np.count_nonzero(mask) < 2:
         return np.inf
@@ -1377,13 +1398,13 @@ def max_gradient_percentile(x: np.ndarray[np.float64], y: np.ndarray[np.any], pe
 
     return np.nanpercentile(slopes, percentile)
 
-def reaches_height(x: np.ndarray[np.float64], y: np.ndarray[np.any], target: int=100, xmin: int=0, xmax: int=100):
+def reaches_height(x: np.ndarray[np.float64], y: np.ndarray[np.any], target: int=100, xmin: int=0, xmax: int=100) -> bool:
     mask = (x >= xmin) & (x <= xmax) & np.isfinite(y)
     if not np.any(mask):
         return False
     return np.nanmax(y[mask]) >= target
 
-def is_trivial_linear(x: np.ndarray[np.float64], y: np.ndarray[np.any], tol: float=1e-3):
+def is_trivial_linear(x: np.ndarray[np.float64], y: np.ndarray[np.any], tol: float=1e-3) -> bool:
     finite = np.isfinite(y)
     if np.count_nonzero(finite) < 3:
         return False
@@ -1395,7 +1416,7 @@ def is_trivial_linear(x: np.ndarray[np.float64], y: np.ndarray[np.any], tol: flo
     return np.all(np.abs(slopes - 1) < tol)
 
 
-def sky_high_check(x: np.ndarray[np.float64], y: np.ndarray[np.any], expr: str):
+def sky_high_check(x: np.ndarray[np.float64], y: np.ndarray[np.any], expr: str) -> tuple[bool, str]:
     if not np.any(np.isfinite(y)):
         return False, "Graph is empty"
     
@@ -1427,8 +1448,13 @@ class GameState:
         self.unlocks = {"sky_high": False}
         self.mode = mode
 class BolicalWorld(QDialog):
-        def __init__(self, stat_data: dict, parent: QObject|None=None, game_state: GameState|None=None) -> object:
+        def __init__(self, stat_data: dict, parent: QObject|None=None, game_state: GameState|None=None) -> Self:
             super().__init__(parent)
+            if parent:
+              self.parent().hide()
+              for child in self.parent().children():
+                if isinstance(child, (QDialog, QMainWindow)) and child != self:
+                    child.hide()
             self.data = stat_data
             self.setStyleSheet(stylesheet)
             self.setWindowTitle("Bolical World")
@@ -1447,7 +1473,7 @@ class BolicalWorld(QDialog):
             for page in [self.menu, self.guide, self.shop, self.difficulty_select, self.graph]:
                 self.stack.addWidget(page)
             self.stack.setCurrentWidget(self.menu)
-        def create_menu(self):
+        def create_menu(self) -> QWidget:
             page = QWidget()
             layout = QVBoxLayout(page)
             layout.setAlignment(Qt.AlignCenter)
@@ -1471,7 +1497,7 @@ class BolicalWorld(QDialog):
             self.structure.clicked.connect(lambda: self.start_structuring())
             
             return page
-        def create_guide(self):
+        def create_guide(self) -> QWidget:
             page = QWidget()
             layout = QVBoxLayout(page)
             
@@ -1518,9 +1544,11 @@ class BolicalWorld(QDialog):
             self.stack.setCurrentWidget(self.shop)
         def closeEvent(self, event: QCloseEvent):
             self.data["Keys"]["Bolical Points"] = self.state.points
+            if self.parent():
+              self.parent().show()
             event.accept()
 class ShopPage(QWidget):
-    def __init__(self, game_state: GameState, parent: QObject|None=None) -> object:
+    def __init__(self, game_state: GameState, parent: QObject|None=None) -> Self:
         super().__init__(parent)
         self.state = game_state
         self.parentwin = parent
@@ -1932,9 +1960,12 @@ class GraphPuzzle(QWidget):
 
 class BadgesWindow(QDialog):
  instances = weakref.WeakSet()
- def __init__(self, badge_data: dict, gradients: dict, stat_increment: dict, parent: QObject=None) -> object:
+ def __init__(self, badge_data: dict, gradients: dict, stat_increment: dict, parent: QObject=None) -> Self:
      super().__init__(parent)
+     for instance in self.instances:
+            instance.close()
      self.instances.clear()
+     self.instances.add(self)
      self.gradients = gradients
      self.data = badge_data
      self.setMinimumSize(750,750)
@@ -1984,7 +2015,6 @@ class BadgesWindow(QDialog):
      container_layout.addWidget(scroll, 4)
      container_layout.addLayout(multi_layout, 1)
      self.setLayout(container_layout)
-     BadgesWindow.instances.add(self)
  def multi_edit(self, category: str, badge: str):
      self.multiplier_list.clear()
      if self.data[category][badge]["Multis"]:
@@ -1999,7 +2029,7 @@ class BadgesWindow(QDialog):
         lbl.setText(f"{name}: {'Owned' if self.increment["Badges"][id] else 'Not Owned'}")        
 
 class CollapsibleSection(QWidget):
-    def __init__(self, title: str, build_callback) -> object:
+    def __init__(self, title: str, build_callback: Callable) -> Self:
         super().__init__()
         self.built = False
         self.build_callback = build_callback
@@ -2028,7 +2058,7 @@ class CollapsibleSection(QWidget):
         self.content.setVisible(self.button.isChecked())
 
 class HoldButton(Button):
-    def __init__(self, text: str, hold_time: int, command, parent: QObject|None=None):
+    def __init__(self, text: str, hold_time: int, command: Callable, parent: QObject|None=None) -> Self:
         super().__init__(text, parent)
         self.time = hold_time
         self.cmd = command
@@ -2046,7 +2076,7 @@ class HoldButton(Button):
         if self.timer.isActive():
             self.timer.stop()
 class Gluttony(HoldButton):
-    def __init__(self, texts: list[str], hold_time: int, parent: QObject|None=None):
+    def __init__(self, texts: list[str], hold_time: int, parent: QObject|None=None) -> Self:
         self.txts = texts
         text = texts[0]
         self.increment = 0
@@ -2064,7 +2094,15 @@ class Gluttony(HoldButton):
         super()._on_press()
     def _on_release(self):
         super()._on_release()
-
+class HoverButton(Button):
+    def __init__(self, text: str, function: Callable, bg: str="black", text_color: str="white") -> Self:
+        super().__init__(text, bg, text_color)
+        self.func = function
+    def enterEvent(self, event):
+        super().enterEvent(event)
+        self._on_hover()
+    def _on_hover(self):
+        self.func()
 # ---------- RUN ----------
 if __name__ == "__main__":
     app = QApplication(sys.argv)
