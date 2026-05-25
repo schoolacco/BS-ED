@@ -1,7 +1,7 @@
 import math
 from PySide6.QtWidgets import QMainWindow, QPushButton, QWidget, QScrollArea, QVBoxLayout, QHBoxLayout, QSizePolicy, QGridLayout, QLabel, QDialog, QFrame, QLineEdit, QLayout, QTextEdit, QListWidget, QTextBrowser, QStackedWidget, QApplication
-from PySide6.QtGui import QColor, QFont, QPainter, QFontMetrics, QPainterPath, QPen, QLinearGradient, QPalette, QCloseEvent, QPixmap, QShowEvent
-from PySide6.QtCore import Qt, QObject, QPointF,QTimer, Signal, QUrl
+from PySide6.QtGui import QColor, QFont, QPainter, QFontMetrics, QPainterPath, QPen, QLinearGradient, QPalette, QCloseEvent, QPixmap, QShowEvent, QPaintEvent, QEnterEvent
+from PySide6.QtCore import Qt, QObject, QPointF,QTimer, Signal, QUrl, QRectF, QEvent
 from PySide6.QtTest import QSignalSpy
 import scipy.special as sci
 import inspect
@@ -19,12 +19,24 @@ from matplotlib.figure import Figure
 from matplotlib.widgets import Cursor
 import weakref
 from typing import Self, Callable, Any
+from data import stat_gradients
+from Mantissa import Mantissa
 global_path_reference = Path(__file__).resolve().parent.parent
 # Source - https://stackoverflow.com/a
 # Posted by luke, modified by community. See post 'Timeline' for change history
 # Retrieved 2025-11-30, License - CC BY-SA 3.0
 FILE_ATTRIBUTE_HIDDEN = 0x02
 FILE_ATTRIBUTE_SYSTEM = 0x04
+def darken(hex: str, factor: float=0.7) -> str:
+    hex = hex.lstrip('#')
+    
+    # Convert hex to RGB
+    rgb = [int(hex[i:i+2], 16) for i in (0, 2, 4)]
+    
+    darkened_rgb = [int(max(0, min(255, val * factor))) for val in rgb]
+    
+    # Format back to hex
+    return "#%02x%02x%02x" % tuple(darkened_rgb)
 def write_hidden(file_name: str, data: str) -> None:
     """
     Cross platform hidden file writer.
@@ -74,7 +86,7 @@ def blinded(parent: QMainWindow) -> str:
       print(colorama.Fore.BLACK + "YOU'RE JUST TOO BLIND TO SEE IT.")
       write_hidden(str(DOCUMENTS_PATH)+"\\toodarktosee", "Are you not afraid of what cannot be seen? \n You search for the impossible, what has never been found \n Yet you wish to harness its energy, the energy of DARKMATTER.")
       parent.close()
-def button_inspect(cmd, btn: QPushButton):
+def button_inspect(cmd: Callable, btn: QPushButton):
     signature = inspect.signature(cmd)
     params = len(signature.parameters)
     if params == 0:
@@ -104,119 +116,6 @@ def find_key_path(nested_dict: dict, target_key_name: str, current_path: dict|No
     
     # Key not found in this branch
     return None
-
-class Mantissa:
-    def __init__(self, mantissa: int|float, exponent: int|float) -> Self:
-        self.num = mantissa
-        self.exp = exponent
-    def __mul__(a: int|float|Self, b: int|float|Self) -> Self:
-      # a and b are (mantissa, exponent) tuples
-      if isinstance(a, (int,float)):
-          a = float_to_mantissa(a)
-      if isinstance(b, (int,float)):
-          b = float_to_mantissa(b)
-      new_mantissa = a.num * b.num
-      new_exponent = a.exp + b.exp
-      
-      # Normalize if mantissa >= 10
-      while new_mantissa >= 10:
-          new_mantissa /= 10
-          new_exponent += 1
-      return Mantissa(new_mantissa, new_exponent)
-    def __add__(a: int|float|Self, b: int|float|Self) -> Self:
-      # Ensure a has the bigger exponent
-      if isinstance(a, (int,float)):
-          a = float_to_mantissa(a)
-      if isinstance(b, (int,float)):
-          b = float_to_mantissa(b)
-      if a.exp < b.exp:
-          a, b = b, a  # swap references, do not mutate
-  
-      diff = a.exp - b.exp
-      if diff > 300:  # treat b as negligible
-          return Mantissa(a.num, a.exp)
-  
-      # Safe addition for reasonably close exponents
-      new_mantissa = a.num + b.num * 10**-diff
-      while new_mantissa >= 10:
-        new_mantissa /= 10
-        a.exp += 1
-      return Mantissa(new_mantissa, a.exp)
-    def __iadd__(a: int|float|Self, b: int|float|Self) -> Self:
-        total = a + b
-        return total
-    def __round__(self: Self, num: int) -> Self:
-        self.num = round(self.num, num)
-        return self
-    def __ge__(self: Self, other: int|float|Self) -> bool:
-        if other == math.inf: return False
-        if isinstance(self, (int, float)):
-            self = float_to_mantissa(self)
-        if isinstance(other, (int, float)):
-            other = float_to_mantissa(other)
-        return True if self.exp > other.exp else True if self.exp == other.exp and self.num >= other.num else False
-    def __sub__(a: int|float|Self,b: int|float|Self) -> Self:
-        if isinstance(a, (int,float)):
-          a = float_to_mantissa(a)
-        if isinstance(b, (int,float)):
-          b = float_to_mantissa(b)
-        b.num = -b.num
-        return a + b
-    def __truediv__(a: int|float|Self,b: int|float|Self) -> Self:
-        if isinstance(a, (int,float)):
-          a = float_to_mantissa(a)
-        if isinstance(b, (int,float)):
-          b = float_to_mantissa(b)
-        mantissa = a.num/b.num
-        exp = a.exp-b.exp
-        while mantissa <= 1:
-            mantissa*= 10
-            exp -= 1
-        return Mantissa(mantissa, exp)
-    def __lt__(self: Self, other: int|float|Self) -> bool:
-        return not self >= other
-    def __gt__(self: Self, other: int|float|Self) -> bool:
-        return not self <= other
-    def __le__(self: Self, other: int|float|Self) -> bool:
-        if other == math.inf: return True
-        if isinstance(self, (int, float)):
-            self = float_to_mantissa(self)
-        if isinstance(other, (int, float)):
-            other = float_to_mantissa(other)
-        return True if self.exp < other.exp else True if self.exp == other.exp and self.num <= other.num else False
-    def to_string(self: Self) -> str:
-       return f"{self.num:.2f}e+{self.exp}"
-    def to_dict(self: Self) -> dict:
-        return {"__mantissa__": True, "number": self.num, "exponent": self.exp}
-    @classmethod
-    def from_string(cls, string: str) -> Self:
-        segments = string.split("e")
-        segments = [i.strip("+") for i in segments]
-        for segment in segments:
-            try:
-                segments.remove(segment)
-                segments.append(int(round(float(segment))))
-            except ValueError:
-                return None #Invalid input
-        if len(segments) != 2:
-            return None #Invalid input
-        return cls(segments[1], int(segments[0]))
-    @classmethod
-    def from_dict(cls, data: dict) -> Self:
-        return cls(data["number"], data["exponent"])
-    def to_float(self: Self) -> float | Self:
-        """Convert the Mantissa to a regular float. Warning: may overflow for huge exponents."""
-        value =  self.num * (10 ** self.exp) if self.exp < 300 else self
-        return value
-def float_to_mantissa(value: float) -> Mantissa:
-      """Converts a float or int into a Mantissa representation."""
-      if isinstance(value, Mantissa):
-          return value
-      if value == 0:
-          return Mantissa(0, 0)
-      exponent = int(math.floor(math.log10(abs(value))))
-      mantissa = value / (10 ** exponent)
-      return Mantissa(mantissa, exponent)
 class Realm:
   '''A realm, more info later'''
   instances = set()
@@ -289,13 +188,13 @@ class Realm:
         for row_index, tuple_reference in enumerate(buttons, start=1):
             if len(tuple_reference) == 2:
                 (text, command) = tuple_reference
-                obj = Button(text, command)
+                obj = Button(text, command, bg=bg, text_color=text_color)
             else:
                 (text, command, type) = tuple_reference
                 if type == "Label":
                   obj = QLabel(text)
                 elif type.split(" ")[0] == "Hold":
-                    obj = HoldButton(text, command, int(type.split(" ")[1]))
+                    obj = HoldButton(text, command, int(type.split(" ")[1]), bg=bg, text_color=text_color)
                 elif type.split(" ")[0] == "Gluttony":
                     obj = Gluttony(text, int(type.split(" ")[1]))
             if isinstance(obj, QLabel):
@@ -330,7 +229,7 @@ class Realm:
     self = cls.get_instance_by_id(name)
     for unit, req in zip(self.unit, self.req):
       amount = stat_increment["Stats"][unit]
-      req = float_to_mantissa(req) if isinstance(amount, Mantissa) else req
+      req = Mantissa.float_to_mantissa(req) if isinstance(amount, Mantissa) else req
       if amount >= req:
         container, scroll_area, content = self.create_scrollable_area()
         return container, scroll_area, content, stat_increment
@@ -576,8 +475,30 @@ class Button(QPushButton):
         self.txt = text
         self.func = function 
         self.death = death
+        self.text_colour = text_color
+        self.hover = False
         self.clicked.connect(self.execute) 
         self.setStyleSheet(
+                f"""
+                QPushButton {{
+                    padding: 6px;
+                    border: 1px solid {text_color};
+                }}
+                """
+            )
+        try:
+          self.gradient = stat_gradients[(lambda b=[(re.sub(r'\)','', re.sub(r' \(Fetch\)', '', re.sub(r' \(Sets\)', '',item)))) for item in re.split(r'\s*[a-zA-Z]*\d+[a-zA-Z]*\s*', self.txt) if item]: b[len(b)-1])()]
+        except KeyError as e:
+            print(e)
+            self.gradient = None
+            if "C0RR8PT10N" in re.sub(r'\)', '', re.sub(r'\(', '', self.text())).split(" "):
+                self.gradient = stat_gradients["C0RR8PT10N"]
+            else:
+              for item in ["TRU3_W0RLD"]: #Exceptions for stat that explicitly have numbers within their names
+                if item in self.text().split(" "):
+                    self.gradient = stat_gradients[item]
+        
+            self.setStyleSheet(
                 f"""
                 QPushButton {{
                     background-color: {bg};
@@ -585,8 +506,8 @@ class Button(QPushButton):
                     padding: 6px;
                     border: 1px solid {text_color};
                 }}
-                QPushButton:hover {{
-                    background-color: #222;
+                QPushButton::hover {{
+                    background-color: #222
                 }}
                 """
             )
@@ -599,12 +520,60 @@ class Button(QPushButton):
               func(self)
             except TypeError:
                 pass
+    def enterEvent(self, event: QEnterEvent):
+        self.hover = True
+        self.update()
+    def leaveEvent(self, event: QEvent):
+        self.hover = False
+        self.update()
+    def paintEvent(self, event: QPaintEvent):
+        if self.gradient:
+          self.angle_deg = self.gradient["Angle"]
+          self.colors = [darken(colour, 0.6) for colour in self.gradient["Colours"]]
+          if self.isEnabled():
+            if self.hover:
+                self.colors = [darken(colour, 0.9) for colour in self.colors]
+          else:
+            self.colors = [darken(colour, 0.5) for colour in self.colors]
+          painter = QPainter(self)
+          painter.setRenderHints(
+              QPainter.Antialiasing | QPainter.SmoothPixmapTransform
+          )
+          
+          # Convert angle to radians (0 deg is left-to-right, 90 deg is top-to-bottom)
+          angle = math.radians(self.angle_deg)
+          cx = self.width() / 2
+          cy = self.height() / 2
+          
+          length = math.sqrt(self.width()**2 + self.height()**2) / 2
+          
+          x1 = cx - math.cos(angle) * length
+          y1 = cy - math.sin(angle) * length
+          x2 = cx + math.cos(angle) * length
+          y2 = cy + math.sin(angle) * length
+      
+          gradient = QLinearGradient(QPointF(x1, y1), QPointF(x2, y2))
+          stops = len(self.colors)
+          for i, col in enumerate(self.colors):
+              gradient.setColorAt(i / (stops - 1), QColor(col))
+          rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+          border_color = QColor(self.text_colour)   
+          painter.setPen(QPen(border_color, 1))
+          painter.setBrush(gradient)
+          painter.drawRect(rect)
+          
+          painter.setPen(QPen(QColor(self.text_colour)))
+          painter.setFont(self.font())
+          painter.drawText(self.rect(), Qt.AlignCenter, self.text())
+      
+        else:
+            super().paintEvent(event)
 class RotatedLabel(QLabel):
-    def __init__(self, text: str="", angle: int=0, parent: QObject|None=None):
+    def __init__(self, text: str="", angle: int=0, parent: QObject|None=None) -> Self:
         super().__init__(text, parent)
         self.angle = angle
 
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
@@ -2058,8 +2027,8 @@ class CollapsibleSection(QWidget):
         self.content.setVisible(self.button.isChecked())
 
 class HoldButton(Button):
-    def __init__(self, text: str, hold_time: int, command: Callable, parent: QObject|None=None) -> Self:
-        super().__init__(text, parent)
+    def __init__(self, text: str, hold_time: int, command: Callable, parent: QObject|None=None, bg: str="black", text_color: str="white") -> Self:
+        super().__init__(text, parent, bg, text_color)
         self.time = hold_time
         self.cmd = command
         self.timer = QTimer()

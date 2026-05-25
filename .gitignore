@@ -2,6 +2,7 @@ savefile.json
 backup.json
 _pycache__/
 Program/__pycache__/
+Program/bsed.env
 Tests/__pycache__/
 .vscode/
 .vscode/settings.json

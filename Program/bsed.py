@@ -4,6 +4,7 @@ from PySide6.QtCore import QTimer, QObject, QEvent, QSortFilterProxyModel, QSize
 from PySide6.QtGui import QIcon, Qt, QPixmap, QCloseEvent, QPainter, QColor, QHideEvent, QShowEvent, QPaintEvent
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 import PySide6.QtSql #Future use
+import ast
 import json
 import math
 import ctypes
@@ -16,18 +17,23 @@ import webbrowser
 import os
 import weakref
 from typing import Self
-from Module import Mantissa, Realm, GradientLabel, BootScreen, CY47Window, BolicalWorld, BadgesWindow, CollapsibleSection, World, find_key_path
+from Module import Realm, GradientLabel, BootScreen, CY47Window, BolicalWorld, BadgesWindow, CollapsibleSection, World, find_key_path
 from geode import *
 from data import abs_stat_info, stat_gradients, cythrex_data, craftable_items, badge_data, def_upgrades, global_path_reference
 try: #Unused imports that may have future implementation
   import sqlalchemy
   import werkzeug
   import datetime
+  from dotenv import load_dotenv
 except ImportError:
     pass
-print(global_path_reference)
 warnings.filterwarnings("ignore")
 print("Loading...")
+if 'load_dotenv' in dir():
+    load_dotenv(f"{global_path_reference}/Program/bsed.env", override=True)
+    debug = ast.literal_eval(os.getenv("DEBUG"))
+else:
+    debug = False
 upgrades = def_upgrades
 def_secrets = {
     "Darkmatter_1": False,
@@ -68,7 +74,7 @@ e_type = "Event Power"
 reset_key = "Main Progression"
 area = "Spawn"
 world = "Buttonia"
-upgrade_ref=""
+upgrade_ref = ""
 m_logic = True
 main_window = None
 boot = None
@@ -76,10 +82,7 @@ for item in list(stat_increment["Stats"].keys()):
     if item not in list(cythrex_data.keys()):
       cythrex_data[item] = {"tags": ["BS:ED", "Stats"], "lore": "TBA", "obtainment": "TBA"}
 MANTISSA_THRESHOLD = 1e300
-luck = 1
-crit_luck = 1
-geode_speed= 1
-bulk_roll = 1
+luck, crit_luck, geode_speed, bulk_roll = 1, 1, 1, 1
 voltaic_radar = True
 class UpgradeMenu(QDialog):
         instances = weakref.WeakSet()
@@ -923,14 +926,6 @@ class ExtendedComboBox(QComboBox):
 #Minor modifications have been made to adapt it to PySide6
 if __name__ == "__main__":
   app = QApplication(sys.argv)
-  icon = QIcon()
-  icon_file = f"{global_path_reference}/Program//GUI/Starglass.ico"
-  icon.addFile(icon_file, QSize(16,16))
-  icon.addFile(icon_file, QSize(24,24))
-  icon.addFile(icon_file, QSize(32,32))
-  icon.addFile(icon_file, QSize(48,48))
-  icon.addFile(icon_file, QSize(256,256))
-  app.setWindowIcon(icon)
   class StatMenu(QMainWindow):
     def __init__(self, parent: QObject|None=None) -> Self:
         super().__init__(parent)
@@ -1123,7 +1118,7 @@ if __name__ == "__main__":
         self.player.setSource(QUrl.fromLocalFile(f"{self.path}/{song}"))
         self.player.play()
 
-    def _handle_status(self, status):
+    def _handle_status(self, status: QMediaPlayer.MediaStatus):
         if status == QMediaPlayer.EndOfMedia:
             self.play_random()
     def stop(self):
@@ -1158,7 +1153,6 @@ if __name__ == "__main__":
 
         layout = QVBoxLayout(self)
 
-        # ── Global variables ──
         globals_box = QGroupBox("Global Variables")
         globals_box.setStyleSheet("QGroupBox { color: #00ff00; }")
         g_layout = QHBoxLayout(globals_box)
@@ -1182,7 +1176,6 @@ if __name__ == "__main__":
         
         layout.addWidget(globals_box)
 
-        # ── Stat editor ──
         stat_box = QGroupBox("Stat Editor")
         stat_box.setStyleSheet("QGroupBox { color: #00ff00; }")
         s_layout = QGridLayout(stat_box)
@@ -1212,12 +1205,9 @@ if __name__ == "__main__":
 
         layout.addWidget(stat_box)
 
-        # ── Close ──
         close = QPushButton("Close")
         close.clicked.connect(self.close)
         layout.addWidget(close)
-
-    # ── Logic ─────────────────────────────
 
     def set_luck(self):
         global luck
@@ -1449,27 +1439,15 @@ if __name__ == "__main__":
       return string_to_num(input.text())
   root = Window()
   root.setWindowTitle("BS:ED but bad")
-  cash_l = QLabel()
-  multi_l = QLabel()
-  re_l = QLabel()
+  cash_l, multi_l, re_l = QLabel(), QLabel(), QLabel()
   root.setWindowTitle("BS:ED but bad")
   root.setMinimumSize(QSize(100,100))
   root.setWindowIcon(QIcon(f"{global_path_reference}/Program/Quant.png"))
   layout = QGridLayout()
   central = QWidget()
   central.setLayout(layout)
-  temp = Load()
-  if temp != None:
-     stat_increment = temp
-  cash = stat_increment["Stats"]['Cash']
-  c_msg = cash if not isinstance(cash, Mantissa) else cash.to_string()
-  cash_l.setText(f"Cash: {c_msg}")
-  multi = stat_increment["Stats"]['Multiplier']
-  m_msg = multi if not isinstance(multi, Mantissa) else multi.to_string()
-  multi_l.setText(f"Multiplier: {m_msg}")
-  rebirths = stat_increment["Stats"]['Rebirths']
-  re_msg = rebirths if not isinstance(rebirths, Mantissa) else rebirths.to_string()
-  re_l.setText(f"Rebirths: {re_msg}")
+  stat_increment = (lambda l=Load(): l if l != None else stat_increment)()
+  label_helper()
 #----------- AREAS --------------
   Realm(root, {
       "Multiplier": [
@@ -1643,7 +1621,7 @@ if __name__ == "__main__":
          ("Spawn (req: 0 Cash)", lambda: load_check("S")),
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
-  }, 10, "Stone", "C", voltaic_radar=voltaic_radar)
+  }, 10, "Stone", "C", voltaic_radar=voltaic_radar, bg="#262626", text_color="#a2a2a2")
   Realm(root, {
       "Spawn": [
          ("15 Stone: 15Qn Cash (Sets)", lambda: recovery_button_set(15, "Stone", 5e19, "Cash")),
@@ -1813,7 +1791,7 @@ if __name__ == "__main__":
           ("Purified Illusions (req: 1 Starglass)", lambda: load_check("PI")),
           ("Purified Illusions (req: 1 Shell Piece)", lambda: load_check("PI")),
       ]
-  }, 0, "Cash", "RH", voltaic_radar = voltaic_radar)
+  }, 0, "Cash", "RH", voltaic_radar = voltaic_radar, bg="#797979", text_color="#ffffff")
   Realm(root, {
       "Multiplier": [
           ("8e71 Cash: 10Oc Multiplier", lambda: cost_button("Cash",8e71,"Multiplier", 1e28)),
@@ -1896,7 +1874,7 @@ if __name__ == "__main__":
          ("Spawn (req: 0 Cash)", lambda: load_check("S")),
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
-  }, 300, "White Gems", "CB", voltaic_radar=voltaic_radar)
+  }, 300, "White Gems", "CB", voltaic_radar=voltaic_radar, bg="#31003b", text_color="#ffffff")
   Realm(root, {
       "Mutliplier": [
           ("1e93 Cash: 8De Multiplier", lambda: cost_button("Cash",1e93,"Multiplier", 8e33)),
@@ -3439,10 +3417,10 @@ if __name__ == "__main__":
           ("Nostalgic Geode: 50 Robot", lambda btn: Geode_roll(btn, nostalgic_geode, luck, (1-(upgrades[world]["geode_speed"]["effect"]*upgrades[world]["geode_speed"]["current_lvl"])), bulk_roll)),
       ],
       "Recovery": [
-          ("2 Microparticles: 1 Gold (fetch)", lambda: recovery_button_fetch(2, "Microparticles", 1, "Gold")),
-          ("1 Star: 5 Gold (fetch)", lambda: recovery_button_fetch(1, "Star", 5, "Gold")),
-          ("1 Robot: 12 Gold (fetch)", lambda: recovery_button_fetch(1, "Robot", 12, "Gold")),
-          ("3 Prototype: 25 Ruby (fetch)", lambda: recovery_button_fetch(3, "Prototype", 25, "Ruby")),
+          ("2 Microparticles: 1 Gold (Fetch)", lambda: recovery_button_fetch(2, "Microparticles", 1, "Gold")),
+          ("1 Star: 5 Gold (Fetch)", lambda: recovery_button_fetch(1, "Star", 5, "Gold")),
+          ("1 Robot: 12 Gold (Fetch)", lambda: recovery_button_fetch(1, "Robot", 12, "Gold")),
+          ("3 Prototype: 25 Ruby (Fetch)", lambda: recovery_button_fetch(3, "Prototype", 25, "Ruby")),
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check("S")),
@@ -3537,9 +3515,9 @@ if __name__ == "__main__":
           ("12 Master White Gems: 1 Master Crystal", lambda: reset_button(12, "Master White Gems", 1, "Master Crystal")),
       ],
       "Recovery Buttons": [
-          ("1 Master Stone: 4.5 Master Multiplier (fetch)", lambda: recovery_button_fetch(1, "Master Stone", 4.5, "Master Multiplier")),
-          ("12 Master Stone: 150 Master Rebirths (sets)", lambda: recovery_button_set(12, "Master Stone", 150, "Master Rebirths")),
-          ("1 Master White Gems: 1 Master Rebirths (fetch)", lambda: recovery_button_fetch(1, "Master White Gems", 1, "Master Rebirths"))
+          ("1 Master Stone: 4.5 Master Multiplier (Fetch)", lambda: recovery_button_fetch(1, "Master Stone", 4.5, "Master Multiplier")),
+          ("12 Master Stone: 150 Master Rebirths (Sets)", lambda: recovery_button_set(12, "Master Stone", 150, "Master Rebirths")),
+          ("1 Master White Gems: 1 Master Rebirths (Fetch)", lambda: recovery_button_fetch(1, "Master White Gems", 1, "Master Rebirths"))
       ],
       "Area Teleports": [
           ("Buttonia (req: 0 Master Cash)", lambda: load_world(0, "Master Cash", Buttonia)),
@@ -3632,13 +3610,13 @@ if __name__ == "__main__":
           ("329.88 Master Gold: 5.88 Master Quartz", lambda: reset_button(329.88, "Master Gold", 5.88, "Master Quartz")),
       ],
       "Recovery Buttons": [
-          ("1 Master White Gems: 50 Master Multiplier (fetch)", lambda: recovery_button_fetch(1, "Master White Gems", 50, "Master Multiplier")),
-          ("1 Master White Gems: 20 Master Rebirths (fetch)", lambda: recovery_button_fetch(1, "Master White Gems", 20, "Master Rebirths")),
-          ("12 Master Crystal: 1 Master Stone (fetch)", lambda: recovery_button_fetch(12, "Master Crystal", 1, "Master Stone")),
-          ("1 Master Iron: 30 Master White Gems (sets)", lambda: recovery_button_set(1, "Master Iron", 30, "Master White Gems")),
-          ("1 Master Gold: 100De Master Multiplier (sets)", lambda: recovery_button_set(1, "Master Gold", 1e35, "Master Multiplier")),
-          ("1 Master Gold: 6 Master Crystal (sets)", lambda: recovery_button_set(1, "Master Gold", 6, "Master Crystal")),
-          ("1 Master Quartz: 1 Master Iron (sets)", lambda: recovery_button_set(1, "Master Quartz", 1, "Master Iron")),
+          ("1 Master White Gems: 50 Master Multiplier (Fetch)", lambda: recovery_button_fetch(1, "Master White Gems", 50, "Master Multiplier")),
+          ("1 Master White Gems: 20 Master Rebirths (Fetch)", lambda: recovery_button_fetch(1, "Master White Gems", 20, "Master Rebirths")),
+          ("12 Master Crystal: 1 Master Stone (Fetch)", lambda: recovery_button_fetch(12, "Master Crystal", 1, "Master Stone")),
+          ("1 Master Iron: 30 Master White Gems (Sets)", lambda: recovery_button_set(1, "Master Iron", 30, "Master White Gems")),
+          ("1 Master Gold: 100De Master Multiplier (Sets)", lambda: recovery_button_set(1, "Master Gold", 1e35, "Master Multiplier")),
+          ("1 Master Gold: 6 Master Crystal (Sets)", lambda: recovery_button_set(1, "Master Gold", 6, "Master Crystal")),
+          ("1 Master Quartz: 1 Master Iron (Sets)", lambda: recovery_button_set(1, "Master Quartz", 1, "Master Iron")),
       ],
       "Area Teleports": [
           ("Elysian Highway (req: 0 Master Cash)", lambda: load_check("EH"))
@@ -3736,13 +3714,13 @@ if __name__ == "__main__":
           ("524 Master Obsidian: 11 Master Ruby", lambda: reset_button(524, "Master Obsidian", 11, "Master Ruby")),
       ],
       "Recovery Buttons": [
-          ("1k Master Iron: 1M Master Multiplier (fetch)", lambda: recovery_button_fetch(1000, "Master Iron", 1e6, "Master Multiplier")),
-          ("1k Master Iron: 50k Master Rebirths (fetch)", lambda: recovery_button_fetch(1000, "Master Iron", 50000, "Master Rebirths")),
-          ("275 Master Gold: 100 Master Stone (fetch)", lambda: recovery_button_fetch(275, "Master Gold", 100, "Master Stone")),
-          ("50 Master Quartz: 1M Master White Gems (sets)", lambda: recovery_button_set(50, "Master Quartz", 1e6, "Master White Gems")),
-          ("1 Master Jade: 1 Master Crystal (fetch)", lambda: recovery_button_fetch(1, "Master Jade", 1, "Master Crystal")),
-          ("1 Master Obsidian: 2k Master Iron (sets)", lambda: recovery_button_set(1, "Master Obsidian", 2000, "Master Iron")),
-          ("1 Master Ruby: 12 Master Jade (sets)", lambda: recovery_button_set(1, "Master Ruby", 12, "Master Jade")),
+          ("1k Master Iron: 1M Master Multiplier (Fetch)", lambda: recovery_button_fetch(1000, "Master Iron", 1e6, "Master Multiplier")),
+          ("1k Master Iron: 50k Master Rebirths (Fetch)", lambda: recovery_button_fetch(1000, "Master Iron", 50000, "Master Rebirths")),
+          ("275 Master Gold: 100 Master Stone (Fetch)", lambda: recovery_button_fetch(275, "Master Gold", 100, "Master Stone")),
+          ("50 Master Quartz: 1M Master White Gems (Sets)", lambda: recovery_button_set(50, "Master Quartz", 1e6, "Master White Gems")),
+          ("1 Master Jade: 1 Master Crystal (Fetch)", lambda: recovery_button_fetch(1, "Master Jade", 1, "Master Crystal")),
+          ("1 Master Obsidian: 2k Master Iron (Sets)", lambda: recovery_button_set(1, "Master Obsidian", 2000, "Master Iron")),
+          ("1 Master Ruby: 12 Master Jade (Sets)", lambda: recovery_button_set(1, "Master Ruby", 12, "Master Jade")),
       ],
       "Area Teleports": [
           ("Elysian Highway (req: 0 Master Cash)", lambda: load_check("EH"))
@@ -3837,14 +3815,14 @@ if __name__ == "__main__":
           ("316.11k Master Sapphire: 8.71 Master Diamond", lambda: reset_button(316110, "Master Sapphire", 8.71, "Master Diamond")),
       ],
       "Recovery Buttons": [
-          ("100k Master Gold: 1T Master Multiplier (fetch)", lambda: recovery_button_fetch(100000, "Master Gold", 1e12, "Master Multiplier")),
-          ("10k Master Obsidian: 1.25 Master Gold (fetch)", lambda: recovery_button_fetch(10000, "Master Obsidian", 1.25, "Master Gold")),
-          ("100k Master Obsidian: 1k Master White Gems (fetch)", lambda: recovery_button_fetch(100000, "Master Obsidian", 1000, "Master White Gems")),
-          ("1 Master Ruby: 666 Master Quartz (sets)", lambda: recovery_button_set(1, "Master Ruby", 666, "Master Quartz")),
-          ("300 Master Ruby: 75 Master Crystal (fetch)", lambda: recovery_button_fetch(300, "Master Ruby", 75, "Master Crystal")),
-          ("1 Master Emerald: 88 Master Obsidian (sets)", lambda: recovery_button_set(1, "Master Emerald", 88, "Master Obsidian")),
-          ("1 Master Sapphire: 2 Master Jade (fetch)", lambda: recovery_button_fetch(1, "Master Sapphire", 2, "Master Jade")),
-          ("1 Master Diamond: 250 Master Ruby (sets)", lambda: recovery_button_set(1, "Master Diamond", 250, "Master Ruby")),
+          ("100k Master Gold: 1T Master Multiplier (Fetch)", lambda: recovery_button_fetch(100000, "Master Gold", 1e12, "Master Multiplier")),
+          ("10k Master Obsidian: 1.25 Master Gold (Fetch)", lambda: recovery_button_fetch(10000, "Master Obsidian", 1.25, "Master Gold")),
+          ("100k Master Obsidian: 1k Master White Gems (Fetch)", lambda: recovery_button_fetch(100000, "Master Obsidian", 1000, "Master White Gems")),
+          ("1 Master Ruby: 666 Master Quartz (Sets)", lambda: recovery_button_set(1, "Master Ruby", 666, "Master Quartz")),
+          ("300 Master Ruby: 75 Master Crystal (Fetch)", lambda: recovery_button_fetch(300, "Master Ruby", 75, "Master Crystal")),
+          ("1 Master Emerald: 88 Master Obsidian (Sets)", lambda: recovery_button_set(1, "Master Emerald", 88, "Master Obsidian")),
+          ("1 Master Sapphire: 2 Master Jade (Fetch)", lambda: recovery_button_fetch(1, "Master Sapphire", 2, "Master Jade")),
+          ("1 Master Diamond: 250 Master Ruby (Sets)", lambda: recovery_button_set(1, "Master Diamond", 250, "Master Ruby")),
       ],
       "Area Teleports": [
           ("Elysian Highway (req: 0 Master Cash)", lambda: load_check("EH"))
@@ -3915,10 +3893,10 @@ if __name__ == "__main__":
           ("4.15e7877 Master Rebirths: 16 Master Mint", lambda: cost_button("Master Rebirths", Mantissa(4.15,7877), "Master Mint", 16)),
       ],
       "Recovery": [
-          ("50 Master Diamond: 50 Master Obsidian (fetch)", lambda: recovery_button_fetch(50, "Master Diamond", 50, "Master Obsidian")),
-          ("1 Master Starlight: 2.5 Master Ruby (fetch)", lambda: recovery_button_fetch(1, "Master Starlight", 2.5, "Master Ruby")),
-          ("1 Master Ion: 1.75 Master Emerald (fetch)", lambda: recovery_button_fetch(1, "Master Ion", 1.75, "Master Emerald")),
-          ("1 Master Uranium: 50 Master Diamond (sets)", lambda: recovery_button_set(1, "Master Uranium", 50, "Master Diamond")),
+          ("50 Master Diamond: 50 Master Obsidian (Fetch)", lambda: recovery_button_fetch(50, "Master Diamond", 50, "Master Obsidian")),
+          ("1 Master Starlight: 2.5 Master Ruby (Fetch)", lambda: recovery_button_fetch(1, "Master Starlight", 2.5, "Master Ruby")),
+          ("1 Master Ion: 1.75 Master Emerald (Fetch)", lambda: recovery_button_fetch(1, "Master Ion", 1.75, "Master Emerald")),
+          ("1 Master Uranium: 50 Master Diamond (Sets)", lambda: recovery_button_set(1, "Master Uranium", 50, "Master Diamond")),
       ],
       "Area Teleports": [
           ("Elysian Highway (req: 0 Master Cash)", lambda: load_check("EH"))
@@ -4045,19 +4023,19 @@ if __name__ == "__main__":
           ("50 Master Boracite: 1 Master Nissonite", lambda: reset_button(50, "Master Boracite", 1, "Master Nissonite")),
       ],
       "Recovery": [
-          ("15 Master Mint: 696 Master Sapphire (sets)", lambda: recovery_button_set(15, "Master Mint", 696, "Master Sapphire")),
-          ("50 Master Mint: 500 Master Quartz (fetch)", lambda: recovery_button_fetch(50, "Master Mint", 500, "Master Quartz")),
-          ("500 Master Obsidian: 10B Master Multiplier (fetch)", lambda: recovery_button_fetch(500, "Master Obsidian", 1e10, "Master Multiplier")),
-          ("500 Master Obsidian: 1B Master Rebirths (fetch)", lambda: recovery_button_fetch(500, "Master Obsidian", 1e9, "Master Rebirths")),
-          ("1e45 Master Jade: 1e12 Master Iron (fetch)", lambda: recovery_button_fetch(1e45, "Master Jade", 1e12, "Master Iron")),
-          ("10k Master Diamond: 10M Master Obsidian (fetch)", lambda: recovery_button_fetch(10000, "Master Diamond", 1e7, "Master Obsidian")),
-          ("1 Master Bismuth: 7 Master Diamond (fetch)", lambda: recovery_button_fetch(1, "Master Bismuth", 7, "Master Diamond")),
-          ("1 Master Boracite: 10k Master Ruby (fetch)", lambda: recovery_button_fetch(1, "Master Boracite", 10000, "Master Ruby")),
-          ("1 Master Boracite: 250 Master Ion (sets)", lambda: recovery_button_set(1, "Master Boracite", 250, "Master Ion")),
-          ("1 Master Nissonite: 10 Master Uranium (sets)", lambda: recovery_button_set(1, "Master Nissonite", 10, "Master Uranium")),
-          ("1 Master Aquamarine: 1 Master Uranium (fetch)", lambda: recovery_button_fetch(1, "Master Aquamarine", 1, "Master Uranium")),
-          ("4 Master Aquamarine: 6 Master Tetra (sets)", lambda: recovery_button_set(4, "Master Aquamarine", 6, "Master Tetra")),
-          ("1 Master Lollipop: 175 Master Volt (sets)", lambda: recovery_button_set(1, "Master Lollipop", 175, "Master Volt")),
+          ("15 Master Mint: 696 Master Sapphire (Sets)", lambda: recovery_button_set(15, "Master Mint", 696, "Master Sapphire")),
+          ("50 Master Mint: 500 Master Quartz (Fetch)", lambda: recovery_button_fetch(50, "Master Mint", 500, "Master Quartz")),
+          ("500 Master Obsidian: 10B Master Multiplier (Fetch)", lambda: recovery_button_fetch(500, "Master Obsidian", 1e10, "Master Multiplier")),
+          ("500 Master Obsidian: 1B Master Rebirths (Fetch)", lambda: recovery_button_fetch(500, "Master Obsidian", 1e9, "Master Rebirths")),
+          ("1e45 Master Jade: 1e12 Master Iron (Fetch)", lambda: recovery_button_fetch(1e45, "Master Jade", 1e12, "Master Iron")),
+          ("10k Master Diamond: 10M Master Obsidian (Fetch)", lambda: recovery_button_fetch(10000, "Master Diamond", 1e7, "Master Obsidian")),
+          ("1 Master Bismuth: 7 Master Diamond (Fetch)", lambda: recovery_button_fetch(1, "Master Bismuth", 7, "Master Diamond")),
+          ("1 Master Boracite: 10k Master Ruby (Fetch)", lambda: recovery_button_fetch(1, "Master Boracite", 10000, "Master Ruby")),
+          ("1 Master Boracite: 250 Master Ion (Sets)", lambda: recovery_button_set(1, "Master Boracite", 250, "Master Ion")),
+          ("1 Master Nissonite: 10 Master Uranium (Sets)", lambda: recovery_button_set(1, "Master Nissonite", 10, "Master Uranium")),
+          ("1 Master Aquamarine: 1 Master Uranium (Fetch)", lambda: recovery_button_fetch(1, "Master Aquamarine", 1, "Master Uranium")),
+          ("4 Master Aquamarine: 6 Master Tetra (Sets)", lambda: recovery_button_set(4, "Master Aquamarine", 6, "Master Tetra")),
+          ("1 Master Lollipop: 175 Master Volt (Sets)", lambda: recovery_button_set(1, "Master Lollipop", 175, "Master Volt")),
       ],
       "Area Teleports": [
           ("Elysian Highway (req: 0 Master Cash)", lambda: load_check("EH")),
@@ -4130,11 +4108,11 @@ if __name__ == "__main__":
           ("96 Master Tetra: 6.57 Master Volt", lambda: reset_button(96, "Master Tetra", 6.57, "Master Volt")),
       ],
       "Recovery": [
-          ("8k Master Mint: 12.5 Master Uranium (sets)", lambda: recovery_button_set(8000, "Master Mint", 12.5, "Master Uranium")),
-          ("30k Master Mint: 1k Master Diamond (sets)", lambda: recovery_button_set(30000, "Master Mint", 1000, "Master Diamond")),
-          ("1 Master Orpiment: 2.5 Master Ion (fetch)", lambda: recovery_button_fetch(1, "Master Orpiment", 2.5, "Master Ion")),
-          ("1 Master Tetra: 1/2 Master Bismuth (fetch)", lambda: recovery_button_fetch(1, "Master Tetra", 0.5, "Master Bismuth")),
-          ("1 Master Volt: 5 Master Nissonite (sets)", lambda: recovery_button_set(1, "Master Volt", 5, "Master Nissonite")),
+          ("8k Master Mint: 12.5 Master Uranium (Sets)", lambda: recovery_button_set(8000, "Master Mint", 12.5, "Master Uranium")),
+          ("30k Master Mint: 1k Master Diamond (Sets)", lambda: recovery_button_set(30000, "Master Mint", 1000, "Master Diamond")),
+          ("1 Master Orpiment: 2.5 Master Ion (Fetch)", lambda: recovery_button_fetch(1, "Master Orpiment", 2.5, "Master Ion")),
+          ("1 Master Tetra: 1/2 Master Bismuth (Fetch)", lambda: recovery_button_fetch(1, "Master Tetra", 0.5, "Master Bismuth")),
+          ("1 Master Volt: 5 Master Nissonite (Sets)", lambda: recovery_button_set(1, "Master Volt", 5, "Master Nissonite")),
       ],
       "Area Teleports": [
           ("Limbo (req: 8 Master Uranium)", lambda: load_check("L")),
@@ -4170,7 +4148,7 @@ if __name__ == "__main__":
           ("6 Master Lollipop: 1 Prime Alpha Key", lambda: reset_button(6, "Master Lollipop", 1, "Prime Alpha Key"))
       ],
       "For your safety...": [
-          ("1k Master Mint: 8 Master Uranium (sets)", lambda: recovery_button_set(1000, "Master Mint", 8, "Master Uranium"))
+          ("1k Master Mint: 8 Master Uranium (Sets)", lambda: recovery_button_set(1000, "Master Mint", 8, "Master Uranium"))
       ],
       "Area Teleports": [
           ("Limbo (req: 8 Master Uranium)", lambda: load_check("L")),
@@ -4213,7 +4191,7 @@ if __name__ == "__main__":
           ("100 Auly Plate: 1 Shell Piece", lambda: reset_button_special(100, "Auly Plate", 1, "Shell Piece", ["Cash", "Multiplier", "Rebirth", "Stone", "White Gems", "Crystal", "Iron", "Gold", "Quartz", "Jade", "Obsidian", "Ruby", "Emerald", "Sapphire", "Diamond", "Starlight", "Ion", "Uranium", "Bismuth", "Boracite", "Nissonite", "Orpiment", "Tetra", "Volt", "Aquamarine", "Lollipop", "Master Cash", "Master Multiplier", "Master Rebirths", "Master Stone", "Master White Gems", "Master Crystal", "Master Iron", "Master Gold", "Master Quartz", "Master Jade", "Master Obsidian", "Master Ruby", "Master Emerald", "Master Sapphire", "Master Diamond", "Master Starlight", "Master Ion", "Master Uranium", "Master Bismuth", "Master Boracite", "Master Nissonite", "Master Orpiment", "Master Tetra", "Master Volt", "Master Aquamarine", "Master Lollipop", "C0RR8PT10N", "Stargazed Metal", "Gyge", "Auly Plate"]))
       ],
       "Recovery": [
-          ("3 Starglass: 1 Stargazed Metal (sets)", lambda: recovery_button_set(3, "Starglass", 1, "Stargazed Metal"))
+          ("3 Starglass: 1 Stargazed Metal (Sets)", lambda: recovery_button_set(3, "Starglass", 1, "Stargazed Metal"))
       ],
       "Area Teleports": [
           ("Buttonia (req: 0 Cash)", lambda: load_check("S"))
@@ -4668,7 +4646,8 @@ if __name__ == "__main__":
     win.show()
     return win
   def open_admin_panel(parent: QObject|None):
-    if os.path.abspath("savefile.json") == r"C:\Users\wizar\Documents\GitHub\BS-ED\savefile.json":
+    global debug
+    if debug:
       if not hasattr(parent, "_admin"):
           parent._admin = AdminPanel(parent, stat_increment)
       parent._admin.show()

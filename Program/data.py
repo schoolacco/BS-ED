@@ -1,6 +1,5 @@
-from Module import Mantissa
+from Mantissa import Mantissa
 from pathlib import Path
-import base64
 global_path_reference = Path(__file__).resolve().parent.parent
 abs_stat_info = {
     "Main Progression": {
@@ -2269,7 +2268,7 @@ cythrex_data = {
         <br>
         Also, just for your convenience, there are links to other pages on pages!<br>
         Why aren't the links highlighted? Because uh...<br>
-        Anyway, in the case you haven't seen any stat pages yet, just know that thye look entirely different to these pure text pages.<br>
+        Anyway, in the case you haven't seen any stat pages yet, just know that they look entirely different to these pure text pages.<br>
         You're going to need those pages, they'll give you all the information you need about them, including information about how to obtain them and arguably most importantly: the stat multipliers.<br>
         Have fun :)<br>
         <br>
