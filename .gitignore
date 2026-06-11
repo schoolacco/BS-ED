@@ -1,5 +1,6 @@
 savefile.json
 backup.json
+session.json
 _pycache__/
 Program/__pycache__/
 Program/bsed.env
@@ -9,3 +10,5 @@ Tests/__pycache__/
 Tests/test.db
 Tests/test.py
 Tests/test.ps1
+Tests/Style_testing.html
+Tests/test2.py

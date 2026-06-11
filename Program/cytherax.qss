@@ -1,0 +1,35 @@
+QWidget {
+            background-color: black;
+        }
+QLabel {
+            color: green;
+            background-color: black;
+        }
+QLineEdit {
+            color: green;
+            background-color: black;
+           }
+QTextEdit {
+            color: green;
+            background-color: black;
+          }
+QListWidget {
+            color: green;
+            background-color: black;
+          }
+QTextBrowser {
+              background-color: black;
+              color: #00ff00;
+              border: none;
+              font-family: Consolas;
+          }
+QPushButton {
+                  color: green;
+                  background-color: black;
+                  border: 1px solid green;
+                  padding: 6px;
+                  text-align: left;
+              }
+QPushButton:hover {
+    background-color: #002200;
+                  } 

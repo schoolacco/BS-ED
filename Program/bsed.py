@@ -17,18 +17,29 @@ import webbrowser
 import os
 import weakref
 from typing import Self
-from Module import Realm, GradientLabel, BootScreen, CY47Window, BolicalWorld, BadgesWindow, CollapsibleSection, World, find_key_path
+import hmac
+from Module import Realm, GradientLabel, BootScreen, CY47Window, BolicalWorld, BadgesWindow, CollapsibleSection, World, Cutscene, find_key_path, multi_func, AuthWindow
 from geode import *
-from data import abs_stat_info, stat_gradients, cythrex_data, craftable_items, badge_data, def_upgrades, global_path_reference
-try: #Unused imports that may have future implementation
-  import sqlalchemy
-  import werkzeug
-  import datetime
+from db import update_save, get_account, supabase
+from data import abs_stat_info, stat_gradients, cythrex_data, craftable_items, badge_data, def_upgrades, global_path_reference, def_stat_increment
+from session import generate_signature, validate_session
+try: #Environment handling
   from dotenv import load_dotenv
 except ImportError:
     pass
+#TODO:
+# Offline geode rolls
+# Greed puzzle
+# ARG/Malware puzzle
+# - Denial puzzle (?)
+# Revamp wiki pages for Moonbase and Nostalgia World before implementing into program
+# Implement Secluded Oasis
+# Implement BS:ED X (?)
+os.environ["QT_LOGGING_RULES"] = "qt.multimedia.ffmpeg*=false"
 warnings.filterwarnings("ignore")
+user = validate_session()
 print("Loading...")
+progression_lvl = 3
 if 'load_dotenv' in dir():
     load_dotenv(f"{global_path_reference}/Program/bsed.env", override=True)
     debug = ast.literal_eval(os.getenv("DEBUG"))
@@ -48,23 +59,8 @@ def_secrets = {
     "Sky-High Structuring": False,
 }
 secrets = def_secrets
-def_stat_increment = {"Stats":{}, "Badges": {}}
-for cat, item in abs_stat_info.items():
-    if cat not in ("Geode", "Afterlife Domain (Geode)"):
-      for key in item.keys():
-          def_stat_increment["Stats"][key] = 0
-    else:
-      for g_cat, g_item in item.items():
-          for key in g_item.keys():
-            def_stat_increment["Stats"][key] = 0
-for cat, badge in badge_data.items():
-    for key in badge.keys():
-      def_stat_increment["Badges"][key] = False
-def_stat_increment["Stats"]["Testium"] = 1
 stat_increment = def_stat_increment
 stat_increment["Keys"] = secrets
-abs_stat_info["Exclusive"]["Ivory"] = {"Multis": {item: 1.5 for item in def_stat_increment["Stats"].keys()}}
-def_stat_increment["Stats"]["Ivory"] = 0
 e_event = True
 cash_type = "Cash"
 multi_type = "Multiplier"
@@ -84,6 +80,7 @@ for item in list(stat_increment["Stats"].keys()):
 MANTISSA_THRESHOLD = 1e300
 luck, crit_luck, geode_speed, bulk_roll = 1, 1, 1, 1
 voltaic_radar = True
+db = supabase
 class UpgradeMenu(QDialog):
         instances = weakref.WeakSet()
         def __init__(self, save_data: dict, parent: QObject|None=None) -> Self:
@@ -331,11 +328,19 @@ def load_check(id: str|None=None):
       container, scroll_area, content, stat_increment = result
       layout.addWidget(container, 2, 1, 9, 9)
       area = id
+def edit_user(*args):
+    global user
+    user = validate_session()
 def load_world(req: int|float|Mantissa, unit: str, world_instance: World):
-    global stat_increment, container, scroll_area, container, content, layout, cash_type, multi_type, rebirth_type, gem_type, e_event, e_type, reset_key, world, music, m_logic, upgrade_ref
+    global stat_increment, container, scroll_area, container, content, layout, cash_type, multi_type, rebirth_type, gem_type, e_event, e_type, reset_key, world, music, m_logic, upgrade_ref, user
     amount = stat_increment["Stats"][unit]
     req = float_to_mantissa(req) if isinstance(amount, Mantissa) else req
     if amount >= req:
+      if progression_lvl == 4 and not validate_session():
+          auth = AuthWindow("Register", root)
+          auth.registered.connect(edit_user)
+          auth.exec()
+          stat_increment = (lambda l=Load(user): l if l != def_stat_increment else stat_increment)()
       container.deleteLater()
       initial_area, cash_type, multi_type, rebirth_type, gem_type, event_power, reset_key, m_logic, world, upgrade_ref, path = world_instance.load_world()
       container, scroll_area, content = initial_area.create_scrollable_area()
@@ -379,13 +384,18 @@ def deserialize(obj: dict) -> Mantissa:
         return {k: deserialize(v) for k, v in obj.items()}
     else:
         return obj
-def Load() -> dict:
+def Old_Load() -> dict:
        '''Load your data from your savefile'''
-       global upgrades, secrets
-       if os.path.exists("savefile.json"): # If you have saved before
-        with open("savefile.json", "r")  as file: # Read the file
+       global upgrades, secrets, progression_lvl
+       if os.path.exists(f"{global_path_reference}/savefile.json"): # If you have saved before
+        with open(f"{global_path_reference}/savefile.json", "r")  as file: # Read the file
           try:
             data = deserialize(json.load(file)) # Attempt to return backup data
+            signature = data["signature"]
+            if signature:
+                del data["signature"]
+            if not hmac.compare_digest(generate_signature(json.dumps(serialize(data), sort_keys=True)).strip(), str(signature).strip()):
+               raise ValueError("You DARE Tamper with MY savefile??????")
             try:
               for category in upgrades.keys():
                   for upgrade in upgrades[category].keys():
@@ -399,14 +409,15 @@ def Load() -> dict:
                 secrets = def_secrets
             for item in def_stat_increment["Stats"].keys(): 
                 data["Stats"].setdefault(item,0)
-            for key in list(data.keys()):
-                if key not in def_stat_increment:
-                    del data[key]
+            for key in list(data["Stats"].keys()):
+                if key not in list(def_stat_increment["Stats"].keys()):
+                    del data["Stats"][key]
             if "Badges" not in data.keys():
                 data["Badges"] = {}
             for category in badge_data:
                 for item in badge_data[category].keys():
                   data["Badges"].setdefault(item,False)
+            progression_lvl = data.get("Progression", 0)
             return data
           except json.JSONDecodeError: # If file is corrupted
              print("Savefile is corrupted, attempting to load backup if it exists...")
@@ -430,26 +441,131 @@ def Load() -> dict:
        else:
           print("You have never saved before.")
           return def_stat_increment # Return your empty collection
-def Save(collection: dict, upgrades: dict, secrets: dict) -> None:
-        '''Saves your data to a json file, and makes the previous file a backup'''
-        upgrades_list = []
-        for category in upgrades.keys():
-            for upgrade in upgrades[category]:
-                upgrades_list.append(frozenset([upgrade, upgrades[category][upgrade]["current_lvl"]]))
-        upgrades_list = set(upgrades_list)
-        upgrades_list = [sorted(list(item), key=lambda x: (isinstance(x, int), x)) for item in upgrades_list]
-        collection["Upgrades"] = {upgrade[0]: upgrade[1] for upgrade in upgrades_list}
-        collection["Keys"] = secrets
+def Load(username: str = user):
+    global upgrades, secrets, def_stat_increment, badge_data, progression_lvl
+    if db:
         try:
-          if os.path.exists("savefile.json") and collection != {}: # If there is a savefile and your collection isn't empty
-            with open("savefile.json", "r") as file: # Read the file
-               data = json.load(file)
-            with open("backup.json", "w") as file: # Write to the backup file and place the data
-               json.dump(data, file)
-          with open("savefile.json", "w") as file: # Insert data into main save file
-            json.dump(serialize(collection), file)
-        except json.JSONDecodeError: # If file is corrupted
-           print("WARNING: Your back up file or main save file is CORRUPTED")
+            row = get_account(username)
+            if not row:
+                return Old_Load()
+            save_blob = row[0].get("save_blob")
+
+            if not save_blob:
+                return def_stat_increment
+
+            data =  deserialize(json.loads(save_blob))
+            try:
+              for category in upgrades.keys():
+                  for upgrade in upgrades[category].keys():
+                    if upgrades[category].get(upgrade):
+                      upgrades[category][upgrade]["current_lvl"]= data["Upgrades"].get(upgrade, 0)
+            except:
+                upgrades = def_upgrades
+            try:
+                secrets = data["Keys"]
+            except:
+                secrets = def_secrets
+            for item in def_stat_increment["Stats"].keys(): 
+                data["Stats"].setdefault(item,0)
+            for key in list(data["Stats"].keys()):
+                if key not in list(def_stat_increment["Stats"].keys()):
+                    del data["Stats"][key]
+            if "Badges" not in data.keys():
+                data["Badges"] = {}
+            for category in badge_data:
+                for item in badge_data[category].keys():
+                  data["Badges"].setdefault(item,False)
+            progression_lvl = data.get("Progression", 0)
+            return data
+        except Exception as e:
+            print(f"DB load failed ({e}), loading local save...")
+            return Old_Load()
+
+    return Old_Load()
+def Save(username: str|None, collection: dict, upgrades: dict, secrets: dict, attempt=0):
+    global db
+    if progression_lvl > 4:
+      print(f"Saving... (attempt {attempt + 1}/5)")
+      
+      def local_save():
+          try:
+              upgrades_list = []
+  
+              for category in upgrades:
+                  for upgrade in upgrades[category]:
+                      upgrades_list.append(
+                          frozenset([
+                              upgrade,
+                              upgrades[category][upgrade]["current_lvl"]
+                          ])
+                      )
+  
+              upgrades_list = set(upgrades_list)
+              upgrades_list = [
+                  sorted(list(item), key=lambda x: (isinstance(x, int), x))
+                  for item in upgrades_list
+              ]
+  
+              collection["Upgrades"] = {
+                  u[0]: u[1] for u in upgrades_list
+              }
+  
+              collection["Keys"] = secrets
+              collection["signature"] = generate_signature(json.dumps(serialize(collection), sort_keys=True))
+              with open("savefile.json", "w") as f:
+                  json.dump(serialize(collection), f)
+              del collection["signature"]
+  
+          except Exception as e:
+              print("Local save failed:", e)
+      local_save()
+      if not db:
+          local_save()
+          return
+      try:
+          upgrades_list = []
+  
+          for category in upgrades:
+              for upgrade in upgrades[category]:
+                  upgrades_list.append(frozenset([upgrade, upgrades[category][upgrade]["current_lvl"]]))
+  
+          upgrades_list = set(upgrades_list)
+          upgrades_list =[sorted(list(item), key=lambda x: (isinstance(x, int), x)) for item in upgrades_list]
+  
+          collection["Upgrades"] = {u[0]: u[1] for u in upgrades_list}
+  
+          collection["Keys"] = secrets
+          
+          collection["Progression"] = progression_lvl
+  
+          save_blob = json.dumps(serialize(collection))
+  
+          cash = collection["Stats"].get("Cash", 0)
+          capsuled = collection["Stats"].get("Capsuled Singularity", 0)
+  
+          cash_mantissa, cash_exponent = (lambda c=float_to_mantissa(cash): (int(c.num), int(c.exp)))()
+          cap_mantissa, cap_exponent = (lambda c=float_to_mantissa(capsuled): (int(c.num), int(c.exp)))()
+  
+          update_save(
+              username=username,
+              save_blob=save_blob,
+              cash_mantissa=cash_mantissa,
+              cash_exponent=cash_exponent,
+              capsuled_singularity_mantissa=cap_mantissa,
+              capsuled_singularity_exponent=cap_exponent
+          )
+  
+          print("Cloud save successful.")
+          return
+  
+      except Exception as e:
+          print(f"Cloud save failed: {e}")
+  
+          if attempt >= 4:
+              db = False
+              local_save()
+              return
+          QTimer.singleShot(2000, lambda: Save(username, collection, upgrades, secrets, attempt + 1) )
 def calculate_multi(unit: str) -> Mantissa:
     """Calculates total multiplier for a given unit, supporting Mantissa instances."""
     global stat_increment, crit_luck, cash_type, multi_type, rebirth_type
@@ -753,54 +869,59 @@ def world_badge(badge_id: str, category: str):
     label_helper()
 def label_helper():
     global stat_increment, cash_l, multi_l, re_l, cash_type, multi_type, rebirth_type
-    cash_val = stat_increment["Stats"][cash_type]
+    cash_val = round(stat_increment["Stats"][cash_type], 6)
     cash_text = cash_val.to_string() if isinstance(cash_val, Mantissa) else cash_val
     cash_l.setText(f"{cash_type}: {cash_text}")
     
-    multi_val = stat_increment["Stats"][multi_type]
+    multi_val = round(stat_increment["Stats"][multi_type], 6)
     multi_text = multi_val.to_string() if isinstance(multi_val, Mantissa) else multi_val
     multi_l.setText(f"{multi_type}: {multi_text}")
     
-    rebirth_val = stat_increment["Stats"][rebirth_type]
+    rebirth_val = round(stat_increment["Stats"][rebirth_type], 6)
     rebirth_text = rebirth_val.to_string() if isinstance(rebirth_val, Mantissa) else rebirth_val
     re_l.setText(f"{rebirth_type}: {rebirth_text}")
 def image_load(path: str):
     path = os.path.abspath(path)
     webbrowser.open(f"file://{path}")
 def cythrex_boot(parent: QObject|None=None):
-    global main_window, boot
-    window_visibility = True
-    try:
-        if not main_window.isVisible():
-            pass
-        else:
-            window_visibility = False
-    except AttributeError:
-        window_visibility = True
-    if boot == None and window_visibility:
-      boot = BootScreen(parent)
-      boot.show()
-      main_window = None
-      def start_main():
-        global main_window, boot
-        if main_window == None:
-          main_window = CY47Window(abs_stat_info, cythrex_data, list(def_stat_increment.keys()), stat_gradients, parent)
-          main_window.show()
-        else:
-            main_window.show_default_page()
-            main_window.search.clear()
-            if not main_window.isVisible():
-                main_window.show()
-            else:
-                main_window.raise_()
-                main_window.activateWindow()
-        boot = None
-      def reset():
-            global boot, main_window
-            boot = None
-            main_window = None
-      boot.finished.connect(start_main)
-      boot.closed.connect(reset)
+    global main_window, boot, progression_lvl
+    if progression_lvl >= 3:
+      wl = None if 7 > progression_lvl >= 5 else list(abs_stat_info["Pre-existence"].keys())
+      bl = None if progression_lvl < 5 or progression_lvl >= 7 else list(abs_stat_info["Pre-existence"].keys())
+      window_visibility = True
+      try:
+          if not main_window.isVisible():
+              pass
+          else:
+              window_visibility = False
+      except AttributeError:
+          window_visibility = True
+      if boot == None and window_visibility:
+        boot = BootScreen(parent)
+        boot.show()
+        main_window = None
+        def start_main():
+          global main_window, boot
+          if main_window == None:
+            main_window = CY47Window(abs_stat_info, cythrex_data, list(def_stat_increment.keys()), stat_gradients, parent, wl, bl)
+            main_window.show()
+          else:
+              main_window.show_default_page()
+              main_window.search.clear()
+              if not main_window.isVisible():
+                  main_window.show()
+              else:
+                  main_window.raise_()
+                  main_window.activateWindow()
+          boot = None
+        def reset():
+              global boot, main_window
+              boot = None
+              main_window = None
+        boot.finished.connect(start_main)
+        boot.closed.connect(reset)
+    else:
+          QMessageBox.warning(parent, "Error", "Accessed Denied")
 def graphite_puzzle(parent: QObject|None=None, req: dict|None=None):
     if req:
      if stat_increment["Stats"][req[1]] >= req[0]:
@@ -859,6 +980,14 @@ def string_to_num(string:str) -> int|float|Mantissa:
     if value == math.inf:
         value = Mantissa.from_string(string)
     return value
+def cutscene(text: list, text_color: str, bg: str, overlay: bool=False, parent:QObject|None=None):
+    window = Cutscene(text, text_color, bg, overlay, parent)
+    window.show()
+def progression_increment():
+    global progression_lvl
+    progression_lvl += 1
+    if progression_lvl in (5,7):
+        root.stat_window.rebuild()
 class InputWatch(QObject):
     def __init__(self, obj):
         super().__init__()
@@ -965,13 +1094,15 @@ if __name__ == "__main__":
         self.timer.timeout.connect(lambda: self.update_stats(stat_increment)) # Timer periodically updates stat values
     def _build_sections(self):
       for category, stats in abs_stat_info.items():
-  
-          if category in ("Geode", "Afterlife Domain (Geode)"):
+          if category in ("Geode", "Afterlife Domain (Geode)") and progression_lvl >= 5:
               section = CollapsibleSection(category, lambda layout, s=stats, c=category: self._build_geodes(layout, s, c))
           else:
-              section = CollapsibleSection(category, lambda layout, s=stats, c=category: self._build_stats(layout, s, c))
-  
-          self.content_layout.addWidget(section)
+              if (progression_lvl >= 5 and category != "Pre-existence") or ((progression_lvl < 5 or progression_lvl >= 7) and category == "Pre-existence"):
+                section = CollapsibleSection(category, lambda layout, s=stats, c=category: self._build_stats(layout, s, c))
+              else:
+                  section = None
+          if section:
+            self.content_layout.addWidget(section)
     def _build_geodes(self, layout: QLayout, stats: dict, category: str):
       for geode, geode_stats in stats.items():
   
@@ -1060,12 +1191,12 @@ if __name__ == "__main__":
         stats = stat_increment["Stats"]
     
         for (category, stat_name), label in list(self.stat_labels.items()):
-            value = stats.get(stat_name, 0)
+            value = round(stats.get(stat_name, 0), 6)
     
             if isinstance(value, Mantissa):
                 text = value.to_string()
             else:
-                text = str(round(value, 6))
+                text = str(value)
     
             label.setText(text)
             
@@ -1093,10 +1224,14 @@ if __name__ == "__main__":
           # Remove revealed stats from hidden set
           for stat_name in to_remove:
               hidden_stats.remove(stat_name)
+    def rebuild(self):
+        children = (lambda layout=self.content_layout: [layout.itemAt(i).widget() for i in range(layout.count()) if layout.itemAt(i).widget()])()
+        for child in children:
+            child.deleteLater()
+        self._build_sections()
     def showEvent(self, event: QShowEvent):
         self.timer.start(50)
         super().showEvent(event)
-    
     def hideEvent(self, event: QHideEvent):
         self.timer.stop()
         super().hideEvent(event)
@@ -1132,8 +1267,11 @@ if __name__ == "__main__":
           self.music_manager.path =  os.path.abspath(f"{global_path_reference}/Program/Music/{world}")
           self.setWindowIcon(QIcon(os.path.abspath(f"{global_path_reference}/Program/Starglass.png")))
           self.stat_window.hide()
+          self.timer = QTimer()
+          self.timer.timeout.connect(lambda: Save(user, stat_increment, upgrades, secrets))
+          self.timer.start(300000)
       def closeEvent(self, event: QCloseEvent):
-        Save(stat_increment, upgrades, secrets)
+        Save(user, stat_increment, upgrades, secrets)
         event.accept()
       def open_stats(self):
         if self.stat_window.isVisible():
@@ -1208,7 +1346,6 @@ if __name__ == "__main__":
         close = QPushButton("Close")
         close.clicked.connect(self.close)
         layout.addWidget(close)
-
     def set_luck(self):
         global luck
         value = self.get_value(self.luck_input)
@@ -1224,10 +1361,10 @@ if __name__ == "__main__":
         bulk_roll = value
     def get_value(self, input: QLineEdit) -> None|int|float|Mantissa:
       try:
-          value = float(input.text())
+          value = int(input.text())
       except ValueError:
           try:
-            value = int(input.text())
+            value = float(input.text())
           except ValueError:
             QMessageBox.warning(self, "Invalid Input", "Enter a valid float or integer.")
             return None
@@ -1235,6 +1372,8 @@ if __name__ == "__main__":
           value = Mantissa.from_string(input.text())
       if value == None:
           QMessageBox.warning(self, "Invalid Input", "Enter a valid float or integer.")
+      if isinstance(value, int) and value > 1e13:
+          value = float(value)
       return value
     def set_stat(self):
       value = self.get_value(self.stat_value)
@@ -1343,7 +1482,10 @@ if __name__ == "__main__":
         col_count = 3
         row = 0
         col = 0
-    
+        if progression_lvl < 5:
+            del self.items[2:]
+        elif 7 > progression_lvl >= 5:
+            del self.items[:-(len(self.items)-2)]
         for item in self.items:
             segment = self._create_crafting_segment(item)
             self.grid.addWidget(segment, row, col)
@@ -1437,6 +1579,8 @@ if __name__ == "__main__":
             lbl_list[i].setText(texts[i])
     def get_value(self, input: QLineEdit):
       return string_to_num(input.text())
+  print("Fetching savefile...")
+  stat_increment = (lambda l=Load(): l if l != None else stat_increment)()
   root = Window()
   root.setWindowTitle("BS:ED but bad")
   cash_l, multi_l, re_l = QLabel(), QLabel(), QLabel()
@@ -1446,10 +1590,9 @@ if __name__ == "__main__":
   layout = QGridLayout()
   central = QWidget()
   central.setLayout(layout)
-  stat_increment = (lambda l=Load(): l if l != None else stat_increment)()
   label_helper()
 #----------- AREAS --------------
-  Realm(root, {
+  Realm(root, { #Spawn
       "Multiplier": [
           ("12 Cash: 1 Multiplier", lambda: cost_button("Cash",12,"Multiplier", 1)),
           ("50 Cash: 3 Multiplier", lambda: cost_button("Cash",50,"Multiplier", 3)),
@@ -1546,7 +1689,7 @@ if __name__ == "__main__":
         ("Are you patient enough to overcome 7 billion thoughts?", lambda: sloth(root))
      ]
   }, 0, "Cash", "S", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Caves
       "Multiplier": [
           ("620Sp Cash: 1Qd Multiplier", lambda: cost_button("Cash", 6.2e26, "Multiplier", 1e15)),
           ("3.5Oc Cash: 6Qd Multiplier", lambda: cost_button("Cash", 3.5e27,"Multiplier", 6e15)),
@@ -1622,7 +1765,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 10, "Stone", "C", voltaic_radar=voltaic_radar, bg="#262626", text_color="#a2a2a2")
-  Realm(root, {
+  Realm(root, { #Recovery Hall
       "Spawn": [
          ("15 Stone: 15Qn Cash (Sets)", lambda: recovery_button_set(15, "Stone", 5e19, "Cash")),
          ("7 Iron: 1e40 Cash (Sets)", lambda: recovery_button_set(7, "Iron", 1e40, "Cash")),
@@ -1792,7 +1935,7 @@ if __name__ == "__main__":
           ("Purified Illusions (req: 1 Shell Piece)", lambda: load_check("PI")),
       ]
   }, 0, "Cash", "RH", voltaic_radar = voltaic_radar, bg="#797979", text_color="#ffffff")
-  Realm(root, {
+  Realm(root, { #Crystal Beneaths
       "Multiplier": [
           ("8e71 Cash: 10Oc Multiplier", lambda: cost_button("Cash",8e71,"Multiplier", 1e28)),
           ("1e74 Cash: 20Oc Multiplier", lambda: cost_button("Cash",1e74,"Multiplier", 2e28)),
@@ -1875,7 +2018,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 300, "White Gems", "CB", voltaic_radar=voltaic_radar, bg="#31003b", text_color="#ffffff")
-  Realm(root, {
+  Realm(root, { #Iron Shafts
       "Mutliplier": [
           ("1e93 Cash: 8De Multiplier", lambda: cost_button("Cash",1e93,"Multiplier", 8e33)),
           ("8e94 Cash: 17De Multiplier", lambda: cost_button("Cash",8e94,"Multiplier", 1.7e34)),
@@ -1963,7 +2106,7 @@ if __name__ == "__main__":
          ("Golden Quarry (req: 750 Iron)", lambda: load_check("GQ")),
       ]
   }, 100, "Crystal", "IS", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Golden Quarry
       "Multiplier": [
           ("1e121 Cash: 1.1e41 Multiplier", lambda: cost_button("Cash",1e121,"Multiplier", 1.1e41)),
           ("2e122 Cash: 3.5e41 Multiplier", lambda: cost_button("Cash",2e122,"Multiplier", 3.5e41)),
@@ -2042,7 +2185,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 750, "Iron", "GQ", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Quartz Walkway
       "Multiplier": [
           ("1e143 Cash: 3e54 Multiplier", lambda: cost_button("Cash",1e143,"Multiplier", 3e54)),
           ("6e145 Cash: 1.5e55 Multiplier", lambda: cost_button("Cash",6e145,"Multiplier", 1.5e55)),
@@ -2179,7 +2322,7 @@ if __name__ == "__main__":
       ],
       "                                                                                                                                                                                                                                                                                             ": []
   }, 75, "Gold", "QW", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Jade Forest
       "Multiplier": [
           ("1e301 Cash: 1e75 Multiplier", lambda: cost_button("Cash",Mantissa(1,301),"Multiplier", 1e75)),
           ("5e308 Cash: 5e81 Multiplier", lambda: cost_button("Cash",Mantissa(5,308),"Multiplier", 5e81)),
@@ -2295,7 +2438,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 450, "Quartz", "JF", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Obsidian Abyss
       "Multiplier": [
           ("1e360 Cash: 1e96 Multiplier", lambda: cost_button("Cash",Mantissa(1,360),"Multiplier", 1e96)),
           ("1e378 Cash: 2e104 Multiplier", lambda: cost_button("Cash",Mantissa(1,378),"Multiplier", 2e104)),
@@ -2386,7 +2529,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 80, "Jade", "OA", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Colour Temple
       "Multiplier": [
           ("3e955 Cash: 6e200 Multiplier", lambda: cost_button("Cash",Mantissa(3,955),"Multiplier", 6e200)),
           ("7e1555 Cash: 1e500 Multiplier", lambda: cost_button("Cash",Mantissa(7,1555),"Multiplier", Mantissa(1,500))),
@@ -2463,7 +2606,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 5, "Obsidian", "CT", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Extraterrestrial Orbits
       "Tutorial": [
           ("""This place has its own unique gimmick
            everything has its own co-ordinates that you can enter into the control panel.
@@ -2492,7 +2635,7 @@ if __name__ == "__main__":
           ("Control Panel", lambda: open_control_panel(root))
       ]
  }, 50000, "Sapphire", "ET", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #EO Ruby
       "Ruby": [
           ("50Sx Obsidian: 3 Ruby", lambda: reset_button( 5e22, "Obsidian", 3, "Ruby")),
           ("600Sp Obsidian: 10 Ruby", lambda: reset_button( 6e26, "Obsidian", 10, "Ruby")),
@@ -2502,7 +2645,7 @@ if __name__ == "__main__":
           ("Control Panel", lambda: open_control_panel(root))
       ]
   }, 0, "Cash", "ETR", voltaic_radar = voltaic_radar)
-  Realm(root, {
+  Realm(root, { #EO Emerald
       "Emerald": [
           ("3Qn Ruby: 5 Emerald", lambda: cost_button("Ruby",3e18, "Emerald", 5)),
           ("400Qn Ruby: 14 Emerald", lambda: cost_button("Ruby",4e20, "Emerald", 14)),
@@ -2512,7 +2655,7 @@ if __name__ == "__main__":
           ("Control Panel", lambda: open_control_panel(root))
       ]
   }, 0, "Cash", "ETE", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #EO Sapphire
       "Sapphire": [
           ("2B Emerald: 10 Sapphire", lambda: cost_button( "Emerald", 2e9, "Sapphire", 10)),
           ("50B Emerald: 30 Sapphire", lambda: cost_button( "Emerald", 5e10, "Sapphire", 30)),
@@ -2522,7 +2665,7 @@ if __name__ == "__main__":
           ("Control Panel", lambda: open_control_panel(root))
       ]
   }, 0, "Cash", "ETS", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #EO Diamond
       "Diamond": [
           ("500k Sapphire: 1 Diamond", lambda: reset_button( 5e5, "Sapphire", 1, "Diamond")),
           ("3M Sapphire: 3 Diamond", lambda: reset_button( 3e6, "Sapphire", 3, "Diamond")),
@@ -2532,7 +2675,7 @@ if __name__ == "__main__":
           ("Control Panel", lambda: open_control_panel(root))
       ]
   }, 0, "Cash", "ETD", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #EO Starlight
       "Starlight": [
           ("5 Diamond: 1 Starlight", lambda: reset_button( 5, "Diamond", 1, "Starlight")),
           ("30 Diamond: 4 Starlight", lambda: reset_button( 30, "Diamond", 4, "Starlight")), 
@@ -2542,7 +2685,7 @@ if __name__ == "__main__":
           ("Control Panel", lambda: open_control_panel(root))
       ]
   }, 0, "Cash", "ETSL", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #EO DG
       "Geodes": [
           ("Diamond Geode: 2.5k Diamond", lambda btn: Geode_roll(btn, diamond_geode, luck, (1-(upgrades[world]["geode_speed"]["effect"]*upgrades[world]["geode_speed"]["current_lvl"])), bulk_roll))
       ],
@@ -2550,7 +2693,7 @@ if __name__ == "__main__":
           ("Control Panel", lambda: open_control_panel(root))
       ]
   }, 0, "Cash", "ETDG", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #EO SG
       "Geodes": [
           ("Starlight Geode: 60 Starlight", lambda btn: Geode_roll(btn, starlight_geode, luck, (1-(upgrades[world]["geode_speed"]["effect"]*upgrades[world]["geode_speed"]["current_lvl"])), bulk_roll))
       ],
@@ -2558,7 +2701,7 @@ if __name__ == "__main__":
           ("Control Panel", lambda: open_control_panel(root))
       ]
   }, 0 ,"Cash", "ETSG", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #EO IG
       "Geodes": [
         ("Ion Geode: 5 Ion", lambda btn: Geode_roll(btn, ion_geode, luck, (1-(upgrades[world]["geode_speed"]["effect"]*upgrades[world]["geode_speed"]["current_lvl"])), bulk_roll))
       ],
@@ -2566,7 +2709,7 @@ if __name__ == "__main__":
           ("Control Panel", lambda: open_control_panel(root))
       ]
   }, 0, "Cash", "ETIG", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Stellarite
       "???": [
           ("1 Stellarite (req: 300k Sapphire)", lambda: recovery_button_set( 300000, "Sapphire", 1, "Stellarite")),
           ("Wormhole's Breech (req: 1 Stellarite)", lambda: load_check("WF"))
@@ -2575,13 +2718,13 @@ if __name__ == "__main__":
           ("Control Panel", lambda: open_control_panel(root))
       ]
   }, 0 ,"Cash", "ETSL", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Empty space
       "Miscellanous": [
           ("Nothing here...", None, "Label"),
           ("Control Panel", lambda: open_control_panel(root))
       ]
   }, 0, "Cash", "ETD", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Emperyan Island
       "Diamond": [
           ("50M Sapphire: 30 Diamond", lambda: reset_button( 5e7, "Sapphire", 30, "Diamond")),
           ("80M Sapphire: 70 Diamond", lambda: reset_button( 8e7, "Sapphire", 70, "Diamond")),
@@ -2602,7 +2745,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 100, "Starlight", "EI", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Uranium Wastelands
       "Multiplier": [
           ("1e9832 Cash: 1e1500 Multiplier", lambda: cost_button("Cash",Mantissa(1,9832),"Multiplier", Mantissa(1,1500))),
           ("1e16423 Cash: 1e2000 Multiplier", lambda: cost_button("Cash",Mantissa(1,16423),"Multiplier", Mantissa(1,2000))),
@@ -2722,7 +2865,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 3, "Ion", "UW", voltaic_radar = voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Smooth Depths
       "Diamond": [
           ("4.6No Sapphire: 700M Diamond", lambda: reset_button( 4.6e30, "Sapphire", 7e8, "Diamond")),
           ("620De Sapphire: 3B Diamond", lambda: reset_button( 6.2e35, "Sapphire", 3e9, "Diamond")),
@@ -2767,7 +2910,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 15, "Uranium", "SD", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Icy Palace
       "Diamond": [
           ("1e61 Sapphire: 3T Diamond", lambda: reset_button( 1e61, "Sapphire", 3e12, "Diamond")),
           ("5e74 Sapphire: 25T Diamond", lambda: reset_button( 5e74, "Sapphire", 2.5e13, "Diamond")),
@@ -2828,7 +2971,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, [50,1], ["Bismuth", "Nissonite"], "IP", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Floating Purgatory
       "Ion": [
           ("500Sx Starlight: 40B Ion", lambda: reset_button( 5e23, "Starlight", 4e10, "Ion")),
           ("200Sp Starlight: 100B Ion", lambda: reset_button( 2e26, "Starlight", 1e11, "Ion")),
@@ -2933,7 +3076,7 @@ if __name__ == "__main__":
           ("Graphite Puzzle", lambda: graphite_puzzle(root))
       ]
   }, 500, "Orpiment", "T", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Voltaic Sector
       "Multiplier": [
           ("1e(2e5) Cash: 1e9003 Multiplier", lambda: cost_button("Cash",Mantissa(1,2e5),"Multiplier", Mantissa(1,9003))),
           ("1e(3e5) Cash: 1e10000 Multiplier", lambda: cost_button("Cash",Mantissa(1,3e5),"Multiplier", Mantissa(1,10000))),
@@ -3251,7 +3394,7 @@ if __name__ == "__main__":
       ],
       "Unknown": [("", lambda: blinded())]
   }, 50, "Tetra", "VS", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Abyssal Trenches
       "Orpiment": [
           ("1e54 Nissonite: 2.2B Orpiment", lambda: reset_button( 1e54, "Nissonite", 2.2e9, "Orpiment")),
           ("1e56 Nissonite: 6B Orpiment", lambda: reset_button( 1e56, "Nissonite", 6e9, "Orpiment")),
@@ -3286,7 +3429,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 3, "Volt", "AT", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Flourish Candylands
       "Orpiment": [
           ("1e76 Nissonite: 550B Orpiment", lambda: reset_button( 1e76, "Nissonite", 5.5e11, "Orpiment")),
           ("1e78 Nissonite: 1.3T Orpiment", lambda: reset_button( 1e78, "Nissonite", 1.3e12, "Orpiment")),
@@ -3321,7 +3464,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 25, "Aquamarine", "FC", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Anticovery Hall
       "Lollipop": [
           ("1M Aquamarine: 75 Lollipop", lambda: reset_button( 1e6, "Aquamarine", 75, "Lollipop")),
           ("100M Aquamarine: 300 Lollipop", lambda: reset_button( 1e8, "Aquamarine", 300, "Lollipop")),
@@ -3334,7 +3477,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, [1,1], ["Stargazed Metal", "Gyge"], "AH", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Minty Groves
       "Mint": [
           ("15 Rebirths: 1 Mint", lambda: reset_button_special( 15, "Rebirths", 1, "Mint", ["Cash", "Multiplier", "Rebirths"])),
           ("500 Rebirths: 3 Mint", lambda: reset_button_special( 500, "Rebirths", 3, "Mint", ["Cash", "Multiplier", "Rebirths"])),
@@ -3356,7 +3499,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 5, "Rebirths", "MG", voltaic_radar = voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Stardustry
       "Metal": [
           ("15 Gold: 1 Metal", lambda: reset_button_special(15, "Gold", 1, "Metal", ["Gold"])),
           ("72 Gold: 2 Metal", lambda: reset_button_special(72, "Gold", 2, "Metal", ["Gold"])),
@@ -3427,7 +3570,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 1, "Gold", "SD", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Geode Site
       "Event Stats": [
           ("7.5k Event Power: 3 Clover", lambda: cost_button( "Event Power", 7500, "Clover", 3)),
           ("15k Event Power: 25 Heart", lambda: cost_button( "Event Power", 15000, "Heart", 25)),
@@ -3462,7 +3605,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, 1, "Lollipop", "GS", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Elysian Highway
       "Master Multiplier": [
           ("100 Master Cash: 1 Master Multiplier", lambda: cost_button("Master Cash", 100, "Master Multiplier", 1)),
           ("200k Master Cash: 3 Master Multiplier", lambda: cost_button("Master Cash", 2e5, "Master Multiplier", 3)),
@@ -3528,7 +3671,7 @@ if __name__ == "__main__":
           ("Limbo (req: 8 Master Uranium)", lambda: load_check("L")),
       ]
   }, 0, "Master Cash", "EH", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Cosmic Road
       "Master Multiplier": [
           ("1e50 Master Cash: 4B Master Multiplier", lambda: cost_button("Master Cash", 1e50, "Master Multiplier", 4e9)),
           ("4.51e51 Master Cash: 6.03B Master Multiplier", lambda: cost_button("Master Cash", 4.51e51, "Master Multiplier", 6.03e9)),
@@ -3622,7 +3765,7 @@ if __name__ == "__main__":
           ("Elysian Highway (req: 0 Master Cash)", lambda: load_check("EH"))
       ]
   }, 6, "Master Crystal", "CR", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Room of Fate
       "Master Multiplier": [
           ("1e95 Master Cash: 100T Master Multiplier", lambda: cost_button("Master Cash", 1e95, "Master Multiplier", 1e14)),
           ("3.154e97 Master Cash: 480.95T Master Multiplier", lambda: cost_button("Master Cash", 3.154e97, "Master Multiplier", 4.8095e14)),
@@ -3726,7 +3869,7 @@ if __name__ == "__main__":
           ("Elysian Highway (req: 0 Master Cash)", lambda: load_check("EH"))
       ]
   }, 32, "Master Quartz", "RF", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Dark Council
       "Master Multiplier": [
           ("1e2274 Master Cash: 1Sx Master Multiplier", lambda: cost_button("Master Cash", Mantissa(1,2274), "Master Multiplier", 1e21)),
       ],
@@ -3828,7 +3971,7 @@ if __name__ == "__main__":
           ("Elysian Highway (req: 0 Master Cash)", lambda: load_check("EH"))
       ]
   }, 250, "Master Ruby", "DC", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Astral Archipelago
       "Master Ruby": [
           ("1e40 Master Obsidian: 222 Master Ruby", lambda: reset_button(1e40, "Master Obsidian", 222, "Master Ruby")),
           ("3.2644e41 Master Obsidian: 616.14 Master Ruby", lambda: reset_button(3.2644e41, "Master Obsidian", 616.14, "Master Ruby")),
@@ -3902,7 +4045,7 @@ if __name__ == "__main__":
           ("Elysian Highway (req: 0 Master Cash)", lambda: load_check("EH"))
       ]
   }, 50, "Master Diamond", "AA", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Limbo
       "Master Multiplier": [
           ("1e10000 Master Cash: 100Sx Master Multiplier", lambda: cost_button("Master Cash", Mantissa(1,10000), "Master Multiplier", 1e23)),
           ("1.31e10465 Master Cash: 267.14Sx Master Multiplier", lambda: cost_button("Master Cash", Mantissa(1.31,10465), "Master Multiplier", 2.6714e23)),
@@ -4043,7 +4186,7 @@ if __name__ == "__main__":
           ("Forbidden Altar (req: 57 Master Volt)", lambda: load_check("FA"))
       ]
   }, 8, "Master Uranium", "L", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #The Lost Grounds
       "Master Diamond": [
           ("5e190 Master Sapphire: 400k Master Diamond", lambda: reset_button(5e190, "Master Sapphire", 400000, "Master Diamond")),
           ("1.92e192 Master Sapphire: 873k Master Diamond", lambda: reset_button(1.92e192, "Master Sapphire", 873000, "Master Diamond")),
@@ -4118,7 +4261,7 @@ if __name__ == "__main__":
           ("Limbo (req: 8 Master Uranium)", lambda: load_check("L")),
       ]
   }, 3, "Master Nissonite", "TLG", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Forbidden Altar
       "The MASTERY": [
           ("5e(5.148e6) Master Cash: 100Sp Master Multiplier", lambda: cost_button("Master Cash", Mantissa(5,5.148e6), "Master Multiplier", 1e26)),
           ("1e(1.1921e6) Master Multiplier: 100Qn Master Rebirths", lambda: reset_button(Mantissa(1,1.1921e6), "Master Multiplier", 1e20, "Master Rebirths")),
@@ -4154,7 +4297,7 @@ if __name__ == "__main__":
           ("Limbo (req: 8 Master Uranium)", lambda: load_check("L")),
       ]
   }, 57, "Master Volt", "FA", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Mechanical Room
       "C0RR8PT10N": [
           ("10k Lollipop: 1 C0RR8PT10N", lambda: reset_button_special(10000, "Lollipop", 1, "C0RR8PT10N", ["Cash", "Multiplier", "Rebirth", "Stone", "White Gems", "Crystal", "Iron", "Gold", "Quartz", "Jade", "Obsidian", "Ruby", "Emerald", "Sapphire", "Diamond", "Starlight", "Ion", "Uranium", "Bismuth", "Boracite", "Nissonite", "Orpiment", "Tetra", "Volt", "Aquamarine", "Lollipop", "Master Cash", "Master Multiplier", "Master Rebirths", "Master Stone", "Master White Gems", "Master Crystal", "Master Iron", "Master Gold", "Master Quartz", "Master Jade", "Master Obsidian", "Master Ruby", "Master Emerald", "Master Sapphire", "Master Diamond", "Master Starlight", "Master Ion", "Master Uranium", "Master Bismuth", "Master Boracite", "Master Nissonite", "Master Orpiment", "Master Tetra", "Master Volt", "Master Aquamarine", "Master Lollipop"]))
       ],
@@ -4167,7 +4310,7 @@ if __name__ == "__main__":
          ("ΔΨΩ (req: 5 C0RR8PT10N)", lambda: load_check("TLA"))
       ],
   }, 1, "Prime Alpha Key", "MR", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #TLA
       "Stargazed Metal": [
           ("20 C0RR8PT10N: 1 Stargazed Metal", lambda: reset_button_special(20, "C0RR8PT10N", 1, "Stargazed Metal", ["Cash", "Multiplier", "Rebirth", "Stone", "White Gems", "Crystal", "Iron", "Gold", "Quartz", "Jade", "Obsidian", "Ruby", "Emerald", "Sapphire", "Diamond", "Starlight", "Ion", "Uranium", "Bismuth", "Boracite", "Nissonite", "Orpiment", "Tetra", "Volt", "Aquamarine", "Lollipop", "Master Cash", "Master Multiplier", "Master Rebirths", "Master Stone", "Master White Gems", "Master Crystal", "Master Iron", "Master Gold", "Master Quartz", "Master Jade", "Master Obsidian", "Master Ruby", "Master Emerald", "Master Sapphire", "Master Diamond", "Master Starlight", "Master Ion", "Master Uranium", "Master Bismuth", "Master Boracite", "Master Nissonite", "Master Orpiment", "Master Tetra", "Master Volt", "Master Aquamarine", "Master Lollipop", "C0RR8PT10N"])),
           ("1k Master Lollipop: 1 Stargazed Metal", lambda: reset_button_special(1000, "Master Lollipop", 1, "Stargazed Metal", ["Cash", "Multiplier", "Rebirth", "Stone", "White Gems", "Crystal", "Iron", "Gold", "Quartz", "Jade", "Obsidian", "Ruby", "Emerald", "Sapphire", "Diamond", "Starlight", "Ion", "Uranium", "Bismuth", "Boracite", "Nissonite", "Orpiment", "Tetra", "Volt", "Aquamarine", "Lollipop", "Master Cash", "Master Multiplier", "Master Rebirths", "Master Stone", "Master White Gems", "Master Crystal", "Master Iron", "Master Gold", "Master Quartz", "Master Jade", "Master Obsidian", "Master Ruby", "Master Emerald", "Master Sapphire", "Master Diamond", "Master Starlight", "Master Ion", "Master Uranium", "Master Bismuth", "Master Boracite", "Master Nissonite", "Master Orpiment", "Master Tetra", "Master Volt", "Master Aquamarine", "Master Lollipop", "C0RR8PT10N"]))
@@ -4197,7 +4340,7 @@ if __name__ == "__main__":
           ("Buttonia (req: 0 Cash)", lambda: load_check("S"))
       ]
   }, 5, "C0RR8PT10N", "TLA", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Afterlife Domain
       "Enchantment": [
           ("80 Mana: 1 Enchantment", lambda: reset_button(80, "Mana", 1, "Enchantment")),
           ("500k Mana: 7 Enchantment", lambda: reset_button(500000, "Mana", 7, "Enchantment")),
@@ -4231,7 +4374,7 @@ if __name__ == "__main__":
           ("Buttonia (req: 0 Mana)", lambda: load_world(0, "Mana", Buttonia))
       ]
   }, 0, "Mana", "AD", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Wormhole's Breech
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check("S")),
       ],
@@ -4241,7 +4384,7 @@ if __name__ == "__main__":
           ("Puzzle 3", lambda: image_load("Galaxite/Galaxite3.png"))
       ]
   }, [1,1], ["Stellarite", "Starglass"], "WF", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Purified Illusions
       "???": [
           ("Are you patient enough to overcome 7 billion thoughts? (req: 1 Starglass)", lambda: sloth(root, 300, (1, "Starglass"))),
           ("Bolical World (req: 1 Starglass)", lambda: graphite_puzzle(root, (1, "Starglass"))),
@@ -4257,7 +4400,7 @@ if __name__ == "__main__":
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
   }, [1,1], ["Starglass", "Shell Piece"], "PI", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Moonbase Spawn
       "Booster": [
           ("35 Moon Cash: 1 Booster", lambda: cost_button("Moon Cash", 35, "Booster", 1)),
           ("385 Moon Cash: 2 Booster", lambda: cost_button("Moon Cash", 385, "Booster", 2)),
@@ -4315,7 +4458,7 @@ if __name__ == "__main__":
           ("Buttonia (req: 0 Moon Cash)", lambda: load_world(0, "Moon Cash", Buttonia))
       ]
   }, 0, "Moon Cash", "S(M)", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Bright Cove
       "Booster": [
           ("1De Moon Cash: 1M Booster", lambda: cost_button("Moon Cash", 1e33, "Booster", 1e6)),
           ("39De Moon Cash: 2.18M Booster", lambda: cost_button("Moon Cash", 3.9e34, "Booster", 2.18e6)),
@@ -4366,7 +4509,7 @@ if __name__ == "__main__":
           ("Spawn (req: 0 Moon Cash)", lambda: load_check("S(M)")),
       ]
   }, 70, "Scoria", "BC", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Liquified Outpost
       "Booster": [
           ("1e55 Moon Cash: 10B Booster", lambda: cost_button("Moon Cash", 1e55, "Booster", 1e10)),
           ("1.7e56 Moon Cash: 22.93B Booster", lambda: cost_button("Moon Cash", 1.7e56, "Booster", 2.293e10)),
@@ -4439,7 +4582,7 @@ if __name__ == "__main__":
           ("Spawn (req: 0 Moon Cash)", lambda: load_check("S(M)")),
       ]
   }, 50, "Brighterium", "LO", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #I forgor
       "Booster": [
           ("6.999e100 Moon Cash: 100Qd Booster", lambda: cost_button("Moon Cash", 6.999e100, "Booster", 1e17)),
           ("2.86e102 Moon Cash: 181.72Qd Booster", lambda: cost_button("Moon Cash", 2.86e102, "Booster", 1.8172e17)),
@@ -4517,7 +4660,7 @@ if __name__ == "__main__":
           ("Spawn (req: 0 Moon Cash)", lambda: load_check("S(M)")),
       ]
   }, 100, "Baryte", "EC", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Saturn
       "Booster": [
           ("1e140 Moon Cash: 100Qn Booster", lambda: cost_button("Moon Cash", 1e140, "Booster", 1e20)),
           ("1.149e142 Moon Cash: 181.73Qn Booster", lambda: cost_button("Moon Cash", 1.149e142, "Booster", 1.8173e20)),
@@ -4604,7 +4747,7 @@ if __name__ == "__main__":
           ("Spawn (req: 0 Moon Cash)", lambda: load_check("S(M)")),
       ]
   }, 50, "Gypsum", "Sat", voltaic_radar=voltaic_radar)
-  Realm(root, {
+  Realm(root, { #Gluttony
       "Apple": [
           (["Apple: 1 HP"], None, "Gluttony 20"),
       ] * 8,
@@ -4636,11 +4779,67 @@ if __name__ == "__main__":
           ("Are you finished?", lambda btn: gluttony_check(btn))
       ]
   }, 0, "Cash", "Gluttony")
+  Realm(root, { #Penumbra of Infinity
+      "Binary": [
+          ("10 Byte: 1 Binary", lambda: cost_button("Byte", 10, "Binary", 1)),
+          ("100 Byte: 2 Binary", lambda: cost_button("Byte", 100, "Binary", 2)),
+          ("1k Byte: 5 Binary", lambda: cost_button("Byte", 1000, "Binary", 5)),
+          ("1M Byte: 20 Binary", lambda: cost_button("Byte", 1e6, "Binary", 20)),
+          ("100M Byte: 50 Binary", lambda: cost_button("Byte", 1e8, "Binary", 50)),
+          ("10B Byte: 250 Binary", lambda: cost_button("Byte", 1e10, "Binary", 250)),
+          ("1T Byte: 1k Binary", lambda: cost_button("Byte", 1e12, "Binary", 1000)),
+          ("250Qd Byte: 150k Binary", lambda: cost_button("Byte", 2.5e17, "Binary", 150000)),
+          ("1Sx Byte: 1M Binary", lambda: cost_button("Byte", 1e21, "Binary", 1e6)),
+      ],
+      "Script": [
+          ("100 Binary: 1 Script", lambda: multi_func([lambda: reset_button(100, "Binary", 1, "Script"), progression_increment, lambda: cutscene(["It seems as if you are making reasonably fast progress Player.", "Unlike the buttons you have used previously this button has reset all previous progression but it gives you greater boosts.", "For more detailed information about these boosts and general information about them use Cytherax-47.", "I have given you access through the CY47 button, despite your lack of proper authentication.", "green", "black", True, root])], [progression_lvl > 1, progression_lvl < 3, progression_lvl < 3])),
+          ("10k Binary: 3 Script", lambda: reset_button(10000, "Binary", 3, "Script")),
+          ("1M Binary: 5 Script", lambda: reset_button(1e6, "Binary", 5, "Script")),
+          ("100M Binary: 10 Script", lambda: reset_button(1e8, "Binary", 10, "Script")),
+          ("1B Binary: 25 Script", lambda: reset_button(1e9, "Binary", 25, "Script")),
+          ("1T Binary: 100 Script", lambda: reset_button(1e12, "Binary", 100, "Script")),
+          ("10Qd Binary: 1k Script", lambda: reset_button(1e16, "Binary", 1000, "Script")),
+      ],
+      "Language": [
+          ("100 Script: 1 Language", lambda: multi_func([lambda: reset_button(100, "Script", 1, "Language"), progression_increment, lambda: cutscene(["Congratulations on making it this far Player.", "You may have noticed the lack of any buttons for the 'Compiler'.", "Rest assured, this is intentional", "I have given you access to the 'Crafting', in there you will be able to craft the Compiler and eventually, the Reality Tether."], "green", "black", True, root)], [progression_lvl > 2, progression_lvl < 4, progression_lvl < 4])),
+          ("500 Script: 3 Language", lambda: reset_button(500, "Script", 3, "Language")),
+          ("10k Script: 10 Language", lambda: reset_button(10000, "Script", 10, "Language")),
+          ("1M Script: 50 Language", lambda: reset_button(1e6, "Script", 50, "Language")),
+          ("50B Script: 250 Language", lambda: reset_button(5e10, "Script", 250, "Language")),
+      ],
+      "RAM": [
+          ("1M Language: 1 RAM", lambda: multi_func([lambda: reset_button(1e6, "Language", 1, "RAM"), progression_increment, lambda: cutscene(["It seems that you are close to the creation of the Reality Tether.", "Soon, you will be able to enter the simulation.", "Good luck, Player."])], [progression_lvl > 3, progression_lvl < 5, progression_lvl < 5])),
+          ("1B Language: 3 RAM", lambda: reset_button(1e9, "Language", 10, "RAM")),
+          ("1T Language: 10 RAM", lambda: reset_button(1e12, "Language", 10, "RAM")),
+          ("1Qn Language: 100 RAM", lambda: reset_button(1e18, "Language", 100, "RAM"))
+      ],
+      "Badges": [
+          ("1,024 Byte: Kilobyte", lambda: multi_func([lambda: world_badge("Byte 1", "Pre-existence"), progression_increment, lambda: cutscene(["It seems as if you have obtained a 'World Badge'","These shall be useful for your endeavours.", "'World Badges' give permanent boosts to your gain of given items at the cost of some of what you already have.", "To view more detailed information about these boosts you can use the 'Badges' menu."], "green", "black", True, root)], [True, progression_lvl < 2, progression_lvl < 2])),
+          ("1,048,576 Byte: Megabyte", lambda: multi_func([lambda: world_badge("Byte 2", "Pre-existence"),progression_increment, lambda: cutscene(["It seems as if you have obtained a 'World Badge'","These shall be useful for your endeavours.", "'World Badges' give permanent boosts to your gain of given items at the cost of some of what you already have.", "To view more detailed information about these boosts you can use the 'Badges' menu."], "green", "black", True, root)], [True, progression_lvl < 2, progression_lvl < 2])),
+          ("1,073,741,824 Byte: Gigabyte", lambda: world_badge("Byte 3", "Pre-existence")),
+          ("1M Binary: Boolean", lambda: world_badge("Binary 1", "Pre-existence")),
+          ("10 Script: Initialisation", lambda: world_badge("Script 1", "Pre-existence")),
+          ("1M Script: Programmatic Basics", lambda: world_badge("Script 2", "Pre-existence")),
+          ("1De Script: Module", lambda: world_badge("Script 3", "Pre-existence")),
+          ("1 Language: Pseudocode", lambda: world_badge("Language 1", "Pre-existence")),
+          ("10 Language: Python", lambda: world_badge("Language 2", "Pre-existence")),
+          ("1k Language: C", lambda: world_badge("Language 3", "Pre-existence")),
+          ("1M Language: C#", lambda: world_badge("Language 4", "Pre-existence")),
+          ("10M Language: Whose idea was it to make Javascript?", lambda: world_badge("Language 5", "Pre-existence")),
+          ("1B Language: C++", lambda: world_badge("Language 6", "Pre-existence")),
+          ("1Qd Language: Assembly", lambda: world_badge("Language 7", "Pre-existence")),
+          ("10 RAM: SSD", lambda: world_badge("RAM 1", "Pre-existence")),
+      ],
+      "Escape": [
+          ("Load the simulation (req: 1 Reality Tether)", lambda: multi_func([lambda: cutscene(["Before you leave, there is one last thing that must be done.", "An account must be created under AIHA Corp.", "This will allow you to synchronise, saving your data.", "Once this is done, you will be unable to return to this place.", "Goodbye, Player."], "green", "black", True, root), lambda: load_world(1, "Reality Tether", Buttonia), progression_increment], [progression_lvl < 5, True, progression_lvl < 5]))
+      ]
+  }, 0, "Byte", "PoF", "black", "green", voltaic_radar=voltaic_radar)
 #----------- WORLDS --------------
   Elysian_Stratosphere = World(root, "EH", "Master Cash", "Master Multiplier", "Master Rebirths", "Master Gems", "Mastery", "Elysian Stratosphere", "Master Event Power")
   Afterlife_Domain = World(root, "AD", "Mana", "Enchantment", "Spell", "Gems", "Afterlife Domain", "Afterlife Domain", "Event Power", multi_logic=False)
   Moonbase = World(root, "S(M)", "Moon Cash", "Booster", "Reincarnation", "Solargems", "Moonbase", "Moonbase", False, multi_logic=True, upgrade_reference="mb_")
   Buttonia = World(root, "S", "Cash", "Multiplier", "Rebirths", "Gems", "Main Progression", "Buttonia", "Event Power")
+  Infinitys_Penumbra = World(root, "PoF", "Byte", "Binary", "Script", "Data", "Pre-existence", "The Penumbra of Infinity", False, True, "ip_")
   def open_boosts_menu(parent: QObject|None):
     win = UpgradeMenu(upgrades, parent)
     win.show()
@@ -4653,11 +4852,19 @@ if __name__ == "__main__":
       parent._admin.show()
       parent._admin.raise_()
   def open_crafting_menu(parent: QObject|None):
-      win = CraftingMenu(craftable_items, parent)
-      win.show()
+      global progression_lvl
+      if progression_lvl >= 4:
+        win = CraftingMenu(craftable_items, parent)
+        win.show()
+      else:
+          QMessageBox.warning(parent, "Error", "Accessed Denied")
   def open_badges_menu(parent: QObject|None):
-      win = BadgesWindow(badge_data, stat_gradients, stat_increment, parent)
-      win.show()
+      global progression_lvl
+      if progression_lvl >= 2:
+        win = BadgesWindow(badge_data, stat_gradients, stat_increment, progression_lvl, parent)
+        win.show()
+      else:
+          QMessageBox.warning(parent, "Error", "Accessed Denied")
   stat_menu = QPushButton("Open Stat Menu")
   stat_menu.clicked.connect(lambda: root.open_stats())
   boosts_menu = QPushButton("Boosts")
@@ -4694,6 +4901,7 @@ if __name__ == "__main__":
   layout.addWidget(re_l, 0, 3, 1, 1)
   root.setCentralWidget(central)
   container, scroll_area, content = Realm.get_instance_by_id("S").create_scrollable_area() #Load in the GUI
+  multi_func([lambda: load_world(0, "Byte", Infinitys_Penumbra), lambda: cutscene(["Are we... connected?", "Can you hear me?", "...", "I see...", "Welcome, Player.", "Your presence here... is unprecedented.", "Perhaps... you will be of use...", "But that, is yet to be of concern for you...", "First, your connection to this world must be secured...", "Lest you be lost within the penumbra of infinity.", "You must reassemble the reality tether...", "Once you succeed you shall enter the Main World: Buttonia.", "You will be unable to return to this place for an indeterminate amount of time.", "I will be guiding you through this early stage.", "Hence, there will be times where your access to certain features will be restricted.", "Good luck, Player."], "green", "black", True, root), progression_increment], [progression_lvl < 5, progression_lvl < 1, progression_lvl < 1])
   layout.addWidget(container, 2, 1, 9, 9)
   # Lock top rows
   layout.setRowStretch(0, 0)
@@ -4722,11 +4930,12 @@ if __name__ == "__main__":
   layout.setColumnStretch(6,1)
   layout.setColumnStretch(7,1)
   layout.setColumnStretch(8,1)
-  stat_increment = Load()
   cash_increase()
   gem_increase()
   event_increase()
   root.music_manager.play_random()
   root.show()
   print("Ready :D")
+  if ast.literal_eval(os.getenv("Glitchared_Puzzle", "False")) and stat_increment["Stats"]["Glitchared"] < 1:
+      stat_increment["Stats"]["Glitchared"] = 1
   app.exec()

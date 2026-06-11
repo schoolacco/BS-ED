@@ -2,8 +2,10 @@ from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt
 import sys
-from Module import GradientLabel, Mantissa
-from data import stat_gradients
+import os
+from pathlib import Path
+from Program.Module import GradientLabel, Mantissa
+from Program.data import stat_gradients
 badge_data = {"Category": {"Badge 1": {"Owned": False, "Display": "Example Badge", "Gradient": "Badges" , "Reqs": {"Cash": 100}, "Consume": True, "Multis": None}, "Badge 1.1": {"Owned": True, "Display": "Tester's Glory", "Gradient": "Testium", "Reqs": {"Testium": 1}, "Consume": False, "Multis": {"Testium": 5}}}, "Category 2": {"Badge 2": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.3": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.2": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.1": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.4": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.5": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.6": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.6": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.7": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.8": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.9": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.10": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.11": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.12": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}, "Badge 2.13": {"Owned": True, "Display": "Another Badge", "Gradient": "Totality", "Multis": {"Totality": 3}}}}
 app = QApplication(sys.argv)
 class BadgesWindow(QDialog):

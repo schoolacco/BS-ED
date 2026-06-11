@@ -1,5 +1,6 @@
 from typing import Self
 import math
+import sys
 class Mantissa:
     def __init__(self, mantissa: int|float, exponent: int|float) -> Self:
         self.num = mantissa
@@ -40,8 +41,8 @@ class Mantissa:
     def __iadd__(a: int|float|Self, b: int|float|Self) -> Self:
         total = a + b
         return total
-    def __round__(self: Self, num: int) -> Self:
-        self.num = round(self.num, num)
+    def __round__(self: Self, ndigits: int|None=None) -> Self:
+        self.num = round(self.num, ndigits)
         return self
     def __ge__(self: Self, other: int|float|Self) -> bool:
         if other == math.inf: return False
@@ -79,6 +80,16 @@ class Mantissa:
         if isinstance(other, (int, float)):
             other = Mantissa.float_to_mantissa(other)
         return True if self.exp < other.exp else True if self.exp == other.exp and self.num <= other.num else False
+    def __float__(self) -> float:
+        if self.exp < 308:
+            return self.num * (10 ** self.exp)
+        else:
+            return math.inf
+    def __int__(self) -> int:
+        if float(self) < sys.maxsize:
+            return int(self.num * (10** self.exp))
+        else:
+            return sys.maxsize
     def to_string(self: Self) -> str:
        return f"{self.num:.2f}e+{self.exp}"
     def to_dict(self: Self) -> dict:

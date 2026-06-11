@@ -1,7 +1,7 @@
 import math
-from PySide6.QtWidgets import QMainWindow, QPushButton, QWidget, QScrollArea, QVBoxLayout, QHBoxLayout, QSizePolicy, QGridLayout, QLabel, QDialog, QFrame, QLineEdit, QLayout, QTextEdit, QListWidget, QTextBrowser, QStackedWidget, QApplication
+from PySide6.QtWidgets import QMainWindow, QPushButton, QWidget, QScrollArea, QVBoxLayout, QHBoxLayout, QSizePolicy, QGridLayout, QLabel, QDialog, QFrame, QLineEdit, QLayout, QTextEdit, QListWidget, QTextBrowser, QStackedWidget, QApplication, QMessageBox
 from PySide6.QtGui import QColor, QFont, QPainter, QFontMetrics, QPainterPath, QPen, QLinearGradient, QPalette, QCloseEvent, QPixmap, QShowEvent, QPaintEvent, QEnterEvent
-from PySide6.QtCore import Qt, QObject, QPointF,QTimer, Signal, QUrl, QRectF, QEvent
+from PySide6.QtCore import Qt, QObject, QPointF, QTimer, Signal, QUrl, QRectF, QEvent, QThread
 from PySide6.QtTest import QSignalSpy
 import scipy.special as sci
 import inspect
@@ -19,9 +19,16 @@ from matplotlib.figure import Figure
 from matplotlib.widgets import Cursor
 import weakref
 from typing import Self, Callable, Any
-from data import stat_gradients
+import bcrypt
+from data import stat_gradients, def_stat_increment
+import db
+from session import validate_session, create_session
 from Mantissa import Mantissa
 global_path_reference = Path(__file__).resolve().parent.parent
+general_stylesheet = open(f"{global_path_reference}/Program/general.qss", "r")
+general_stylesheet = general_stylesheet.read() 
+cytherax_stylesheet = open(f"{global_path_reference}/Program/cytherax.qss", "r")
+cytherax_stylesheet = cytherax_stylesheet.read()
 # Source - https://stackoverflow.com/a
 # Posted by luke, modified by community. See post 'Timeline' for change history
 # Retrieved 2025-11-30, License - CC BY-SA 3.0
@@ -87,6 +94,7 @@ def blinded(parent: QMainWindow) -> str:
       write_hidden(str(DOCUMENTS_PATH)+"\\toodarktosee", "Are you not afraid of what cannot be seen? \n You search for the impossible, what has never been found \n Yet you wish to harness its energy, the energy of DARKMATTER.")
       parent.close()
 def button_inspect(cmd: Callable, btn: QPushButton):
+    '''Inspects the lambda commands to know if the button must be passed as an argument within the function'''
     signature = inspect.signature(cmd)
     params = len(signature.parameters)
     if params == 0:
@@ -116,6 +124,9 @@ def find_key_path(nested_dict: dict, target_key_name: str, current_path: dict|No
     
     # Key not found in this branch
     return None
+def multi_func(functions: list[Callable], conditions: list[bool]):
+    '''An extremely complex function that returns the results of multiple functions'''
+    return tuple(function() if condition else None for function, condition in zip(functions, conditions))
 class Realm:
   '''A realm, more info later'''
   instances = set()
@@ -694,34 +705,27 @@ class BootScreen(QDialog):
     closed = Signal()
 
     def __init__(self, parent: QObject|None=None) -> Self:
-        super().__init__(parent)
+        super().__init__(parent, Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         self.spy = QSignalSpy(self.finished)
-        if parent:
-          self.parent().hide()
-          for child in self.parent().children():
-              if isinstance(child, (QDialog, QMainWindow)) and child != self:
-                  child.hide()
-        self.setFixedSize(600, 400)
         self.setStyleSheet("background-color: black;")
         self.setWindowTitle("Loading...")
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
+        self.showFullScreen()
 
-        # ── Rotated title ───────────────────────
         self.title = RotatedLabel("CYTHERAX-47", angle=20)
-        self.title.setFont(QFont("Consolas", 32, QFont.Bold))
+        self.title.setFont(QFont("Consolas", 64, QFont.Bold))
         self.title.setStyleSheet("color: #00ff00;")
         self.title.setAlignment(Qt.AlignCenter)
-        self.title.setFixedSize(400, 200)
+        self.title.setFixedSize(800, 400)
         
         
         layout.addStretch()
         layout.addWidget(self.title)
         layout.addStretch()
 
-        # ── Loading bar ────────────────────────
         self.bar_container = QHBoxLayout()
-        self.bar_container.setSpacing(4)
+        self.bar_container.setSpacing(8)
         self.bar_container.setAlignment(Qt.AlignCenter)
 
         self.chunks = []
@@ -729,7 +733,7 @@ class BootScreen(QDialog):
 
         for _ in range(self.chunk_count):
             chunk = QFrame()
-            chunk.setFixedSize(20, 20)
+            chunk.setFixedSize(40, 40)
             chunk.setStyleSheet("""
                 QFrame {
                     background-color: #002200;
@@ -769,45 +773,37 @@ class BootScreen(QDialog):
     def closeEvent(self, event: QCloseEvent):
         if self.spy.count() < 1 and self.parent():
             self.parent().show()
+            self.parent().showNormal()
             self.closed.emit()
         self.timer.stop()
         self.timer.deleteLater()
         event.accept()
         return None
 class CY47Window(QDialog):
-    def __init__(self, stat_info: dict, meta_data: dict, stat_list: list, stat_gradients: dict, parent: QObject|None=None) -> Self:
-        super().__init__(parent)
+    def __init__(self, stat_info: dict, meta_data: dict, stat_list: list, stat_gradients: dict, parent: QObject|None=None, whitelist: list[str]|None=None, blacklist: list[str]|None=None) -> Self:
+        super().__init__(parent, Qt.WindowType.Window)
         self.setWindowTitle("CY-47 :: SYSTEM INTERFACE")
-        self.resize(1000, 650)
+        self.showMaximized()
         self.stat_info = stat_info
         self.meta_data = meta_data
         self.stat_list = stat_list
         self.gradients = stat_gradients
+        self.wl = whitelist
+        self.bl = blacklist
         self.index = build_cythrex_index(self.stat_info, self.meta_data)
         self.root = QVBoxLayout(self)
         self.root.setSpacing(8)
-        self.setStyleSheet('''QWidget {
-            background-color: black;
-            }''')
+        self.setStyleSheet(cytherax_stylesheet)
 
-        # ── Header ─────────────────────────────────────────────
         header = QHBoxLayout()
 
         title = QLabel("Cythrex-47")
-        title.setStyleSheet('''QLabel {
-            color: green;
-            background-color: black;
-            }''')
         title.setFont(QFont("Segoe UI", 18, QFont.Bold))
         title.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
         self.search = QLineEdit()
         self.search.setPlaceholderText("Search database…")
         self.search.returnPressed.connect(self.on_search)
-        self.search.setStyleSheet('''QLineEdit {
-            color: green;
-            background-color: black;
-            }''')
 
         header.addWidget(title)
         header.addStretch()
@@ -881,7 +877,6 @@ class CY47Window(QDialog):
       title = QLabel("CY-47 DATABASE INTERFACE")
       title.setFont(QFont("Segoe UI", 20, QFont.Bold))
       title.setAlignment(Qt.AlignCenter)
-      title.setStyleSheet("color: green;")
   
       subtitle = QLabel(
           "Awaiting query...\n\n"
@@ -890,7 +885,6 @@ class CY47Window(QDialog):
           "• CY-47 © AIHA Corp."
       )
       subtitle.setAlignment(Qt.AlignCenter)
-      subtitle.setStyleSheet("color: green;")
   
       layout.addStretch()
       layout.addWidget(title)
@@ -925,16 +919,8 @@ class CY47Window(QDialog):
         left_info = QVBoxLayout()
         self.stat_type = QLabel(f"Type: {path[0]}")
         self.stat_type.setFont(QFont("Segoe UI", 10))
-        self.stat_type.setStyleSheet('''QLabel {
-            color: green;
-            background-color: black;
-            }''')
 
         self.lore = QTextEdit()
-        self.lore.setStyleSheet('''QTextEdit {
-            color: green;
-            background-color: black;
-            }''')
         self.lore.setReadOnly(True)
         self.lore.setText(self.meta_data[stat]["lore"])
 
@@ -957,9 +943,7 @@ class CY47Window(QDialog):
         self.image.setFixedSize(500,500)
         self.image.setFrameShape(QFrame.Box)
         self.image.setAlignment(Qt.AlignCenter)
-        self.image.setStyleSheet('''QLabel {
-            background-color: black;
-            }''')
+        self.image.setStyleSheet('''QLabel {background-color: black;}''')
         mid_row.addWidget(self.image, 2)
 
         self.right_panel.addLayout(mid_row)
@@ -972,10 +956,6 @@ class CY47Window(QDialog):
         self.obtainment_label = QTextEdit()
         self.obtainment_label.setReadOnly(True)
         self.obtainment_label.setText(self.meta_data[stat]["obtainment"])
-        self.obtainment_label.setStyleSheet('''QTextEdit {
-            color: green;
-            background-color: black;
-            }''')
 
         self.obtainment_layout.addWidget(self.obtainment_label)
 
@@ -1001,15 +981,7 @@ class CY47Window(QDialog):
                     self.multiplier_list.addItem(multi_text)
             else:
                 self.multiplier_list.addItem("Nothing")
-        self.multiplier_list.setStyleSheet('''QListWidget {
-            color: green;
-            background-color: black;
-            }''')
         self.multiplier_header = QLabel("Stat Multipliers:")
-        self.multiplier_header.setStyleSheet('''QLabel {
-            color: green;
-            background-color: black;
-            }''')
         self.content.addLayout(self.right_panel, 1)
         
         self.left_panel.addWidget(self.multiplier_header, 1)
@@ -1037,15 +1009,6 @@ class CY47Window(QDialog):
       content.anchorClicked.connect(self.handle_link)
       content.viewport().setCursor(Qt.ArrowCursor)
   
-      content.setStyleSheet("""
-          QTextBrowser {
-              background-color: black;
-              color: #00ff00;
-              border: none;
-              font-family: Consolas;
-          }
-       """)
-  
       layout.addWidget(content)
   
       self.page_container.addLayout(layout)
@@ -1063,10 +1026,8 @@ class CY47Window(QDialog):
     
         subtitle = QLabel(f"Query: \"{query}\"")
         subtitle.setFont(QFont("Consolas", 10))
-        subtitle.setStyleSheet("color: green;")
     
         hint = QLabel("Refine query or search by known designation.")
-        hint.setStyleSheet("color: #00aa00;")
     
         layout.addWidget(title)
         layout.addWidget(subtitle)
@@ -1075,8 +1036,7 @@ class CY47Window(QDialog):
     
         self.page_container.addLayout(layout)
         self.current_page = layout
-
-    
+ 
     def on_search(self):
       query = self.search.text().strip()
   
@@ -1085,6 +1045,10 @@ class CY47Window(QDialog):
           return
   
       results = resolve_search(query, self.index)
+      if self.wl:
+          results = [result for result in results if result in self.wl]
+      if self.bl:
+          results = [result for result in results if result not in self.bl]
       if results:
           if len(results) == 1 and results[0].lower() == query.lower():
               func = lambda r=results[0]: self.generate_content(r) if "Stats" in self.meta_data[r]["tags"] else self.build_page(self.meta_data[r]["raw_text"])
@@ -1102,18 +1066,16 @@ class CY47Window(QDialog):
   
       header = QLabel(f'SEARCH RESULTS FOR: "{query}"')
       header.setFont(QFont("Consolas", 14, QFont.Bold))
-      header.setStyleSheet("color: green;")
       
       count = QLabel(f"{len(results)} ENTR{'Y' if len(results) == 1 else 'IES'} FOUND")
       count.setFont(QFont("Consolas", 10))
-      count.setStyleSheet("color: #00aa00;")
       
       outer.addWidget(header)
       outer.addWidget(count)
   
       scroll = QScrollArea()
       scroll.setWidgetResizable(True)
-      scroll.setStyleSheet("border: none;")
+      #scroll.setStyleSheet("border: none;")
   
       container = QWidget()
       layout = QVBoxLayout(container)
@@ -1125,26 +1087,11 @@ class CY47Window(QDialog):
           
           label = QLabel(result)
           label.setWordWrap(True)
-          label.setStyleSheet("color: green;")
           label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
           
           layout_inner = QHBoxLayout(btn)
           layout_inner.setContentsMargins(8, 4, 8, 4)
           layout_inner.addWidget(label)
-
-  
-          btn.setStyleSheet("""
-              QPushButton {
-                  color: green;
-                  background-color: black;
-                  border: 1px solid green;
-                  padding: 6px;
-                  text-align: left;
-              }
-              QPushButton:hover {
-                  background-color: #002200;
-              }
-          """)
   
           btn.clicked.connect(lambda _, r=result: self.generate_content(r) if "Stats" in self.meta_data[r]["tags"] else self.build_page(self.meta_data[r]["raw_text"]))
           btn.setFont(QFont("Consolas", 10))
@@ -1157,11 +1104,14 @@ class CY47Window(QDialog):
       outer.addWidget(scroll)
       self.page_container.addLayout(outer)
       self.current_page = outer
+    
     def closeEvent(self, event: QCloseEvent):
         event.ignore()
         self.hide()
         self.parent().show()
-
+        self.parent().showNormal()
+        event.accept()
+        
 #----- Graphite Minigame -----
 np.seterr(all="ignore")
 stylesheet = open(f"{global_path_reference}/Program/graphite.qss", "r")
@@ -1782,7 +1732,6 @@ class GraphPuzzle(QWidget):
           self.canvas.draw_idle() 
         except Exception: 
             pass
-    # ----- NEW METHODS ADDED -----
     def go_back(self):
       if self.parent():
           if self.state.mode == MODE_SKY_HIGH:
@@ -1926,10 +1875,12 @@ class GraphPuzzle(QWidget):
       self.player_line, = self.ax.plot([], [], linewidth=2, color="#00ff88")
       self.skip_btn.setDisabled(True)
       self.canvas.draw_idle()
-
+    def closeEvent(self, event: QCloseEvent):
+        self.parentwin.close()
+        event.accept()
 class BadgesWindow(QDialog):
  instances = weakref.WeakSet()
- def __init__(self, badge_data: dict, gradients: dict, stat_increment: dict, parent: QObject=None) -> Self:
+ def __init__(self, badge_data: dict, gradients: dict, stat_increment: dict, progress: int, parent: QObject=None) -> Self:
      super().__init__(parent)
      for instance in self.instances:
             instance.close()
@@ -1939,10 +1890,11 @@ class BadgesWindow(QDialog):
      self.data = badge_data
      self.setMinimumSize(750,750)
      self.setMaximumSize(750,750)
-     self.setStyleSheet("background-color: black")
+     self.setStyleSheet(general_stylesheet)
      self.setWindowTitle("World Badges")
      self.labels_reference = {}
      self.increment = stat_increment
+     self.progress = progress
      container_layout = QHBoxLayout(self)
      container = QWidget()
      scroll = QScrollArea()
@@ -1952,30 +1904,27 @@ class BadgesWindow(QDialog):
      central_layout = QHBoxLayout(container)
      layout = QVBoxLayout()
      for cat in self.data.keys():
-         category_label = QLabel(cat)
-         category_label.setStyleSheet("font-weight: bold; font-size: 24px; margin-top: 8px;")
-         layout.addWidget(category_label)
-         for id in self.data[cat].keys():
-             ref = self.data[cat][id]
-             text = f"{ref['Display']}: {'Owned' if stat_increment["Badges"][id] else 'Not Owned'}"
-             button = QPushButton()
-             button.clicked.connect(lambda checked, c=cat, i=id: self.multi_edit(c, i))
-             button.setStyleSheet("""QPushButton {background-color: black;
-                                  border: none;}""")
-             button.setFocusPolicy(Qt.NoFocus)
-             label = GradientLabel(text, self.gradients[ref["Gradient"]]["Colours"], self.gradients[ref["Gradient"]]["Angle"], parent=button)
-             layout.addWidget(button)
-             self.labels_reference[id] = label
+         if ((self.progress < 5 or self.progress >= 7) and cat == "Pre-existence") or (self.progress >= 5 and cat != "Pre-existence"):
+           category_label = QLabel(cat)
+           category_label.setStyleSheet("""QLabel {background-color: #1e1e1e; font-weight: bold; font-size: 20px;}""")
+           layout.addWidget(category_label)
+           for id in self.data[cat].keys():
+               ref = self.data[cat][id]
+               text = f"{ref['Display']}: {'Owned' if stat_increment["Badges"][id] else 'Not Owned'}"
+               button = QPushButton()
+               button.clicked.connect(lambda checked, c=cat, i=id: self.multi_edit(c, i))
+               button.setStyleSheet("""QPushButton {background-color: #1e1e1e;
+                                    border: none;}""")
+               button.setFocusPolicy(Qt.NoFocus)
+               label = GradientLabel(text, self.gradients[ref["Gradient"]]["Colours"], self.gradients[ref["Gradient"]]["Angle"], parent=button)
+               layout.addWidget(button)
+               self.labels_reference[id] = label
      multi_layout = QVBoxLayout()
      self.multiplier_list = QListWidget()
      self.multiplier_list.setFixedWidth(150)
-     self.multiplier_list.setStyleSheet('''QListWidget {
-         background-color: black;
-         }''')
+     self.multiplier_list.setStyleSheet(general_stylesheet)
      multiplier_header = QLabel("Stat Multipliers:")
-     multiplier_header.setStyleSheet('''QLabel {
-         background-color: black;
-         }''')
+     multiplier_header.setStyleSheet("""QLabel {background-color: #1e1e1e; font-weight: bold; font-size: 16px;}""")
      multi_layout.addWidget(multiplier_header, 1)
      multi_layout.addWidget(self.multiplier_list, 20)
      central_layout.addLayout(layout)
@@ -1996,7 +1945,6 @@ class BadgesWindow(QDialog):
     for id, lbl in self.labels_reference.items():
         name = lbl.text().split(":")[0]
         lbl.setText(f"{name}: {'Owned' if self.increment["Badges"][id] else 'Not Owned'}")        
-
 class CollapsibleSection(QWidget):
     def __init__(self, title: str, build_callback: Callable) -> Self:
         super().__init__()
@@ -2025,7 +1973,6 @@ class CollapsibleSection(QWidget):
             self.built = True
 
         self.content.setVisible(self.button.isChecked())
-
 class HoldButton(Button):
     def __init__(self, text: str, hold_time: int, command: Callable, parent: QObject|None=None, bg: str="black", text_color: str="white") -> Self:
         super().__init__(text, parent, bg, text_color)
@@ -2072,9 +2019,269 @@ class HoverButton(Button):
         self._on_hover()
     def _on_hover(self):
         self.func()
+class Animation_Handler(QObject): 
+    def __init__(self, dialog: QDialog, text_list: list[str], timer: QTimer, end_function: Callable | None = None): 
+        super().__init__(dialog) 
+        self.dialog = dialog 
+        self.text_blocks = text_list  
+        self.block_index = 0 
+        self.char_index = 0 
+        self.timer = timer 
+        self.func = end_function 
+
+    def text_animator(self, label: QLabel): 
+        if self.block_index < len(self.text_blocks): 
+            current_block = self.text_blocks[self.block_index]
+            
+            if self.timer.interval() == 1000:
+                label.setText("")
+                self.timer.setInterval(100)
+                self.char_index = 0
+                return
+
+            if self.char_index < len(current_block): 
+                label.setText(label.text() + current_block[self.char_index]) 
+                self.char_index += 1 
+            else: 
+                self.timer.setInterval(1000)
+                self.block_index += 1
+        else: 
+            self.timer.stop() 
+            self._on_end() 
+
+    def _on_end(self): 
+        if self.func: 
+            self.func() 
+        self.dialog.close() 
+class ScanlineOverlay(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Allows clicks to pass through to the label underneath
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        
+        self.bar_y = 0  # Initial vertical position of the bar
+        self.bar_height = 80  # Thickness of the rolling bar
+        
+        # Timer to drive the scanline animation (60 FPS = ~16ms)
+        self.anim_timer = QTimer(self)
+        self.anim_timer.timeout.connect(self.update_position)
+        self.anim_timer.start(16)
+
+    def update_position(self):
+        self.bar_y += 2.5  # Speed of the moving bar
+        if self.bar_y > self.height():
+            self.bar_y = -self.bar_height  # Reset to top when it exits the bottom
+        self.update()  # Triggers paintEvent
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Create a semi-transparent green color (Alpha: 25)
+        bar_color = QColor(0, 255, 0, 25) 
+        painter.fillRect(0, self.bar_y, self.width(), self.bar_height, bar_color)
+class Cutscene(QDialog):
+    def __init__(self, text: list, text_color: str, bg: str, overlay: bool=False, parent:QObject|None=None):
+        super().__init__(parent, Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
+        self.c_layout = QGridLayout(self)
+        self.c_layout.setContentsMargins(0, 0, 0, 0)
+        self.label = QLabel("")
+        self.label.setWordWrap(True)
+        self.label.setStyleSheet(f"""QLabel{{ color: {text_color}; background-color: {bg}; font-weight: bold; font-size: 40px; padding: 50px}}""")
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.overlay = ScanlineOverlay() if overlay else None
+        self.c_layout.addWidget(self.label)
+        if self.overlay:
+            self.c_layout.addWidget(self.overlay, 0, 0)
+            self.overlay.raise_()
+        self.showFullScreen()
+        self.timer = QTimer()
+        animation = Animation_Handler(self, text, self.timer)
+        self.setLayout(self.c_layout)
+        self.timer.timeout.connect(lambda: animation.text_animator(self.label)) 
+        self.timer.start(250) 
+def validate_username(username: str) -> bool:
+    return 3 <= len(username) <= 32 and username.isalnum()
+def validate_password(pw: str) -> bool:
+    return (len(pw) >= 8 and any(c.islower() for c in pw) and any(c.isupper() for c in pw) and any(c.isdigit() for c in pw) and any(not c.isalnum() for c in pw))
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+def check_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode(), hashed.encode())
+class AuthWorker(QThread):
+    finished = Signal(bool, str)  # success, message
+
+    def __init__(self, mode, username, password, password2=None, save_blob=def_stat_increment):
+        super().__init__()
+        self.mode = mode
+        self.username = username
+        self.password = password
+        self.password2 = password2
+        self.save_blob = save_blob
+
+    def run(self):
+        try:
+            if self.mode == "register":
+                if self.password != self.password2:
+                    self.finished.emit(False, "Passwords do not match")
+                    return
+
+                hashed = hash_password(self.password)
+
+                success = db.create_account(
+                    self.username,
+                    hashed,
+                    self.save_blob
+                )
+
+                if success:
+                    self.finished.emit(True, "Account created")
+                else:
+                    self.finished.emit(False, "Username already exists")
+
+            elif self.mode == "login":
+                row = db.get_account(self.username)
+
+                if not row:
+                    self.finished.emit(False, "Account not found")
+                    return
+                if check_password(self.password, row[0]['password_hash']):
+                    self.finished.emit(True, "Login successful")
+                else:
+                    self.finished.emit(False, "Incorrect password")
+
+        except Exception as e:
+            self.finished.emit(False, f"Error: {e}")
+class LoginWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout()
+        self.username = QLineEdit()
+        self.password = QLineEdit()
+        self.password.setEchoMode(QLineEdit.Password)
+        self.status = QLabel("")
+        self.login_btn = QPushButton("Login")
+        register_alternative = QPushButton("Don't have an account? Create one instead!")
+        self.login_btn.clicked.connect(parent.login)
+        register_alternative.clicked.connect(parent.open_register)
+        layout.addWidget(QLabel("Username"))
+        layout.addWidget(self.username)
+        layout.addWidget(QLabel("Password"))
+        layout.addWidget(self.password)
+        layout.addWidget(self.login_btn)
+        layout.addWidget(register_alternative)
+        layout.addWidget(self.status)
+        self.setLayout(layout)
+class RegisterWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout()
+        self.username = QLineEdit()
+        self.password = QLineEdit()
+        self.password2 = QLineEdit()
+        self.password.setEchoMode(QLineEdit.Password)
+        self.password2.setEchoMode(QLineEdit.Password)
+        self.status = QLabel("")
+        self.register_btn = QPushButton("Register")
+        login_alternative = QPushButton("Already have an account? Login instead!")
+        self.register_btn.clicked.connect(self.parent().register)
+        login_alternative.clicked.connect(self.parent().open_login)
+        layout.addWidget(QLabel("Username"))
+        layout.addWidget(self.username)
+        layout.addWidget(QLabel("Password"))
+        layout.addWidget(self.password)
+        layout.addWidget(QLabel("Repeat Password"))
+        layout.addWidget(self.password2)
+        layout.addWidget(self.register_btn)
+        layout.addWidget(login_alternative)
+        layout.addWidget(self.status)
+        self.setLayout(layout)
+class AuthWindow(QDialog):
+    registered = Signal()
+    
+    def __init__(self, type, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Registration")
+        self.type = type
+        self.central = QStackedWidget()
+        self.setStyleSheet(cytherax_stylesheet)
+        layout = QVBoxLayout()
+        
+        self.login_w = LoginWidget(self)
+        self.register_w = RegisterWidget(self)
+        
+        self.central.addWidget(self.login_w)
+        self.central.addWidget(self.register_w)
+        
+        title = QLabel("AIHA Corp. Registration Page")
+        title.setFont(QFont("Segoe UI", 20, QFont.Bold))
+        footnote = QLabel("Registration Page © AIHA Corp.")
+        footnote.setFont(QFont("Consolas", 10))
+        layout.addWidget(title)
+        layout.addWidget(self.central)
+        layout.addWidget(footnote)
+        self.setLayout(layout)
+        if type == "Register":
+            self.central.setCurrentWidget(self.register_w)
+        else:
+            self.central.setCurrentWidget(self.login_w)
+        self.worker = None
+
+    def register(self):
+        u = self.register_w.username.text().strip()
+        p1 = self.register_w.password.text()
+        p2 = self.register_w.password2.text()
+
+        if not validate_username(u):
+            self.register_w.status.setText("Invalid username")
+            return
+
+        if not validate_password(p1):
+            self.register_w.status.setText("Weak password")
+            return
+
+        self.start_worker("register", u, p1, p2)
+    def login(self):
+        u = self.login_w.username.text().strip()
+        p = self.login_w.password.text()
+
+        self.start_worker("login", u, p)
+
+    def start_worker(self, mode, username, password, password2=None):
+        self.worker = AuthWorker(mode, username, password, password2)
+        self.worker.finished.connect(self.on_result)
+        self.worker.start()
+
+        self.central.currentWidget().status.setText("Working...")
+
+    def on_result(self, success, message):
+        self.central.currentWidget().status.setText(message)
+
+        if success:
+            if not validate_session():
+              create_session(self.central.currentWidget().username.text().strip())
+              QTimer.singleShot(250, self, self.close)
+    def open_register(self):
+        self.central.setCurrentWidget(self.register_w)
+    def open_login(self):
+        self.central.setCurrentWidget(self.login_w)
+    def closeEvent(self, event: QCloseEvent):
+        if validate_session():
+            self.registered.emit()
+            event.accept()
+        else:
+            QMessageBox.warning(self, "Error 400", "Error: Window cannot be closed, session could not be found.")
+            event.ignore()
 # ---------- RUN ----------
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = BolicalWorld(stat_data={"Stats": {"Graphite": 0, "Tesseract": 0, "Tetra": 0, "Master Tetra": 0}, "Keys": {"Bolical Points": 0, "Sky-High Structuring": False}})
-    window.show()
+    #window = BolicalWorld(stat_data={"Stats": {"Graphite": 0, "Tesseract": 0, "Tetra": 0, "Master Tetra": 0}, "Keys": {"Bolical Points": 0, "Sky-High Structuring": False}})
+    user = validate_session()
+    if not user:
+     root = AuthWindow("Login")
+     root.show()
+    else:
+     print(f"Hello {user}!")
+     sys.exit()
+    #window.show()
     sys.exit(app.exec())

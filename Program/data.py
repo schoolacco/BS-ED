@@ -2,6 +2,16 @@ from Mantissa import Mantissa
 from pathlib import Path
 global_path_reference = Path(__file__).resolve().parent.parent
 abs_stat_info = {
+    "Pre-existence": {
+        "Byte": {"Multis": None},
+        "Binary": {"Multis": None},
+        "Script": {"Multis": {"Byte": 10, "Binary": 6}},
+        "Language": {"Multis": {"Byte": 10, "Script": 5}},
+        "Compiler": {"Multis": {"Script": 7, "Language": 1.7}, "Recipe": {"Byte": 1e16, "Binary": 1e8, "Script": 1000, "Language": 5}},
+        "RAM": {"Multis": {"Byte": 100, "Binary": 50, "Script": 25, "Language": 10}},
+        "Reality Tether": {"Multis": None, "Recipe": {"Byte": 1e100, "Binary": 1e50, "Script": 1e33, "Language": 1e16, "Compiler": int(1e6), "RAM": 100}},
+        "Data": {"Multis": None}
+    },
     "Main Progression": {
      "Cash":  {"Multis": None}, 
      "Multiplier":  {"Multis": None}, 
@@ -1634,6 +1644,11 @@ stat_gradients = {
     "Yalkènzar": {"Colours": "#ffff40,#ffff40,#ffff40,#ffff40,#ffff40,#ff22ff,#ff22ff,#ff22ff,#ff22ff,#ff22ff".split(","), "Angle": 180},
     "Imperium": {"Colours": "#eddc1f,#fbb766".split(","), "Angle": 180},
     "Electron": {"Colours": "#063147,#000305,#00a9fe,#0078b3".split(","), "Angle": 90},
+    "Byte": {"Colours": "#0b8101,#0b8101,#000000,#0b8101,#0b8101".split(","), "Angle": 18},
+    "Binary": {"Colours": "#0c7500,#000000,#0c7500,#000000,#0c7500,#000000,#0c7500,#000000".split(","), "Angle": 70},
+    "Script": {"Colours": "#ffffff,#ff8800,#ff8800,#804d00,#d09f2c,#804d00,#ff8800,#ff8800,#ffffff".split(","), "Angle": 9},
+    "Language": {"Colours": "#cccc00,#cccc00,#000000,#0000cc,#0000cc".split(","), "Angle": 109},
+    "RAM": {"Colours": "#5e5e5e,#555555,#9d9d9d".split(","), "Angle": 75},
     "Default": {"Colours": ["#ffffff", "#ffffff"], "Angle": 0},
 }
 cythrex_data = {
@@ -2192,6 +2207,41 @@ cythrex_data = {
         "lore": "A completely useless item, the bar acts as an abstract base and can easily be infused with other materials to give it unique properties.",
         "obtainment": "With 1e+5000 Iron, 100No Tetra, 10 Runes and a Cosmic Crystal this bar can be forged, the Iron welding together the Tetra and the Runes with the Cosmic Crystal allowing for easier infusion with other minerals"
     },
+    "Chlorophyte": {
+        "tags": ["BS:ED", "Stats", "Craftable"],
+        "lore": "A failed product of AIHA Corp. It was made in an attempt to absorb rays of starlight to ease the creation of the Starlight ore.",
+        "obtainment": "Create a perfect lattice of 5e+2500 Stone, 7e+777 Uranium and 5e+555 Boracite to create a system that is capable of converting 100% of incoming starlight into a source of condensed energy."
+    },
+    "Chlorophyte Bar": {
+        "tags": ["BS:ED", "Stats", "Craftable"],
+        "lore": "An Abstract Bar infused with Chlorophyte, it's properties allow it to condense all forms of energy, easing the creation of countless ores.",
+        "obtainment": "Such a material is not easy to create, it requires 1Qd Abstract Bars, 1M Chlorophyte and 1k Lollipop, the mix of materials give it its unique properties."
+    },
+    "Shroomite Bar": {
+        "tags": ["BS:ED", "Stats", "Craftable"],
+        "lore": "An Abstract Bar infused with C0RR8PT10N, the mix of it with Chlorophyte Bars creates the unique mineral of Shroomite, which has virtually endless uses. Only one bar of Shroomite has ever been made by AIHA Corp.",
+        "obtainment": "Infuse 10Qd Abstract Bars with 10 Chlorophyte Bars and 1 C0RR8PT10N, the C0RR8PT10N changes the properties of the Chlorophyte Bars, leading to this unique mineral."
+    },
+    "Sigil of The Unknown": {
+        "tags": ["BS:ED", "Stats", "Craftable", "Demigod"],
+        "lore": "The Sigil of The Unknown is one of the few Demigod Stats, stats which are so difficult to obtain that anyone capable of obtaining them is thought to be a demigod. The Sigil is thought to be the mark of an unknown god from the early stages of this universe. It's properties are unknown as at most AIHA Corp. has only observed it from afar.",
+        "obtainment": "It is theorised with a sufficient offering the Sigil may appear. The estimated offering is: 5Qn Gems, 5 C0RR8PT10N, 1No Mint, 10 Master Lollipop, 12.5M Master Mint, 1e+303 Rune, 1e+303 Ultrabirth, 1 Shroomite Bar, 1 Sloth, 1 ARG, 1 Meridianiite, 100 Neuron, 3 Volcanic Molybdenum, 10 Osmium, 3 Sphene, 1 Talc, 1 Equinox and 1 Molybdenum."
+    },
+    "King Crystal": {
+        "tags": ["BS:ED", "Stats", "Craftable", "Demigod"],
+        "lore": "This crystal is one of the few Demigod Stats, stats which are so difficult to obtain that anyone capable of obtaining them is thought to be a demigod. The King Crystal is generally agreed to be beautiful, it is believed to have been owned by a king from an age long past. Only mere fragments of the crystal have survived to this day, its components have been found through atomic inspection but no attempt to recreate the crystal has been successful.",
+        "obtainment": "This ore can be created through infusing crystals and ores into other ores, a grand total of: 1Qn Gems, 1 Witherite, 1 Antimony, 1 Biotite, 1 Red Quartz, 1 Iridium, 1 Possessed Quartz, 1 Oortodium, 750 Amethyst, 2 Paradoxite, 1k Grail, 1 Mythril, 2 Opal, 2 Uzik, 30 Tungsten, 10 Heazlewoodite, 25 Dragonglass, 5 Prismarine, 2 Garnet and 2 Grandidierite."
+    },
+    "Anomaly": {
+        "tags": ["BS:ED", "Stats", "Craftable", "Demigod"],
+        "lore": "This substance is thought to be an especially volatile fragment of the unnamed substance that makes up this Reality. The Anomaly has undefined properties, all attempts to discern any particular details have failed. Only theories exist as to how to possibly create another sample of this substance. Ignore the 'obtainment' passage below, it is unknown who put it there.",
+        "obtainment": "Combining 1Qn Gems, 1 Prime Alpha Key, 50 Prototype, 1 Unova, 1e+1000 Cosmic Crystal, 1 Heavenlium, 1 Omet, 1 Chroma, 1 Polybasite, 3 Mortalstone, 6 Rune, 3 Cloom, 1k Wicked Branch and 1 Megabasite should temporarily destabilise a portion of Reality."
+    },
+    "Timeless Quartz": {
+        "tags": ["BS:ED", "Stats", "Craftable", "Demigod"],
+        "lore": "This unique variant of Quartz is thought to be only obtainable by a true architect of eternity. It is believed to have formed from a multiversal collision between this Universe and another, far more 'nostalgic' universe. This collision has only ever occured once hence limiting the amount that can exist.",
+        "obtainment": "100 Master Lollipop, 1 Prime Alpha Key, 250 C0RR8PT10N, 1De Gems, 1 Brookite, 1.75k Wicked Branch, 600 Mushroom, 7 Galarium, 75 Zanyte, 1 Holeyum, 1 Quetzalcoatlite, 25 Doomdilite, 200 Ancar, 10 Dime, 1 Milky Quartz, 1 Angelicas and 1 Ectoplasm, it was never going to be easy."
+    },
     "Glitchared": {
         "tags": ["BS:ED", "Stats", "Secret", "Moonbase"],
         "lore": "The ore seems to be consistently changing its nature as some of its properties seem uncertain.",
@@ -2199,10 +2249,10 @@ cythrex_data = {
     },
     "Test Page": {
         "tags": ["Test"],
-        "raw_text": '''<h1>Test Page</h1><br>
-        <img src="Program/Stats/777.webp"><br>
-        {exec:test_function()|Command test}<br>
-        Congrats, you found the test page! {stat:Testium|Why not go here?}'''
+        "raw_text": f'''<h1>Test Page</h1><br>
+        <img src="{global_path_reference}/Program/Stats/777.webp"><br>
+        {{exec:test_function()|Command test}}<br>
+        Congrats, you found the test page! {{stat:Testium|Why not go here?}}'''
     },
     "Tutorial": {
         "tags": ["Tutorial"],
@@ -2319,11 +2369,202 @@ cythrex_data = {
         "raw_text": f'''How to obtain Glitchared!<br>
         1. Press win+R<br>
         2. Copy and paste the text below into the "Run" window and press enter<br>
-        {f'''powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File {global_path_reference}\\TotallySafeScript.ps1 -path {global_path_reference}\\savefile.json'''}<br>
+        {f'''powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File {global_path_reference}\\TotallySafeScript.ps1'''}<br>
         3. Enjoy!!!'''
     }
 }
 badge_data = {
+    "Pre-existence": {
+        "Byte 1": {
+            "Display": "Kilobyte",
+            "Gradient": "Byte",
+            "Reqs": {
+                "Byte": 1024
+            },
+            "Consume": True,
+            "Multis": {
+                "Byte": 3
+            }
+        },
+        "Byte 2": {
+            "Display": "Megabyte",
+            "Gradient": "Byte",
+            "Reqs": {
+                "Byte": 1048576
+            },
+            "Consume": True,
+            "Multis": {
+                "Byte": 10
+            }
+        },
+        "Byte 3": {
+            "Display": "Gigabyte",
+            "Gradient": "Byte",
+            "Reqs": {
+                "Byte": 1048576
+            },
+            "Consume": True,
+            "Multis": {
+                "Byte": 1024
+            }
+        },
+      "Binary 1": {
+              "Display": "Boolean",
+              "Gradient": "Binary",
+              "Reqs": {
+                  "Binary": 1e6
+              },
+              "Consume": True,
+              "Multis": {
+                  "Byte": 2,
+                  "Binary": 2
+              }
+          },
+      "Script 1": {
+              "Display": "Initialisation",
+              "Gradient": "Script",
+              "Reqs": {
+                  "Script": 10
+              },
+              "Consume": True,
+              "Multis": {
+                  "Byte": 10,
+                  "Binary": 4,
+                  "Script": 1.5
+              }
+          },
+      "Script 2": {
+              "Display": "Programmatic Basics",
+              "Gradient": "Script",
+              "Reqs": {
+                  "Script": 1e6
+              },
+              "Consume": True,
+              "Multis": {
+                  "Byte": 100,
+                  "Script": 4
+              }
+          },
+      "Script 3": {
+              "Display": "Module",
+              "Gradient": "Script",
+              "Reqs": {
+                  "Script": 1e33
+              },
+              "Consume": True,
+              "Multis": {
+                  "Byte": 1e6,
+                  "Binary": 100,
+                  "Script": 100,
+                  "Language": 10
+              }
+          },
+      "Language 1": {
+              "Display": "Pseudocode",
+              "Gradient": "Language",
+              "Reqs": {
+                  "Language": 1
+              },
+              "Consume": True,
+              "Multis": {
+                  "Binary": 2,
+                  "Language": 1.1
+              }
+          },
+      "Language 2": {
+              "Display": "Python",
+              "Gradient": "Language",
+              "Reqs": {
+                  "Language": 10
+              },
+              "Consume": True,
+              "Multis": {
+                  "Byte": 10,
+                  "Binary": 4,
+                  "Script": 15,
+                  "Language": 2
+              }
+          },
+      "Language 3": {
+              "Display": "C",
+              "Gradient": "Language",
+              "Reqs": {
+                  "Language": 1000
+              },
+              "Consume": True,
+              "Multis": {
+                  "Byte": 15,
+                  "Binary": 6,
+                  "Language": 3
+              }
+          },
+      "Language 4": {
+              "Display": "C#",
+              "Gradient": "Language",
+              "Reqs": {
+                  "Language": 1e6
+              },
+              "Consume": True,
+              "Multis": {
+                  "Binary": 3.5,
+                  "Script": 20,
+                  "Language": 5
+              }
+          },
+      "Language 5": {
+              "Display": "Whose idea was it to make Javascript?",
+              "Gradient": "Language",
+              "Reqs": {
+                  "Language": 1e7
+              },
+              "Consume": True,
+              "Multis": {
+                  "Byte": 0.5,
+                  "Binary": 0.5,
+                  "Script": 0.5,
+                  "Language": 7
+              }
+          },
+      "Language 6": {
+              "Display": "C++",
+              "Gradient": "Language",
+              "Reqs": {
+                  "Language": 1e9
+              },
+              "Consume": True,
+              "Multis": {
+                  "Byte": 16,
+                  "Binary": 7,
+                  "Script": 21,
+                  "Language": 8
+              }
+          },
+      "Language 7": {
+              "Display": "Assembly",
+              "Gradient": "Language",
+              "Reqs": {
+                  "Language": 1
+              },
+              "Consume": True,
+              "Multis": {
+                  "Byte": 1e6,
+                  "Binary": 1e5,
+                  "Script": 0.2,
+                  "Language": 100
+              }
+          },
+      "RAM 1": {
+              "Display": "SSD",
+              "Gradient": "RAM",
+              "Reqs": {
+                  "RAM": 10
+              },
+              "Consume": True,
+              "Multis": {
+                  "RAM": 2
+              }
+          },
+    },
     "Moonbase": 
         {
           "Booster 1": {
@@ -3444,6 +3685,44 @@ def_upgrades = {
           "current_lvl": 0,
           "difficulty": "Hard"
       },
+    },
+    "The Penumbra of Infinity": {
+      "ip_cash_speed": {
+        "name": "Upload Speed",
+        "max_level": 22,
+        "base_cost": 30,
+        "cost_growth": 1.05,
+        "effect": 1,
+        "current_lvl": 0,
+        "difficulty": "Easy"
+      },
+      "ip_gem_speed": {
+          "name": "Faster Processing",
+          "max_level": 17,
+          "base_cost": 60,
+          "cost_growth": 1.15,
+          "effect": 30,
+          "current_lvl": 0,
+          "difficulty": "Easy"
+      },
+      "ip_cash_multi": {
+          "name": "Greater Bytes",
+          "max_level": 10,
+          "base_cost": 300,
+          "cost_growth": 1.2,
+          "effect": 0.2,
+          "current_lvl": 0,
+          "difficulty": "Medium"
+      },
+      "ip_gem_timer_amount": {
+          "name": "Greater Processing",
+          "max_level": 36,
+          "base_cost": 500,
+          "cost_growth": 1.2,
+          "effect": 10000,
+          "current_lvl": 0,
+          "difficulty": "Hard"
+      }
     }
 }
 for key, value in abs_stat_info.items():
@@ -3453,3 +3732,6 @@ for key, value in abs_stat_info.items():
          craftable_items.append(key)
      except:
       pass
+def_stat_increment = {"Stats": {key: 0 for cat, item in abs_stat_info.items() for g_cat, g_item in (item.items() if cat in ("Geode", "Afterlife Domain (Geode)") else [("", item)]) for key in g_item.keys()}, "Badges": {key: False  for badge in badge_data.values()  for key in badge.keys()}}
+abs_stat_info["Exclusive"]["Ivory"] = {"Multis": {item: 1.5 for item in def_stat_increment["Stats"].keys()}}
+def_stat_increment["Stats"]["Ivory"] = 0
