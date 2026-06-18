@@ -8,7 +8,7 @@ Tests/__pycache__/
 .vscode/
 .vscode/settings.json
 Tests/test.db
-Tests/test.py
 Tests/test.ps1
 Tests/Style_testing.html
 Tests/test2.py
+Tests/test.py

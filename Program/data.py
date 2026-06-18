@@ -89,7 +89,9 @@ abs_stat_info = {
     },
     "Extra": {
         "Buttons Pressed": {"Multis": None}, 
-        "Geodes Opened": {"Multis": None}},
+        "Geodes Opened": {"Multis": None},
+        "Poinitium": {"Multis": None}
+        },
     "Craftable": {
         "Rune": {"Multis": {"Cash": 16, "Multiplier": 13, "Rebirths": 10, "Stone": 6}, "Recipe": {"Rebirths": 5e29, "Stone": 150}},
         "Ultrabirth": {"Multis": {"Cash": 8}, "Recipe": {"Cash": 1e30, "Rebirths": 10}},
@@ -232,6 +234,45 @@ abs_stat_info = {
         "Imperium": {"Multis": {"Moon Cash": 2, "Booster": 2, "Reincarnation": 2, "Brighterium": 1.25}},
         "Electron": {"Multis": {"Reincarnation": 3, "Brighterium": 1.75, "Baryte": 1.5, "Gypsum": 1.25}}
     },
+    "Nostalgia World": {
+        "Robucks": {"Multis": None},
+        "Studs": {"Multis": None},
+        "Oofs": {"Multis": {"Studs": 2}},
+        "Tix": {"Multis": {"Robucks": 2.25, "Oofs": 1.75}},
+        "Game": {"Multis": {"Robucks": 1.8, "Studs": 2.2, "Tix": 2}},
+        "Guest": {"Multis": {"Robucks": 1.25, "Studs": 1.25, "Oofs": 2, "Game": 2.5, "Ion": 2.5}},
+        "Bacon": {"Multis": {"Robucks": 1/1.17, "Oofs": 1.5, "Tix": 1.85, "Game": 2, "Guest": 2}},
+        "Noob": {"Multis": {"Game": 1.5, "Guest": 2, "Bacon": 2}},
+        "Robloxian": {"Multis": {"Robucks": 2, "Tix": 2, "Game": 3, "Guest": 1.5, "Bacon": 1.5, "Noob": 2}},
+        "Pro": {"Multis": {"Studs": 1/1.11, "Game": 3.5, "Guest": 4, "Noob": 1.25, "Robloxian": 2, "Uranium": 2, "Bismuth": 2, "Boracite": 1.05}},
+        "Rich": {"Multis": {"Robucks": 10000, "Tix": 1000, "Pro": 2}},
+        "Developer": {"Multis": {"Robucks": 100000, "Studs": 10000, "Tix": 5000, "Game": 25, "Pro": 2, "Rich": 2}},
+        "Group": {"Multis": {"Robucks": 2, "Studs": 2, "Oofs": 2, "Tix": 2, "Game": 2, "Guest": 2, "Bacon": 2, "Noob": 2, "Robloxian": 2, "Pro": 2, "Rich": 2, "Developer": 3}},
+        "Server": {"Multis": {"Game": 1/1.17, "Bacon": 10, "Robloxian": 5, "Group": 2, "Nissonite": 1.06, "Orpiment": 1.03}},
+        "Points": {"Multis": {"Guest": 2.5, "Pro": 2.5, "Server": 2.5}},
+        "G$": {"Multis": {"Game": 11, "Noob": 10, "Group": 1.1, "Points": 2.3}},
+        "XP": {"Multis": {"Bacon": 24, "Rich": 5, "G$": 2.4}},
+        "Collectibles": {"Multis": {"Tix": 1e6, "Pro": 5, "Server": 2, "XP": 2.3}},
+        "Limiteds": {"Multis": {"Guest": 500, "Robloxian": 75, "Developer": 50, "Points": 3, "Collectibles": 2.5, "Sapphire": 2, "Diamond": 2, "Starlight": 2, "Ion": 2, "Uranium": 2, "Bismuth": 2, "Boracite": 2, "Nissonite": 2, "Orpiment": 2}},
+        "Badges": {"Multis": {"Robucks": Mantissa(3,303), "Studs": 1e36, "Oofs": 3e33, "Game": 3000, "Noob": 300, "Pro": 50, "G$": 1.1, "Limiteds": 3}} 
+    },
+    "Secluded Oasis": {
+        "Penny": {"Multis": None},
+        "Coconut": {"Multis": None},
+        "Wood": {"Multis": {"Coconut": 2}},
+        "Cobblestone": {"Multis": {"Penny": 1.75, "Wood": 2.25}},
+        "Coal": {"Multis": {"Coconut": 2.75, "Wood": 1.75, "Cobblestone": 2, "Starlight": 2}},
+        "Ferrotite": {"Multis": {"Penny": 3.25, "Cobblestone": 1.75, "Coal": 2, "Diamond": 2, "Ion": 2}},
+        "Mesolite": {"Multis": {"Penny": 2.75, "Coconut": 3.4, "Wood": 3.75, "Ferrotite": 2, "Uranium": 2}},
+        "Forsterite": {"Multis": {"Coconut": 3, "Cobblestone": 2.75, "Ferrotite": 2.3, "Mesolite": 1.75}},
+        "Raspite": {"Multis": {"Penny": 3.7, "Wood": 2.9, "Coal": 3, "Ferrotite": 1.6, "Forsterite": 2, "Starlight": 5, "Ion": 5, "Uranium": 5, "Bismuth": 1.5}},
+        "Cinnabar": {"Multis": {"Coconut": 6, "Wood": 3, "Cobblestone": 4, "Coal": 4, "Mesolite": 2.3, "Forsterite": 1.5, "Raspite": 2, "Uranium": 3, "Bismuth": 3}},
+        "Zircon": {"Multis": {"Cobblestone": 9, "Coal": 5, "Mesolite": 3, "Raspite": 3, "Cinnabar": 1.5, "Diamond": 5, "Starlight": 5, "Ion": 5, "Uranium": 5, "Bismuth": 4, "Boracite": 2, "Orpiment": 1.2}},
+        "Altaite": {"Multis": {"Penny": 2, "Coconut": 2, "Wood": 2, "Cobblestone": 2, "Coal": 2, "Ferrotite": 2, "Mesolite": 2, "Forsterite": 2, "Raspite": 2, "Cinnabar": 2, "Zircon": 2, "Diamond": 25, "Starlight": 25, "Ion": 25, "Uranium": 25, "Bismuth": 25, "Boracite": 3, "Nissonite": 1.5}},
+        "Galena": {"Multis": {"Penny": 6, "Cobblestone": 12, "Mesolite": 5, "Raspite": 4, "Cinnabar": 3, "Altaite": 3}},
+        "Topaz": {"Multis": {"Coconut": 10, "Wood": 8, "Coal": 5, "Ferrotite": 5, "Forsterite": 5, "Raspite": 5, "Zircon": 5, "Galena": 5, "Diamond": 1000, "Starlight": 1000, "Ion": 1000, "Uranium": 1000, "Bismuth": 1000, "Boracite": 100, "Nissonite": 25, "Orpiment": 5, "Tetra": 2.5}},
+        "Conch": {"Multis": None}
+    },
     "Afterlife Domain": {
         "Mana": {"Multis": None},
         "Enchantment": {"Multis": {"Mana": 1.5}},
@@ -307,7 +348,7 @@ abs_stat_info = {
             "Unobtainium": {"Multis": {"Enchantment": 30, "Spell": 15, "Bismuth": 1e6, "Boracite": 1e6, "Nissonite": 1e6, "Orpiment": 1e6, "Tetra": 250, "Volt": 250, "Aquamarine": 100, "Lollipop": 10, "C0RR8PT10N": 2}},
             "Vibranium": {"Multis": {"Mana": 50, "Enchantment": 50, "Spell": 20, "Uranium": 1e9, "Bismuth": 1e9, "Boracite": 1e9, "Nissonite": 1e9, "Orpiment": 1e9, "Tetra": 1000, "Volt": 1000, "Aquamarine": 200, "Lollipop": 15, "C0RR8PT10N": 4, "Stargazed Metal": 1.5}},
             "Stygium": {"Multis": {"Mana": 75, "Spell": 30, "Uranium": 1000, "Bismuth": 1000, "Boracite": 1000, "Nissonite": 1000, "Orpiment": 1000, "Tetra": 1000, "Volt": 1000, "Aquamarine": 1000, "Lollipop": 25, "C0RR8PT10N": 5, "Stargazed Metal": 32.5, "Gyge": 8.23, "Auly Plate": 3.32}},
-            "Kyber Crystal": {"Multis": {"Mana": 100, "Enchantment": 100, "Spell": 100, "Cash": Mantissa(1,303), "Multiplier": Mantissa(1,303), "Rebirths": Mantissa(1,303), "Stone": Mantissa(1,303), "White Gems": Mantissa(1,303), "Crystal": Mantissa(1,303), "Iron": Mantissa(1,303), "Gold": Mantissa(1,303), "Quartz": Mantissa(1,303), "Jade": Mantissa(1,303), "Obsidian": Mantissa(1,303), "Ruby": Mantissa(1,303), "Emerald": Mantissa(1,303), "Sapphire": Mantissa(1,303), "Diamond": Mantissa(1,303), "Starlight": Mantissa(1,303), "Ion": Mantissa(1,303), "Uranium": Mantissa(1,303), "Bismuth": Mantissa(1,303), "Boracite": 1e111, "Nissonite": 1e111, "Orpiment": 1e111, "Tetra": 1e33, "Volt": 1e33, "Aquamarine": 1e16, "Lollipop": 1e8, "C0RR8PT10N": 1000, "Stargazed Metal": 100000, "Gyge": 23.82, "Auly Plate": 52.3, "Shell Piece": 6.42}}
+            "Kyber Crystal": {"Multis": {"Mana": 100, "Enchantment": 100, "Spell": 100, "Cash": Mantissa(1,303), "Multiplier": Mantissa(1,303), "Rebirths": Mantissa(1,303), "Stone": Mantissa(1,303), "White Gems": Mantissa(1,303), "Crystal": Mantissa(1,303), "Iron": Mantissa(1,303), "Gold": Mantissa(1,303), "Quartz": Mantissa(1,303), "Jade": Mantissa(1,303), "Obsidian": Mantissa(1,303), "Ruby": Mantissa(1,303), "Emerald": Mantissa(1,303), "Sapphire": Mantissa(1,303), "Diamond": Mantissa(1,303), "Starlight": Mantissa(1,303), "Ion": Mantissa(1,303), "Uranium": Mantissa(1,303), "Bismuth": Mantissa(1,303), "Boracite": 1e111, "Nissonite": 1e111, "Orpiment": 1e111, "Tetra": 1e33, "Volt": 1e33, "Aquamarine": 1e16, "Lollipop": 1e8, "C0RR8PT10N": 1000, "Stargazed Metal": 100000, "Gyge": 23.82, "Auly Plate": 52.3, "Shell Piece": 6.42, "Robucks": Mantissa(1,303), "Studs": Mantissa(1,303), "Oofs": Mantissa(1,303), "Tix": Mantissa(1,303), "Game": Mantissa(1,303), "Guest": Mantissa(1,303), "Bacon": Mantissa(1,303), "Noob": Mantissa(1,303),"Robloxian": Mantissa(1,303), "Pro": Mantissa(1,303), "Rich": Mantissa(1,303), "Developer": Mantissa(1,303), "Group": Mantissa(1,303), "Server": Mantissa(1,303), "Points": Mantissa(1,303), "G$": Mantissa(1,303), "EXP": Mantissa(1,303), "Collectibles": Mantissa(1,303), "Limiteds": Mantissa(1,303), "Badges": Mantissa(1,303)}}
         }
     },
     "Victorious Saints (Afterlife Domain)": {
@@ -1649,6 +1690,45 @@ stat_gradients = {
     "Script": {"Colours": "#ffffff,#ff8800,#ff8800,#804d00,#d09f2c,#804d00,#ff8800,#ff8800,#ffffff".split(","), "Angle": 9},
     "Language": {"Colours": "#cccc00,#cccc00,#000000,#0000cc,#0000cc".split(","), "Angle": 109},
     "RAM": {"Colours": "#5e5e5e,#555555,#9d9d9d".split(","), "Angle": 75},
+    "Penny": {"Colours": "#89470b,#764012".split(","), "Angle": 90},
+    "Coconut": {"Colours": "#362212,#2e1f12".split(","), "Angle": 90},
+    "Wood": {"Colours": "#d9912a,#d4942f".split(","), "Angle": 90},
+    "Cobblestone": {"Colours": "#5c6365,#555757".split(","), "Angle": 180},
+    "Coal": {"Colours": "#0e0e0e,#040404".split(","), "Angle": 180},
+    "Ferrotite": {"Colours": "#c8c1ba,#b19c8a".split(","), "Angle": 180},
+    "Mesolite": {"Colours": "#d9fcff,#d9fcff,#d9fcff,#8c949c,#e7e2ff,#e7e2ff,#e7e2ff".split(","), "Angle": 135},
+    "Forsterite": {"Colours": "#d9fcff,#d9fcff,#565d5e,#b6cece,#b6cece".split(","), "Angle": 135},
+    "Raspite": {"Colours": "#f1a168,#fb8620".split(","), "Angle": 90},
+    "Cinnabar": {"Colours": "#cc3429,#ac1e20".split(","), "Angle": 90},
+    "Zircon": {"Colours": "#dad3f4,#fbc7e4,#feddc8".split(","), "Angle": 90},
+    "Altaite": {"Colours": "#b4bebe,#c1d6d6".split(","), "Angle": 90},
+    "Galena": {"Colours": "#ebf0e2,#e2daed".split(","), "Angle": 90},
+    "Topaz": {"Colours": "#f6da69,#fbb740".split(","), "Angle": 90},
+    "Conch": {"Colours": "#d0db90,#bec782".split(","), "Angle": 180},
+    "Poinitium": {"Colours": "#c515ff,#4000e3".split(","), "Angle": 90},
+    "Rogems": {"Colours": "#f9b25e,#f9b360".split(","), "Angle": 90},
+    "Robucks": {"Colours": "#55ff7f,#53f603".split(","), "Angle": 90},
+    "Studs": {"Colours": "#ffffff,#ffffff".split(","), "Angle": 180},
+    "Oofs": {"Colours": "#46461c,#858506".split(","), "Angle": 135},
+    "Tix": {"Colours": "#ffff37,#e8e89e".split(","), "Angle": 180},
+    "Game": {"Colours": "#929292,#fafafa,#bbbbbb".split(","), "Angle": 180},
+    "Guest": {"Colours": "#700202,#f20000,#a00101".split(","), "Angle": 180},
+    "Bacon": {"Colours": "#361b00,#361b00,#a25201,#4e9be9".split(","), "Angle": 135},
+    "Noob": {"Colours": "#aec646,#065aed,#3c9149".split(","), "Angle": 90},
+    "Robloxian": {"Colours": "#ffffff,#000000,#ffffff,#ffffff,#55557e,#559cea".split(","), "Angle": 90},
+    "Pro": {"Colours": "#aeff00,#ffff00".split(","), "Angle": 90},
+    "Rich": {"Colours": "#a70c78,#a8a700,#1a0700,#1a0700".split(","), "Angle": 100},
+    "Developer": {"Colours": "#ffffff,#0ea5f1,#8ac8e7".split(","), "Angle": 90},
+    "Group": {"Colours": "#601515,#f30505,#ff3d3d".split(","), "Angle": 135},
+    "Server": {"Colours": "#4ee901,#111e0c,#4ce200,#000000,#000000,#000000".split(","), "Angle": 100},
+    "Points": {"Colours": "#960d0d,#f19090,#ff2929,#eb7a7a".split(","), "Angle": 90},
+    "G$": {"Colours": "#d2c601,#aa7819".split(","), "Angle": 90},
+    "XP": {"Colours": "#3e88d2,#1fbed1,#3e88d2".split(","), "Angle": 135},
+    "Collectibles": {"Colours": "#814fcb,#2c39d0,#b300a4".split(","), "Angle": 160},
+    "Limiteds": {"Colours": "#eff203,#00ff08".split(","), "Angle": 90},
+    "Compiler": {"Colours": "#6e6e6e,#ffffff,#6e6e6e".split(","), "Angle": 176},
+    "Data": {"Colours": "#15006a,#006ba0,#007529".split(","), "Angle": 138},
+    "Reality Tether": {"Colours": "#ffffff,#000000,#ffffff".split(","), "Angle": 12},
     "Default": {"Colours": ["#ffffff", "#ffffff"], "Angle": 0},
 }
 cythrex_data = {
@@ -1933,7 +2013,7 @@ cythrex_data = {
         "obtainment": "Rodrigo had a strange amulet last time you saw him... perhaps he is hiding within the Whitespace"
     },
     "DENIAL": {
-        "tags": ["Secret", "Stats"],
+        "tags": ["Secret", "Stats", "BS:ED"],
         "lore": "ACCESS DENIED",
         "obtainment": "ADMINISTRATOR ACCESS REQUIRED"
     },
@@ -2246,6 +2326,11 @@ cythrex_data = {
         "tags": ["BS:ED", "Stats", "Secret", "Moonbase"],
         "lore": "The ore seems to be consistently changing its nature as some of its properties seem uncertain.",
         "obtainment": "Get Glitchared FOR FREE using EasyKidsMalware.exe, just follow the instructions and you'll get a free Glitchared :D\nThere have been several reports that the program may corrupt 'savefiles', it is highly recommended you 'save' by 'closing' the 'program' before attempting to use the 'service'"
+    },
+    "TRU3_W0RLD": {
+        "tags": ["Secret", "BS:ED", "Stats"],
+        "lore": "R34L1TY",
+        "obtainment": "S1NC3 TH3 D4WN 0F TH3 TRU3_W0RLD"
     },
     "Test Page": {
         "tags": ["Test"],
@@ -2845,6 +2930,24 @@ badge_data = {
                          "Scoria": 25
               }
           },
+          "Scoria 9": {
+              "Display": "Dystopic Future",
+              "Gradient": "Scoria",
+              "Reqs": {
+                  "Scoria": 1e100
+              },
+              "Consume": True,
+              "Multis": {
+                  "Moon Cash": 0.1,
+                  "Booster": 0.1,
+                  "Reincarnation": 0.0001,
+                  "Scoria": 100000,
+                  "Brighterium": 0.01,
+                  "Baryte": 0.5,
+                  "Cryon": 12,
+                  "Solargems": 15
+              }
+          },
           "Brighterium 1": {
               "Display": "Radiant Manners",
               "Gradient": "Brighterium",
@@ -2914,6 +3017,23 @@ badge_data = {
                          "Solargems": 0.7
               }
           },
+          "Brighterium 6": {
+              "Display": "Eternalism",
+              "Gradient": "Brighterium",
+              "Reqs": {
+                  "Brighterium": 1e57
+              },
+              "Consume": True,
+              "Multis": {
+                         "Scoria": 16,
+                         "Brighterium": 27,
+                         "Baryte": 64,
+                         "Gypsum": 25,
+                         "Pyrite": 8.585814486631532,
+                         "Cryon": 0.91,
+                         "Solargems": 10
+              }
+          },
           "Baryte 1": {
               "Display": "Resin Gel",
               "Gradient": "Baryte",
@@ -2961,6 +3081,19 @@ badge_data = {
                          "Gypsum": 0.925
               }
           },
+          "Baryte 4": {
+              "Display": "Ocean of Infinity",
+              "Gradient": "Baryte",
+              "Reqs": {
+                  "Baryte": 1e65
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 50,
+                         "Baryte": 50,
+                         "Gypsum": 17
+              }
+          },
           "Gypsum 1": {
               "Display": "Ancient Glyphs",
               "Gradient": "Gypsum",
@@ -3004,6 +3137,160 @@ badge_data = {
                          "Brighterium": 12,
                          "Baryte": 3,
                          "Gypsum": 15
+              }
+          },
+          "Gypsum 4": {
+              "Display": "Supertitious Alphabet",
+              "Gradient": "Gypsum",
+              "Reqs": {
+                  "Gypsum": 3e11
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 700,
+                         "Scoria": 100,
+                         "Brighterium": 30,
+                         "Baryte": 30,
+                         "Gypsum": 15,
+                         "Pyrite": 6,
+                         "Cryon": 4
+              }
+          },
+          "Pyrite 1": {
+              "Display": "Fool's Gold",
+              "Gradient": "Pyrite",
+              "Reqs": {
+                  "Pyrite": 5
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 150,
+                         "Booster": 80,
+                         "Brighterium": 10,
+                         "Pyrite": 2
+              }
+          },
+          "Pyrite 2": {
+              "Display": "Cheese Moon",
+              "Gradient": "Pyrite",
+              "Reqs": {
+                  "Pyrite": 333
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 200,
+                         "Booster": 200,
+                         "Scoria": 50,
+                         "Brighterium": 3,
+                         "Pyrite": 4.5
+              }
+          },
+          "Pyrite 3": {
+              "Display": "Chemical Confusion",
+              "Gradient": "Pyrite",
+              "Reqs": {
+                  "Pyrite": 1.75e6
+              },
+              "Consume": True,
+              "Multis": {
+                         "Booster": 30,
+                         "Pyrite": 5
+              }
+          },
+          "Cryon 1": {
+              "Display": "Permafrost Analysis",
+              "Gradient": "Cryon",
+              "Reqs": {
+                  "Cryon": 5
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 500,
+                         "Brighterium": 5,
+                         "Baryte": 0.95,
+                         "Gypsum": 3,
+                         "Cryon": 2
+              }
+          },
+          "Cryon 2": {
+              "Display": "Breeze Injection",
+              "Gradient": "Cryon",
+              "Reqs": {
+                  "Cryon": 41
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 80,
+                         "Booster": 80,
+                         "Reincarnation": 5000,
+                         "Scoria": 100,
+                         "Brighterium": 30,
+                         "Baryte": 0.9,
+                         "Gypsum": 0.8,
+                         "Cryon": 4
+              }
+          },
+          "Cryon 3": {
+              "Display": "Frigid Enzymes",
+              "Gradient": "Cryon",
+              "Reqs": {
+                  "Cryon": 25000
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 0.4,
+                         "Scoria": 100,
+                         "Baryte": 3,
+                         "Cryon": 5
+              }
+          },
+          "Kinetic 1": {
+              "Display": "Temp. 200K",
+              "Gradient": "Kinetic",
+              "Reqs": {
+                  "Kinetic": 2
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 1000,
+                         "Scoria": 7500,
+                         "Brighterium": 3000,
+                         "Baryte": 0.1,
+                         "Pyrite": 30,
+                         "Cryon": 0.95,
+                         "Kinetic": 2
+              }
+          },
+          "Kinetic 2": {
+              "Display": "Kinetic Energy Empowered Computer",
+              "Gradient": "Kinetic",
+              "Reqs": {
+                  "Kinetic": 100
+              },
+              "Consume": True,
+              "Multis": {
+                         "Moon Cash": 1e12,
+                         "Booster": 1e9,
+                         "Kinetic": 7
+              }
+          },
+          "Plasma 1": {
+              "Display": "Plasma Chains",
+              "Gradient": "Plasma",
+              "Reqs": {
+                  "Plasma": 8
+              },
+              "Consume": True,
+              "Multis": {
+                         "Reincarnation": 0.4,
+                         "Scoria": 75000,
+                         "Brighterium": 10000,
+                         "Baryte": 0.05,
+                         "Gypsum": 250,
+                         "Pyrite": 50,
+                         "Cryon": 0.8,
+                         "Plasma": 3,
+                         "Solargems": 22
               }
           },
           "Solargems 1": {
@@ -3084,36 +3371,74 @@ badge_data = {
                          "Solargems": 0.75
               }
           },
-          "Pyrite 1": {
-              "Display": "Fool's Gold",
-              "Gradient": "Pyrite",
+          "Solargems 6": {
+              "Display": "Overkill",
+              "Gradient": "Solargems",
               "Reqs": {
-                  "Pyrite": 5
+                  "Solargems": 1e6
               },
               "Consume": True,
               "Multis": {
-                         "Moon Cash": 150,
-                         "Booster": 80,
-                         "Brighterium": 10,
-                         "Pyrite": 2
-              }
-          },
-          "Pyrite 2": {
-              "Display": "Cheese Moon",
-              "Gradient": "Pyrite",
-              "Reqs": {
-                  "Pyrite": 333
-              },
-              "Consume": True,
-              "Multis": {
-                         "Moon Cash": 200,
-                         "Booster": 200,
-                         "Scoria": 50,
-                         "Brighterium": 3,
-                         "Pyrite": 4.5
+                         "Reincarnation": 0.01,
+                         "Scoria": 1000,
+                         "Brighterium": 600,
+                         "Solargems": 8
               }
           },
         },
+    "Secluded Oasis": {
+        "Penny 1": {
+            "Display": "Penny Factory",
+            "Gradient": "Penny",
+            "Reqs": {
+                "Penny": 1.73e10
+            },
+            "Consume": True,
+            "Multis": {
+                "Penny": 4
+            }
+        },
+        "Coconut 1": {
+            "Display": "Coconut Factory",
+            "Gradient": "Coconut",
+            "Reqs": {
+                "Coconut": 7.1e6
+            },
+            "Consume": True,
+            "Multis": {
+                "Coconut": 1.6
+            }
+        },
+        "Wood 1": {
+            "Display": "Birch Tree",
+            "Gradient": "Wood",
+            "Reqs": {
+                "Wood": 1000
+            },
+            "Consume": True,
+            "Multis": {
+                "Wood": 1.8
+            }
+        },
+        "Penny Secret 1": {
+            "Display": "Breakout",
+            "Gradient": "Penny",
+            "Reqs": {
+                "Penny": Mantissa(1,5000)
+            },
+            "Consume": True,
+            "Multis": {
+                "Penny": 1e103,
+                "Coconut": 50,
+                "Wood": 50,
+                "Cobblestone": 50,
+                "Coal": 50,
+                "Cinnabar": 6,
+                "Altaite": 2.5,
+                "Galena": 1.1
+            }
+        },
+    },
     "Miscellaneous": 
         {"Test Badge 1": 
             {"Display": "Tester's Glory", 

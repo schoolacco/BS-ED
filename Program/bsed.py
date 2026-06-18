@@ -1,4 +1,5 @@
 # Builtins/Must haves
+from __future__ import annotations
 from PySide6.QtWidgets import QDialog, QScrollArea, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QPushButton, QLineEdit, QGridLayout, QMessageBox, QApplication, QComboBox, QCompleter, QMainWindow, QGroupBox, QDoubleSpinBox, QSizePolicy, QLayout
 from PySide6.QtCore import QTimer, QObject, QEvent, QSortFilterProxyModel, QSize, QUrl
 from PySide6.QtGui import QIcon, Qt, QPixmap, QCloseEvent, QPainter, QColor, QHideEvent, QShowEvent, QPaintEvent
@@ -16,9 +17,9 @@ import colorama
 import webbrowser
 import os
 import weakref
-from typing import Self
+from typing import Union, Optional
 import hmac
-from Module import Realm, GradientLabel, BootScreen, CY47Window, BolicalWorld, BadgesWindow, CollapsibleSection, World, Cutscene, find_key_path, multi_func, AuthWindow
+from Module import Realm, GradientLabel, BootScreen, CY47Window, BolicalWorld, BadgesWindow, CollapsibleSection, World, Cutscene, find_key_path, multi_func, AuthWindow, attacks, BossFight
 from geode import *
 from db import update_save, get_account, supabase
 from data import abs_stat_info, stat_gradients, cythrex_data, craftable_items, badge_data, def_upgrades, global_path_reference, def_stat_increment
@@ -27,19 +28,23 @@ try: #Environment handling
   from dotenv import load_dotenv
 except ImportError:
     pass
+Numeric = Union[int, float, Mantissa]
 #TODO:
-# Offline geode rolls
-# Greed puzzle
-# ARG/Malware puzzle
-# - Denial puzzle (?)
-# Revamp wiki pages for Moonbase and Nostalgia World before implementing into program
-# Implement Secluded Oasis
-# Implement BS:ED X (?)
-os.environ["QT_LOGGING_RULES"] = "qt.multimedia.ffmpeg*=false"
+# Offline geode rolls - possible
+# Greed puzzle - possible
+# ARG/Malware puzzle - probably not
+# - Denial puzzle - actively happening
+# Revamp wiki pages for Moonbase and Nostalgia World before implementing into program - Moonbase fully implemented, Nostalgia World may happen, but is unlikely
+# Implement Secluded Oasis - nvm the pages are really empty
+# Implement BS:ED X (?) - definitely not happening
+os.environ["QT_LOGGING_RULES"] = "qt.multimedia.ffmpeg*=false" #Stops console flooding with info about the music changing
 warnings.filterwarnings("ignore")
 user = validate_session()
+if os.name == 'nt':
+    app_id = 'BSED.but.bad.1.4' 
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id) #Taskbar icon for windows
 print("Loading...")
-progression_lvl = 3
+progression_lvl = 0
 if 'load_dotenv' in dir():
     load_dotenv(f"{global_path_reference}/Program/bsed.env", override=True)
     debug = ast.literal_eval(os.getenv("DEBUG"))
@@ -83,7 +88,7 @@ voltaic_radar = True
 db = supabase
 class UpgradeMenu(QDialog):
         instances = weakref.WeakSet()
-        def __init__(self, save_data: dict, parent: QObject|None=None) -> Self:
+        def __init__(self, save_data: dict, parent: Optional[QObject]=None) -> UpgradeMenu:
             global world
             super().__init__(parent)
             for instance in self.instances:
@@ -94,7 +99,7 @@ class UpgradeMenu(QDialog):
             self.save_data = save_data
     
             self.setWindowTitle("Boosts")
-            self.setWindowIcon(QIcon("Quant.png"))
+            self.setWindowIcon(QIcon(f"{global_path_reference}/icon.ico"))
             self.setMinimumSize(400, 500)
             self.setStyleSheet("background-color: #212121; color: white; padding: 1px; border: 1px solid white")
             # Scroll setup
@@ -187,7 +192,7 @@ class UpgradeMenu(QDialog):
             cls.instances.clear()
 class ControlPanel(QDialog):
         instances = weakref.WeakSet()
-        def __init__(self, parent: QObject|None=None) -> Self:
+        def __init__(self, parent: Optional[QObject]=None) -> ControlPanel:
             super().__init__(parent)
             for instance in self.instances:
                 instance.close()
@@ -292,11 +297,11 @@ def secret_input(input: str):
         print("You're on the right track!")
         secrets["Darkmatter_1"] = True
         print(colorama.Fore.BLACK, "RGltZW5zaW9uIGJyZWFr", colorama.Fore.RESET)
-    if area == "Abyssal Trenches":
+    if area == "AT":
       if input == "God of Miners" and secrets["Darkmatter_1"] and secrets["Darkmatter_2"]:
           secrets["Darkmatter_3"] = True
           print(colorama.Fore.BLACK, "Perhaps you are capable of seeing in the dark. Nethertheless the end is nigh. Corrupt thy soul, plague it with sin, and perhaps once more you may be capable of opening your eyes.", colorama.Fore.RESET)
-    if area == "Wormhole":
+    elif area == "WF":
       if input == "Andromeda":
           print("You feel as if the wormhole was beginning to reopen")
           secrets["Galaxite_1"] = True
@@ -312,6 +317,9 @@ def secret_input(input: str):
       if all((secrets["Galaxite_1"], secrets["Galaxite_2"], secrets["Galaxite_3"], stat_increment["Stats"]["Galaxite"] == 0)):
           print("An exit has opened, congratulations on your escape.")
           stat_increment["Stats"]["Galaxite"] = 1
+    elif area == "R34L1TY":
+        if input == "R3AL1TY H4S N3VER SH1N3D TH1S M8CH":
+            stat_increment["Stats"]["TRU3_W0RLD"] = 1
     sec_input.clear()
 def Geode_roll(btn: QPushButton, geode: Geode, luck: int=1, geode_speed: int=1, bulk_roll: int=1):
     global stat_increment
@@ -320,7 +328,7 @@ def Geode_roll(btn: QPushButton, geode: Geode, luck: int=1, geode_speed: int=1, 
     btn.setEnabled(False)
     stat_increment = geode.open(stat_increment, local_luck, bulk_roll, local_crit)
     QTimer.singleShot(int(geode_speed*1000), lambda: btn.setEnabled(True))
-def load_check(id: str|None=None):
+def load_check(id: Optional[str]=None):
     global stat_increment, container, scroll_area, content, layout, area
     result = Realm.load_realm(stat_increment, id)
     if result:
@@ -331,12 +339,12 @@ def load_check(id: str|None=None):
 def edit_user(*args):
     global user
     user = validate_session()
-def load_world(req: int|float|Mantissa, unit: str, world_instance: World):
+def load_world(req: Numeric, unit: str, world_instance: World):
     global stat_increment, container, scroll_area, container, content, layout, cash_type, multi_type, rebirth_type, gem_type, e_event, e_type, reset_key, world, music, m_logic, upgrade_ref, user
     amount = stat_increment["Stats"][unit]
     req = float_to_mantissa(req) if isinstance(amount, Mantissa) else req
     if amount >= req:
-      if progression_lvl == 4 and not validate_session():
+      if progression_lvl == 4 and not validate_session() and world_instance.area == "S":
           auth = AuthWindow("Register", root)
           auth.registered.connect(edit_user)
           auth.exec()
@@ -482,7 +490,7 @@ def Load(username: str = user):
             return Old_Load()
 
     return Old_Load()
-def Save(username: str|None, collection: dict, upgrades: dict, secrets: dict, attempt=0):
+def Save(username: Optional[str], collection: dict, upgrades: dict, secrets: dict, attempt=0):
     global db
     if progression_lvl > 4:
       print(f"Saving... (attempt {attempt + 1}/5)")
@@ -722,7 +730,7 @@ def event_increase():
       else:
           period = 60000//(upgrades[world]["event_speed"]["effect"]*upgrades[world]["event_speed"]["current_lvl"])
       QTimer.singleShot(period, event_increase)
-def cost_button(unit: str, cost: int|float|Mantissa, unit_2: str, receive: int|float|Mantissa):
+def cost_button(unit: str, cost: Numeric, unit_2: str, receive: Numeric):
     global stat_increment
 
     value = stat_increment["Stats"][unit]
@@ -749,7 +757,7 @@ def cost_button(unit: str, cost: int|float|Mantissa, unit_2: str, receive: int|f
         label_helper()
 
         stat_increment["Stats"]["Buttons Pressed"] += 1
-def reset_button(cost: int|float|Mantissa, unit: str, reward: int|float|Mantissa, unit_2: str):
+def reset_button(cost: Numeric, unit: str, reward: Numeric, unit_2: str):
     global stat_increment, reset_key
 
     current_value = stat_increment["Stats"][unit]
@@ -782,7 +790,7 @@ def reset_button(cost: int|float|Mantissa, unit: str, reward: int|float|Mantissa
             stat_increment["Stats"][unit_2] = value
         label_helper()
         stat_increment["Stats"]["Buttons Pressed"] += 1
-def reset_button_special(cost: int|float|Mantissa, unit: str, reward: int|float|Mantissa, unit_2: str, resets: list=[]):
+def reset_button_special(cost: Numeric, unit: str, reward: Numeric, unit_2: str, resets: list=[]):
     global stat_increment
     current_value = stat_increment["Stats"][unit]
     if isinstance(current_value, Mantissa) and not isinstance(cost, Mantissa):
@@ -813,7 +821,7 @@ def reset_button_special(cost: int|float|Mantissa, unit: str, reward: int|float|
             stat_increment["Stats"][unit_2] = value
         label_helper()
         stat_increment["Stats"]["Buttons Pressed"] += 1
-def recovery_button_set(req: int|float|Mantissa, unit: str, Set: int|float|Mantissa, unit_2: str):
+def recovery_button_set(req: Numeric, unit: str, Set: Numeric, unit_2: str):
     global stat_increment
     amount = stat_increment["Stats"][unit]
     if isinstance(amount, Mantissa) and not isinstance(req, Mantissa):
@@ -826,7 +834,7 @@ def recovery_button_set(req: int|float|Mantissa, unit: str, Set: int|float|Manti
           label_helper()
     else:
      pass
-def recovery_button_fetch(req: int|float|Mantissa, unit: str, recovery: int|float|Mantissa, unit_2: str):
+def recovery_button_fetch(req: Numeric, unit: str, recovery: Numeric, unit_2: str):
     global stat_increment
     amount = stat_increment["Stats"][unit]
     if isinstance(amount, Mantissa) and not isinstance(req, Mantissa):
@@ -883,10 +891,10 @@ def label_helper():
 def image_load(path: str):
     path = os.path.abspath(path)
     webbrowser.open(f"file://{path}")
-def cythrex_boot(parent: QObject|None=None):
+def cythrex_boot(parent: Optional[QObject]=None):
     global main_window, boot, progression_lvl
     if progression_lvl >= 3:
-      wl = None if 7 > progression_lvl >= 5 else list(abs_stat_info["Pre-existence"].keys())
+      wl = None if progression_lvl >= 5 else list(abs_stat_info["Pre-existence"].keys())
       bl = None if progression_lvl < 5 or progression_lvl >= 7 else list(abs_stat_info["Pre-existence"].keys())
       window_visibility = True
       try:
@@ -922,13 +930,13 @@ def cythrex_boot(parent: QObject|None=None):
         boot.closed.connect(reset)
     else:
           QMessageBox.warning(parent, "Error", "Accessed Denied")
-def graphite_puzzle(parent: QObject|None=None, req: dict|None=None):
+def graphite_puzzle(parent: Optional[QObject]=None, req: Optional[dict]=None):
     if req:
      if stat_increment["Stats"][req[1]] >= req[0]:
          return
     puzzle = BolicalWorld(stat_increment, parent)
     puzzle.show()
-def sloth(parent: QObject=None, time: int=3000, req: dict|None=None):
+def sloth(parent: QObject=None, time: int=3000, req: Optional[dict]=None):
     if req:
       if stat_increment["Stats"][req[1]] >= req[0]:
           return
@@ -943,7 +951,16 @@ def gluttony_check(button: QPushButton):
     if len(button.parent().children()) == 12:
         if stat_increment["Stats"]["Gluttony"] < 1:
           stat_increment["Stats"]["Gluttony"] = 1
-def craft(stat: str, amount: int|float|Mantissa):
+def on_victory():
+    val = stat_increment["Stats"]["DENIAL"]
+    stat_increment["Stats"]["DENIAL"] = 1 if val < 1 else val
+    root.close()
+def boss_fight_check(amount: Numeric, unit: str):
+    if stat_increment["Stats"][unit] >= amount:
+        fight = BossFight(parent=root, attacks=attacks, end_ms=344000, end_function=on_victory, start_ms=0)
+        fight.exec()
+        root.close()
+def craft(stat: str, amount: Numeric):
     if amount == None or amount < 1:
         return None
     key_1 = find_key_path(abs_stat_info,stat)[0]
@@ -964,10 +981,10 @@ def craft(stat: str, amount: int|float|Mantissa):
     temp = float_to_mantissa(stat_increment["Stats"][stat])
     temp += amount
     stat_increment["Stats"][stat] = temp.to_float()
-def open_control_panel(parent: QObject|None=None) -> QObject:
+def open_control_panel(parent: Optional[QObject]=None) -> QObject:
     win = ControlPanel(parent)
     win.show()
-def string_to_num(string:str) -> int|float|Mantissa:
+def string_to_num(string:str) -> Numeric:
     try:
           value = float(string)
     except ValueError:
@@ -980,9 +997,9 @@ def string_to_num(string:str) -> int|float|Mantissa:
     if value == math.inf:
         value = Mantissa.from_string(string)
     return value
-def cutscene(text: list, text_color: str, bg: str, overlay: bool=False, parent:QObject|None=None):
+def cutscene(text: list, text_color: str, bg: str, overlay: bool=False, parent:Optional[QObject]=None):
     window = Cutscene(text, text_color, bg, overlay, parent)
-    window.show()
+    window.exec()
 def progression_increment():
     global progression_lvl
     progression_lvl += 1
@@ -1056,7 +1073,7 @@ class ExtendedComboBox(QComboBox):
 if __name__ == "__main__":
   app = QApplication(sys.argv)
   class StatMenu(QMainWindow):
-    def __init__(self, parent: QObject|None=None) -> Self:
+    def __init__(self, parent: Optional[QObject]=None) -> StatMenu:
         super().__init__(parent)
 
         self.setWindowTitle("Stats Menu")
@@ -1235,31 +1252,41 @@ if __name__ == "__main__":
     def hideEvent(self, event: QHideEvent):
         self.timer.stop()
         super().hideEvent(event)
-  class MusicManager: #Pydub + simpleaudio worked well, but this helps to reduce compatibility and download issues.
-    def __init__(self) -> Self:
-        self.audio_output = QAudioOutput()
-        self.player = QMediaPlayer()
-        self.player.setAudioOutput(self.audio_output)
-
-        self.music_list = []
-        self.path = f"{global_path_reference}/Program/Music/Archive"
-        self.player.mediaStatusChanged.connect(self._handle_status)
-
-    def play_random(self):
-        if not self.music_list:
-            return
-
-        song = random.choice(self.music_list)
-        self.player.setSource(QUrl.fromLocalFile(f"{self.path}/{song}"))
-        self.player.play()
-
-    def _handle_status(self, status: QMediaPlayer.MediaStatus):
-        if status == QMediaPlayer.EndOfMedia:
-            self.play_random()
-    def stop(self):
-        self.player.stop()
+  class MusicManager:
+      def __init__(self, offset_ms=0): #The improved music manager which may or may not be in the main program by the time you're reading this
+          self.audio_output = QAudioOutput()
+          self.player = QMediaPlayer()
+          self.player.setAudioOutput(self.audio_output)
+          self.offset = offset_ms
+          self.music_list = []
+          self.path = f"{global_path_reference}/Program/Music/Archive"
+          self.music_list = os.listdir(self.path)
+          self._pending_offset = False
+          self.stop_perm = False
+          self.player.mediaStatusChanged.connect(self._handle_status)
+  
+      def play_random(self):
+          if not self.music_list:
+              return
+          self.player.stop()
+          self._pending_offset = self.offset > 0
+          song = random.choice(self.music_list)
+          self.player.setSource(QUrl.fromLocalFile(f"{self.path}/{song}"))
+          self.player.play()
+  
+      def _handle_status(self, status: QMediaPlayer.MediaStatus):
+          if status == QMediaPlayer.MediaStatus.LoadedMedia or self._pending_offset:
+              self._pending_offset = False
+              self.player.setPosition(self.offset)
+          elif status == QMediaPlayer.MediaStatus.EndOfMedia:
+              if not self.stop_perm:
+                self.play_random()
+  
+      def stop(self):
+          self._pending_offset = False
+          self.player.stop()
   class Window(QMainWindow):
-      def __init__(self) -> Self:
+      def __init__(self) -> Window:
           super().__init__()
           self.stat_window = StatMenu(self)
           self.music_manager = MusicManager()
@@ -1281,7 +1308,7 @@ if __name__ == "__main__":
             self.stat_window.raise_()
             self.stat_window.activateWindow()
   class AdminPanel(QDialog):
-    def __init__(self, parent: QObject|None, player_state: dict) -> Self:
+    def __init__(self, parent: Optional[QObject], player_state: dict) -> AdminPanel:
         super().__init__(parent)
         self.player = player_state
 
@@ -1359,7 +1386,7 @@ if __name__ == "__main__":
         if value is None:
           return
         bulk_roll = value
-    def get_value(self, input: QLineEdit) -> None|int|float|Mantissa:
+    def get_value(self, input: QLineEdit) -> None|Numeric:
       try:
           value = int(input.text())
       except ValueError:
@@ -1386,7 +1413,7 @@ if __name__ == "__main__":
         self.player["Stats"][stat] += self.get_value(self.stat_value) * direction
   class Sloth(QDialog):
       instances = weakref.WeakSet()
-      def __init__(self, time: int=3000, parent: QObject|None=None) -> Self:
+      def __init__(self, time: int=3000, parent: Optional[QObject]=None) -> Sloth:
           super().__init__(parent)
           for instance in self.instances:
             instance.close()
@@ -1454,7 +1481,7 @@ if __name__ == "__main__":
           super().resizeEvent(event)
   class CraftingMenu(QDialog):
     instances = weakref.WeakSet()
-    def __init__(self, items: list, parent: QObject|None=None) -> Self:
+    def __init__(self, items: list, parent: Optional[QObject]=None) -> CraftingMenu:
         super().__init__(parent)
         for instance in self.instances:
             instance.close()
@@ -1586,7 +1613,7 @@ if __name__ == "__main__":
   cash_l, multi_l, re_l = QLabel(), QLabel(), QLabel()
   root.setWindowTitle("BS:ED but bad")
   root.setMinimumSize(QSize(100,100))
-  root.setWindowIcon(QIcon(f"{global_path_reference}/Program/Quant.png"))
+  root.setWindowIcon(QIcon(f"{global_path_reference}/Program/icon.ico"))
   layout = QGridLayout()
   central = QWidget()
   central.setLayout(layout)
@@ -3392,7 +3419,7 @@ if __name__ == "__main__":
          ("Spawn (req: 0 Cash)", lambda: load_check("S")),
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ],
-      "Unknown": [("", lambda: blinded())]
+      #"Unknown": [("", lambda: blinded())]
   }, 50, "Tetra", "VS", voltaic_radar=voltaic_radar)
   Realm(root, { #Abyssal Trenches
       "Orpiment": [
@@ -3426,7 +3453,8 @@ if __name__ == "__main__":
       ],
       "Area Teleports": [
          ("Spawn (req: 0 Cash)", lambda: load_check("S")),
-         ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
+         ("Recover Hall (req: 0 Cash)", lambda: load_check("RH")),
+         ("R34L1TY (req: 1 C0RR8PT10N)", lambda: load_check("R34L1TY")),
       ]
   }, 3, "Volt", "AT", voltaic_radar=voltaic_radar)
   Realm(root, { #Flourish Candylands
@@ -4453,6 +4481,8 @@ if __name__ == "__main__":
           ("Liquified Outpost (req: 50 Brighterium)", lambda: load_check("LO")),
           ("Enigmatic Caverns (req: 100 Baryte)", lambda: load_check("EC")),
           ("Saturn (req: 50 Gypsum)", lambda: load_check("Sat")),
+          ("Cryogenesis (req: 1.75k Pyrite)", lambda: load_check("C")),
+          ("Prismed Islopolis (req: 600 Cryon)", lambda: load_check("PrI")),
       ],
       "World Teleports": [
           ("Buttonia (req: 0 Moon Cash)", lambda: load_world(0, "Moon Cash", Buttonia))
@@ -4582,7 +4612,7 @@ if __name__ == "__main__":
           ("Spawn (req: 0 Moon Cash)", lambda: load_check("S(M)")),
       ]
   }, 50, "Brighterium", "LO", voltaic_radar=voltaic_radar)
-  Realm(root, { #I forgor
+  Realm(root, { #Enigmatic Caverns
       "Booster": [
           ("6.999e100 Moon Cash: 100Qd Booster", lambda: cost_button("Moon Cash", 6.999e100, "Booster", 1e17)),
           ("2.86e102 Moon Cash: 181.72Qd Booster", lambda: cost_button("Moon Cash", 2.86e102, "Booster", 1.8172e17)),
@@ -4747,6 +4777,192 @@ if __name__ == "__main__":
           ("Spawn (req: 0 Moon Cash)", lambda: load_check("S(M)")),
       ]
   }, 50, "Gypsum", "Sat", voltaic_radar=voltaic_radar)
+  Realm(root, { #Cyrogenesis
+      "Booster": [
+          ("9.8063e176 Moon Cash: 100Sp Booster", lambda: cost_button("Moon Cash", 9.8063e176, "Booster", 1e26)),
+          ("8.531e178 Moon Cash: 193.49Sp Booster", lambda: cost_button("Moon Cash", 8.531e178, "Booster", 1.9349e26)),
+          ("1.39e181 Moon Cash: 373.97Sp Booster", lambda: cost_button("Moon Cash", 1.39e181, "Booster", 3.7397e26)),
+          ("1.84e183 Moon Cash: 721.89Sp Booster", lambda: cost_button("Moon Cash", 1.84e183, "Booster", 7.2189e26)),
+          ("3.1072e185 Moon Cash: 1.39Oc Booster", lambda: cost_button("Moon Cash", 3.1072e185, "Booster", 1.39e27)),
+          ("4.039e187 Moon Cash: 2.68Oc Booster", lambda: cost_button("Moon Cash", 4.039e187, "Booster", 2.68e27)),
+          ("7.06e189 Moon Cash: 5.15Oc Booster", lambda: cost_button("Moon Cash", 7.06e189, "Booster", 5.15e27)),
+          ("1.53e192 Moon Cash: 9.9Oc Booster", lambda: cost_button("Moon Cash", 1.53e192, "Booster", 9.9e27)),
+          ("6.902e193 Moon Cash: 19Oc Booster", lambda: cost_button("Moon Cash", 6.902e193, "Booster", 1.9e28)),
+          ("2.69e195 Moon Cash: 36.42Oc Booster", lambda: cost_button("Moon Cash", 2.69e195, "Booster", 3.642e28)),
+          ("2.2613e197 Moon Cash: 69.73Oc Booster", lambda: cost_button("Moon Cash", 2.2613e197, "Booster", 6.973e28)),
+          ("4.16e229 Moon Cash: 133.35Oc Booster", lambda: cost_button("Moon Cash", 4.16e229, "Booster", 1.3335e29)),
+          ("5.11e201 Moon Cash: 254.7Oc Booster", lambda: cost_button("Moon Cash", 5.11e201, "Booster", 2.547e29)),
+      ],
+      "Reincarnation": [
+          ("6e150 Booster: 499.99Qn Reincarnation", lambda: reset_button(6e150, "Booster", 4.9999e20, "Reincarnation")),
+          ("1.13e153 Booster: 924.2Qn Reincarnation", lambda: reset_button(1.13e153, "Booster", 9.242e20, "Reincarnation")),
+          ("2.1659e155 Booster: 1.7Sx Reincarnation", lambda: reset_button(2.1659e155, "Booster", 1.7e21, "Reincarnation")),
+          ("9.74e156 Booster: 3.14Sx Reincarnation", lambda: reset_button(9.74e156, "Booster", 3.14e21, "Reincarnation")),
+          ("3.8012e158 Booster: 5.79Sx Reincarnation", lambda: reset_button(3.8012e158, "Booster", 5.79e21, "Reincarnation")),
+          ("2.318e160 Booster: 10.66Sx Reincarnation", lambda: reset_button(2.318e160, "Booster", 1.066e22, "Reincarnation")),
+          ("8.8111e161 Booster: 19.59Sx Reincarnation", lambda: reset_button(8.8111e161, "Booster", 1.959e22, "Reincarnation")),
+          ("1.4626e164 Booster: 35.97Sx Reincarnation", lambda: reset_button(1.4626e164, "Booster", 3.597e22, "Reincarnation")),
+          ("2.237e166 Booster: 65.95Sx Reincarnation", lambda: reset_button(2.237e166, "Booster", 6.595e22, "Reincarnation")),
+          ("9.1751e167 Booster: 120.79Sx Reincarnation", lambda: reset_button(9.1751e167, "Booster", 1.2079e23, "Reincarnation")),
+          ("6.606e169 Booster: 220.98Sx Reincarnation", lambda: reset_button(6.606e169, "Booster", 2.2098e23, "Reincarnation")),
+      ],
+      "Scoria": [
+          ("2e112 Reincarnation: 499.99T Scoria", lambda: reset_button(2e112, "Reincarnation", 4.9999e14, "Scoria")),
+          ("9.2e113 Reincarnation: 897.25T Scoria", lambda: reset_button(9.2e113, "Reincarnation", 8.9725e14, "Scoria")),
+          ("7.819e115 Reincarnation: 1.6Qd Scoria", lambda: reset_button(7.819e115, "Reincarnation", 1.6e15, "Scoria")),
+          ("1.298e118 Reincarnation: 2.87Qd Scoria", lambda: reset_button(1.298e118, "Reincarnation", 2.87e15, "Scoria")),
+          ("6.6204e119 Reincarnation: 5.15Qd Scoria", lambda: reset_button(6.6204e119, "Reincarnation", 5.15e15, "Scoria")),
+          ("5.561e121 Reincarnation: 9.2Qd Scoria", lambda: reset_button(5.561e121, "Reincarnation", 9.2e15, "Scoria")),
+          ("2.89e123 Reincarnation: 16.41Qd Scoria", lambda: reset_button(2.89e123, "Reincarnation", 1.641e16, "Scoria")),
+          ("2.3423e125 Reincarnation: 29.26Qd Scoria", lambda: reset_button(2.3423e125, "Reincarnation", 2.926e16, "Scoria")),
+          ("1.241e127 Reincarnation: 52.11Qd Scoria", lambda: reset_button(1.241e127, "Reincarnation", 5.211e16, "Scoria")),
+          ("1.58e129 Reincarnation: 92.69Qd Scoria", lambda: reset_button(1.58e129, "Reincarnation", 9.269e16, "Scoria")),
+          ("2.587e91 Reincarnation: 104.6B Scoria", lambda: reset_button(2.587e91, "Reincarnation", 1.046e11, "Scoria")),
+          ("2.018e131 Reincarnation: 164.69Qd Scoria", lambda: reset_button(2.018e131, "Reincarnation", 1.6469e17, "Scoria")),
+       ],
+      "Brighterium": [
+          ("1e53 Scoria: 1B Brighterium", lambda: reset_button(1e53, "Scoria", 1e9, "Brighterium")),
+          ("3.89e54 Scoria: 2.02B Brighterium", lambda: reset_button(3.89e54, "Scoria", 2.02e9, "Brighterium")),
+          ("4.5239e56 Scoria: 4.09B Brighterium", lambda: reset_button(4.5239e56, "Scoria", 4.09e9, "Brighterium")),
+          ("5.971e58 Scoria: 8.25B Brighterium", lambda: reset_button(5.971e58, "Scoria", 8.25e9, "Brighterium")),
+          ("2.44e60 Scoria: 16.64B Brighterium", lambda: reset_button(2.44e60, "Scoria", 1.664e10, "Brighterium")),
+          ("1.8852e62 Scoria: 33.5B Brighterium", lambda: reset_button(1.8852e62, "Scoria", 3.35e10, "Brighterium")),
+          ("2.733e64 Scoria: 67.35B Brighterium", lambda: reset_button(2.733e64, "Scoria", 6.735e10, "Brighterium")),
+          ("4.07e66 Scoria: 135.23B Brighterium", lambda: reset_button(4.07e66, "Scoria", 1.3523e11, "Brighterium")),
+          ("3.2587e68 Scoria: 271.16B Brighterium", lambda: reset_button(3.2587e68, "Scoria", 2.7116e11, "Brighterium")),
+          ("3.877e70 Scoria: 543.03B Brighterium", lambda: reset_button(3.877e70, "Scoria", 5.4303e11, "Brighterium")),
+        ],
+       "Baryte": [
+          ("30No Brighterium: 100K Baryte", lambda: reset_button(3e31, "Brighterium", 100000, "Baryte")),
+          ("630No Brighterium: 178.26K Baryte", lambda: reset_button(6.3e32, "Brighterium", 178260, "Baryte")),
+          ("28.35De Brighterium: 317.33K Baryte", lambda: reset_button(2.835e34, "Brighterium", 317333, "Baryte")),
+          ("425.25De Brighterium: 564.15K Baryte", lambda: reset_button(4.2525e35, "Brighterium", 564150, "Baryte")),
+          ("1.445e37 Brighterium: 1M Baryte", lambda: reset_button(1.445e37, "Brighterium", 1e6, "Baryte")),
+          ("3.9037e38 Brighterium: 1.77M Baryte", lambda: reset_button(3.9037e38, "Brighterium", 1.77e6, "Baryte")),
+          ("2.303e40 Brighterium: 3.14M Baryte", lambda: reset_button(2.303e40, "Brighterium", 3.14e6, "Baryte")),
+          ("3.6851e41 Brighterium: 5.56M Baryte", lambda: reset_button(3.6851e41, "Brighterium", 5.56e6, "Baryte")),
+        ],
+       "Gypsum": [
+          ("1Qd Baryte: 2.19K Gypsum", lambda: reset_button(1e15, "Baryte", 2190, "Gypsum")),
+          ("13Qd Baryte: 3.4K Gypsum", lambda: reset_button(1.3e16, "Baryte", 3430, "Gypsum")),
+          ("363.99Qd Baryte: 5.26K Gypsum", lambda: reset_button(3.6399e17, "Baryte", 5260, "Gypsum")),
+          ("8Qn Baryte: 8.11K Gypsum", lambda: reset_button(8e18, "Baryte", 8110, "Gypsum")),
+          ("200.19Qn Baryte: 12.51K Gypsum", lambda: reset_button(2.0019e20, "Baryte", 12510, "Gypsum")),
+          ("3.8Sx Baryte: 19.27K Gypsum", lambda: reset_button(3.8e21, "Baryte", 19270, "Gypsum")),
+        ],
+       "Pyrite": [
+          ("1M Gypsum: 54 Pyrite", lambda: reset_button(1e6, "Gypsum", 54, "Pyrite")),
+          ("4M Gypsum: 69 Pyrite", lambda: reset_button(4e6, "Gypsum", 69, "Pyrite")),
+          ("16M Gypsum: 89 Pyrite", lambda: reset_button(1.6e7, "Gypsum", 89, "Pyrite")),
+          ("64M Gypsum: 114 Pyrite", lambda: reset_button(6.4e7, "Gypsum", 114, "Pyrite")),
+          ("384M Gypsum: 147 Pyrite", lambda: reset_button(3.84e8, "Gypsum", 147, "Pyrite")),
+        ],
+       "Cryon": [
+          ("4K Pyrite: 1 Cryon", lambda: reset_button(4000, "Pyrite", 1, "Cryon")),
+          ("25K Pyrite: 3 Cryon", lambda: reset_button(25000, "Pyrite", 3, "Cryon")),
+          ("175K Pyrite: 10 Cryon", lambda: reset_button(175000, "Pyrite", 10, "Cryon")),
+        ],
+       "World Badges": [
+          ("1e57 Brighterium: Eternalism", lambda: world_badge("Brighterium 7", "Moonbase")),
+          ("1.75M Pyrite: Chemical Confusion", lambda: world_badge("Pyrite 3", "Moonbase")),
+          ("5 Cryon: Permafrost Analysis", lambda: world_badge("Cryon 1", "Moonbase")),
+          ("41 Cryon: Breeze Injection", lambda: world_badge("Cryon 2", "Moonbase")),
+      ],
+      "Area Teleports": [
+          ("Spawn (req: 0 Moon Cash)", lambda: load_check("S(M)")),
+      ]
+  }, 1750, "Pyrite", "C")
+  Realm(root, { #Prismed Islopolis
+        "Booster": [
+          ("1.0989e176 Moon Cash: 100No Booster", lambda: cost_button("Moon Cash", 1.0989e176, "Booster", 1e32)),
+          ("3.61e210 Moon Cash: 143.45No Booster", lambda: cost_button("Moon Cash", 3.61e210, "Booster", 1.4345e32)),
+          ("2.9736e212 Moon Cash: 205.61No Booster", lambda: cost_button("Moon Cash", 2.9736e212, "Booster", 2.0561e32)),
+          ("5.94e213 Moon Cash: 294.47No Booster", lambda: cost_button("Moon Cash", 5.94e213, "Booster", 2.9447e32)),
+          ("4.7577e215 Moon Cash: 421.37No Booster", lambda: cost_button("Moon Cash", 4.7577e215, "Booster", 4.2137e32)),
+          ("3e217 Moon Cash: 602.45No Booster", lambda: cost_button("Moon Cash", 3e217, "Booster", 6.0245e32)),
+          ("2.21e219 Moon Cash: 860No Booster", lambda: cost_button("Moon Cash", 2.21e219, "Booster", 8.6e32)),
+          ("1.8631e221 Moon Cash: 1.23De Booster", lambda: cost_button("Moon Cash", 1.8631e221, "Booster", 1.23e33)),
+        ],
+        "Reincarnation": [
+          ("1.099e175 Booster: 10Sp Reincarnation", lambda: reset_button(1.099e175, "Booster", 1e25, "Reincarnation")),
+          ("6.2637e176 Booster: 13.87Sp Reincarnation", lambda: reset_button(6.2637e176, "Booster", 1.387e25, "Reincarnation")),
+          ("1.69e178 Booster: 19.24Sp Reincarnation", lambda: reset_button(1.69e178, "Booster", 1.924e25, "Reincarnation")),
+          ("6.4264e179 Booster: 26.66Sp Reincarnation", lambda: reset_button(6.4264e179, "Booster", 2.666e25, "Reincarnation")),
+          ("2.313e181 Booster: 36.91Sp Reincarnation", lambda: reset_button(2.313e181, "Booster", 3.691e25, "Reincarnation")),
+          ("7.4033e182 Booster: 51.07Sp Reincarnation", lambda: reset_button(7.4033e182, "Booster", 5.107e25, "Reincarnation")),
+          ("4.886e184 Booster: 70.59Sp Reincarnation", lambda: reset_button(4.886e184, "Booster", 7.059e25, "Reincarnation")),
+          ("7.3293e185 Booster: 97.81Sp Reincarnation", lambda: reset_button(7.3293e185, "Booster", 9.781e25, "Reincarnation")),
+        ],
+        "Scoria": [
+          ("1.099e136 Reincarnation: 100Qn Scoria", lambda: reset_button(1.099e136, "Reincarnation", 1e20, "Scoria")),
+          ("6.1537e137 Reincarnation: 134.54Qn Scoria", lambda: reset_button(6.1537e137, "Reincarnation", 1.3454e20, "Scoria")),
+          ("3.323e139 Reincarnation: 180.88Qn Scoria", lambda: reset_button(3.323e139, "Reincarnation", 1.8088e20, "Scoria")),
+          ("9.3044e140 Reincarnation: 243.01Qn Scoria", lambda: reset_button(9.3044e140, "Reincarnation", 2.4301e20, "Scoria")),
+          ("1.86e142 Reincarnation: 326.25Qn Scoria", lambda: reset_button(1.86e142, "Reincarnation", 3.2625e20, "Scoria")),
+          ("1.23e144 Reincarnation: 437.69Qn Scoria", lambda: reset_button(1.23e144, "Reincarnation", 4.3769e20, "Scoria")),
+          ("4.666e145 Reincarnation: 586.8Qn Scoria", lambda: reset_button(4.666e145, "Reincarnation", 5.868e20, "Scoria")),
+        ],
+        "Brighterium": [
+          ("1.0989e80 Scoria: 1Qd Brighterium", lambda: reset_button(1.0989e80, "Scoria", 1e15, "Brighterium")),
+          ("5.49e81 Scoria: 1.3Qd Brighterium", lambda: reset_button(5.49e81, "Scoria", 1.3e15, "Brighterium")),
+          ("1.7031e80 Scoria: 1.69Qd Brighterium", lambda: reset_button(1.7031e80, "Scoria", 1.69e15, "Brighterium")),
+          ("4.93e84 Scoria: 2.21Qd Brighterium", lambda: reset_button(4.93e84, "Scoria", 2.21e15, "Brighterium")),
+          ("2.3214e86 Scoria: 2.88Qd Brighterium", lambda: reset_button(2.3214e86, "Scoria", 2.88e15, "Brighterium")),
+          ("8.81e87 Scoria: 3.75Qd Brighterium", lambda: reset_button(8.81e87, "Scoria", 3.75e15, "Brighterium")),
+        ],
+        "Baryte": [
+          ("1.099e49 Brighterium: 1Qd Baryte", lambda: reset_button(1.099e49, "Brighterium", 1e15, "Baryte")),
+          ("5.7141e50 Brighterium: 1.27Qd Baryte", lambda: reset_button(5.7141e50, "Brighterium", 1.27e15, "Baryte")),
+          ("1.77e52 Brighterium: 1.61Qd Baryte", lambda: reset_button(1.77e52, "Brighterium", 1.61e15, "Baryte")),
+          ("3.3656e53 Brighterium: 2.05Qd Baryte", lambda: reset_button(3.3656e53, "Brighterium", 2.05e15, "Baryte")),
+          ("1.11e55 Brighterium: 2.61Qd Baryte", lambda: reset_button(1.11e55, "Brighterium", 2.61e15, "Baryte")),
+          ("2.8877e56 Brighterium: 3.32Qd Baryte", lambda: reset_button(2.8877e56, "Brighterium", 3.32e15, "Baryte")),
+          ("1.299e58 Brighterium: 4.21Qd Baryte", lambda: reset_button(1.299e58, "Brighterium", 4.21e15, "Baryte")),
+        ],
+        "Gypsum": [
+          ("1.1Oc Baryte: 13.47M Gypsum", lambda: reset_button(1.1e27, "Baryte", 1.347e7, "Gypsum")),
+          ("21.97Oc Baryte: 10M Gypsum", lambda: reset_button(2.197e28, "Baryte", 1e7, "Gypsum")),
+          ("373.61Oc Baryte: 18.13M Gypsum", lambda: reset_button(3.7361e29, "Baryte", 1.813e7, "Gypsum")),
+          ("5.97No Baryte: 24.4M Gypsum", lambda: reset_button(5.97e30, "Baryte", 2.44e7, "Gypsum")),
+          ("215.2No Baryte: 32.81M Gypsum", lambda: reset_button(2.152e32, "Baryte", 3.281e7, "Gypsum")),
+          ("9.24De Baryte: 44.07M Gypsum", lambda: reset_button(9.24e33, "Baryte", 4.407e7, "Gypsum")),
+        ],
+        "Pyrite": [
+          ("109.89B Gypsum: 1K Pyrite", lambda: reset_button(1.0989e11, "Gypsum", 1000, "Pyrite")),
+          ("2.96T Gypsum: 1.38K Pyrite", lambda: reset_button(2.96e12, "Gypsum", 1380, "Pyrite")),
+          ("53.4T Gypsum: 1.91K Pyrite", lambda: reset_button(5.34e13, "Gypsum", 1910, "Pyrite")),
+          ("747.69T Gypsum: 2.65K Pyrite", lambda: reset_button(7.4769e14, "Gypsum", 2650, "Pyrite")),
+          ("15.7Qd Gypsum: 3.66K Pyrite", lambda: reset_button(1.57e16, "Gypsum", 3660, "Pyrite")),
+        ],
+        "Cryon": [
+          ("10.99M Pyrite: 75 Cryon", lambda: reset_button(1.099e7, "Pyrite", 75, "Cryon")),
+          ("87.9M Pyrite: 97.99 Cryon", lambda: reset_button(8.79e7, "Pyrite", 97.99, "Cryon")),
+          ("1.05B Pyrite: 127.99 Cryon", lambda: reset_button(1.05e9, "Pyrite", 127.99, "Cryon")),
+          ("15.81B Pyrite: 168 Cryon", lambda: reset_button(1.581e10, "Pyrite", 168, "Cryon")),
+        ],
+        "Kinetic": [
+          ("10.99K Cryon: 1 Kinetic", lambda: reset_button(10990, "Cryon", 1, "Kinetic")),
+          ("76.91K Cryon: 2 Kinetic", lambda: reset_button(76910, "Cryon", 2, "Kinetic")),
+          ("230.76K Cryon: 5 Kinetic", lambda: reset_button(230760, "Cryon", 5, "Kinetic")),
+        ],
+        "Plasma": [
+          ("32.96 Kinetic: 1 Plasma", lambda: reset_button(32.96, "Kinetic", 1, "Plasma")),
+        ],
+        "Solargems": [
+          ("1.1T Gypsum: 50 Solargems", lambda: cost_button("Gypsum", 1.1e12, "Solargems", 50)),
+          ("109.9M Pyrite: 170 Solargems", lambda: cost_button("Pyrite", 1.099e8, "Solargems", 170)),
+          ("109.9 Cryon: 364 Solargems", lambda: cost_button("Cryon", 109.9, "Solargems", 364))
+        ],
+        "World Badges": [
+          ("1e100 Scoria: Dystopic Future", lambda: world_badge("Scoria 9", "Moonbase")),
+          ("1e68 Baryte: Ocean of Infinity", lambda: world_badge("Baryte 4", "Moonbase")),
+          ("3e11 Gypsum: Superstitious Alphabet", lambda: world_badge("Gypsum 4", "Moonbase")),
+          ("25k Cryon: Frigid Enzymes", lambda: world_badge("Cryon 3", "Moonbase")),
+          ("2 Kinetic: Temp. 200K", lambda: world_badge("Kinetic 1", "Moonbase")),
+          ("100 Kinetic: Kinetic Energy Empowered Computer", lambda: world_badge("Kinetic 2", "Moonbase")),
+          ("8 Plasma: Plasma Chains", lambda: world_badge("Plasma 1", "Moonbase")),
+          ("1M Solargems: Overkill", lambda: world_badge("Solargems 6", "Moonbase")),
+        ]}, 600, "Cryon", "PrI")
   Realm(root, { #Gluttony
       "Apple": [
           (["Apple: 1 HP"], None, "Gluttony 20"),
@@ -4834,31 +5050,90 @@ if __name__ == "__main__":
           ("Load the simulation (req: 1 Reality Tether)", lambda: multi_func([lambda: cutscene(["Before you leave, there is one last thing that must be done.", "An account must be created under AIHA Corp.", "This will allow you to synchronise, saving your data.", "Once this is done, you will be unable to return to this place.", "Goodbye, Player."], "green", "black", True, root), lambda: load_world(1, "Reality Tether", Buttonia), progression_increment], [progression_lvl < 5, True, progression_lvl < 5]))
       ]
   }, 0, "Byte", "PoF", "black", "green", voltaic_radar=voltaic_radar)
+  Realm(root, { #Lonely Isle
+      "Coconut": [
+          ("7 Penny: 1 Coconut", lambda: cost_button("Penny", 7, "Coconut", 1)),
+          ("200 Penny: 3 Coconut", lambda: cost_button("Penny", 200, "Coconut", 3)),
+          ("1.8K Penny: 8 Coconut", lambda: cost_button("Penny", 1800, "Coconut", 8)),
+          ("8.3K Penny: 23 Coconut", lambda: cost_button("Penny", 8300, "Coconut", 23)),
+          ("30K Penny: 57 Coconut", lambda: cost_button("Penny", 30000, "Coconut", 57)),
+          ("80K Penny: 100 Coconut", lambda: cost_button("Penny", 80000, "Coconut", 100)),
+       ],
+       "Wood": [
+          ("7.5K Coconut: 1 Wood", lambda: reset_button(7500, "Coconut", 1, "Wood")),
+          ("50K Coconut: 3 Wood", lambda: reset_button(50000, "Coconut", 3, "Wood")),
+          ("200K Coconut: 7 Wood", lambda: reset_button(200000, "Coconut", 7, "Wood")),
+          ("1M Coconut: 15 Wood", lambda: reset_button(1e6, "Coconut", 15, "Wood")),
+          ("6M Coconut: 40 Wood", lambda: reset_button(6e6, "Coconut", 40, "Wood")),
+          ("21M Coconut: 90 Wood", lambda: reset_button(2.1e7, "Coconut", 90, "Wood")),
+          ("100M Coconut: 161 Wood", lambda: reset_button(1e8, "Coconut", 161, "Wood")),
+        ],
+       "Cobblestone": [
+          ("120 Wood: 1 Cobblestone", lambda: reset_button(120, "Wood", 1, "Cobblestone")),
+          ("1.6K Wood: 3 Cobblestone", lambda: reset_button(1600, "Wood", 3, "Cobblestone")),
+          ("7.25K Wood: 8 Cobblestone", lambda: reset_button(7250, "Wood", 8, "Cobblestone")),
+        ],
+       "World Badges": [
+          ("17.3B Penny: Penny Factory", lambda: world_badge("Penny 1", "Secluded Oasis")),
+          ("7.1M Coconut: Coconut Factory", lambda: world_badge("Coconut 1", "Secluded Oasis")),
+          ("1k Wood: Birch Tree", lambda: world_badge("Wood 1", "Secluded Oasis")),
+          ("1e5000 Penny: Breakout", lambda: world_badge("Penny Secret 1", "Secluded Oasis")),
+      ],
+}, 0, "Penny", "LI")
+  Realm(root, { #Forsaken Shaft
+      "Coconut": [
+          ("6B Penny: 675 Coconut", lambda: cost_button("Penny", 6e9, "Coconut", 675)),
+          ("110B Penny: 1.8K Coconut", lambda: cost_button("Penny", 1.1e11, "Coconut", 1800)),
+          ("1.3T Penny: 4.1K Coconut", lambda: cost_button("Penny", 1.3e12, "Coconut", 4100)),
+          ("13.69T Penny: 9.3K Coconut", lambda: cost_button("Penny", 1.369e13, "Coconut", 9300)),
+          ("80T Penny: 27.5K Coconut", lambda: cost_button("Penny", 8e13, "Coconut", 27500)),
+      ],
+      "Wood": [
+          ("TBA", None, "Label")
+      ],
+      "Cobblestone": [
+          ("TBA", None, "Label")
+      ],
+      "Coal": [
+          ("TBA", None, "Label")
+      ],
+      "Ferrotite": [
+          ("TBA", None, "Label")
+      ]
+  })
+  Realm(root, { #R34L1TY H4S N3VER SH1N3D TH1S M8CH
+      "The Exit": [
+          ("Spawn (req: 0 Cash)", lambda: load_check("S")),
+          ("ACCESS DENIED (req: 1 TRU3_W0RLD)", lambda: boss_fight_check(1, "TRU3_W0RLD"))
+      ]
+  }, 1, "C0RR8PT10N", "R34L1TY", text_color="green")
 #----------- WORLDS --------------
   Elysian_Stratosphere = World(root, "EH", "Master Cash", "Master Multiplier", "Master Rebirths", "Master Gems", "Mastery", "Elysian Stratosphere", "Master Event Power")
   Afterlife_Domain = World(root, "AD", "Mana", "Enchantment", "Spell", "Gems", "Afterlife Domain", "Afterlife Domain", "Event Power", multi_logic=False)
   Moonbase = World(root, "S(M)", "Moon Cash", "Booster", "Reincarnation", "Solargems", "Moonbase", "Moonbase", False, multi_logic=True, upgrade_reference="mb_")
   Buttonia = World(root, "S", "Cash", "Multiplier", "Rebirths", "Gems", "Main Progression", "Buttonia", "Event Power")
+  Nostalgia_World = World(root, "NW", "Robucks", "Studs", "Oofs", "Rogems", "Nostalgia World", "Nostalgia World", False, True, "nw_")
+  Secluded_Oasis = World(root, "LI", "Penny", "Coconut", "Wood", "Conch", "Secluded Oasis", "Secluded Oasis", False, True, "so_")
   Infinitys_Penumbra = World(root, "PoF", "Byte", "Binary", "Script", "Data", "Pre-existence", "The Penumbra of Infinity", False, True, "ip_")
-  def open_boosts_menu(parent: QObject|None):
+  def open_boosts_menu(parent: Optional[QObject]):
     win = UpgradeMenu(upgrades, parent)
     win.show()
     return win
-  def open_admin_panel(parent: QObject|None):
+  def open_admin_panel(parent: Optional[QObject]):
     global debug
     if debug:
       if not hasattr(parent, "_admin"):
           parent._admin = AdminPanel(parent, stat_increment)
       parent._admin.show()
       parent._admin.raise_()
-  def open_crafting_menu(parent: QObject|None):
+  def open_crafting_menu(parent: Optional[QObject]):
       global progression_lvl
       if progression_lvl >= 4:
         win = CraftingMenu(craftable_items, parent)
         win.show()
       else:
           QMessageBox.warning(parent, "Error", "Accessed Denied")
-  def open_badges_menu(parent: QObject|None):
+  def open_badges_menu(parent: Optional[QObject]):
       global progression_lvl
       if progression_lvl >= 2:
         win = BadgesWindow(badge_data, stat_gradients, stat_increment, progression_lvl, parent)
@@ -4882,20 +5157,9 @@ if __name__ == "__main__":
   sec_input.returnPressed.connect(lambda: secret_input(sec_input.text()))
   stylesheet = open(f"{global_path_reference}/Program/general.qss", "r")
   stylesheet = stylesheet.read()
-  stat_menu.setStyleSheet(stylesheet)
-  boosts_menu.setStyleSheet(stylesheet)
-  cy47_button.setStyleSheet(stylesheet)
-  admin_button.setStyleSheet(stylesheet)
-  crafting_button.setStyleSheet(stylesheet)
-  badges_button.setStyleSheet(stylesheet)
-  sec_input.setStyleSheet(stylesheet)
-  layout.addWidget(stat_menu, 2, 0, 1, 1)
-  layout.addWidget(boosts_menu, 3, 0, 1, 1)
-  layout.addWidget(cy47_button, 4, 0, 1, 1)
-  layout.addWidget(admin_button, 5, 0, 1, 1)
-  layout.addWidget(crafting_button, 6, 0, 1, 1)
-  layout.addWidget(badges_button, 7, 0, 1, 1)
-  layout.addWidget(sec_input, 8, 0, 1, 1)
+  for number, widget in enumerate([stat_menu, boosts_menu, cy47_button, admin_button, crafting_button, badges_button, sec_input], start=2):
+      widget.setStyleSheet(stylesheet)
+      layout.addWidget(widget, number, 0, 1, 1)
   layout.addWidget(cash_l, 0, 1, 1, 1)
   layout.addWidget(multi_l, 0, 2, 1, 1)
   layout.addWidget(re_l, 0, 3, 1, 1)
@@ -4903,33 +5167,17 @@ if __name__ == "__main__":
   container, scroll_area, content = Realm.get_instance_by_id("S").create_scrollable_area() #Load in the GUI
   multi_func([lambda: load_world(0, "Byte", Infinitys_Penumbra), lambda: cutscene(["Are we... connected?", "Can you hear me?", "...", "I see...", "Welcome, Player.", "Your presence here... is unprecedented.", "Perhaps... you will be of use...", "But that, is yet to be of concern for you...", "First, your connection to this world must be secured...", "Lest you be lost within the penumbra of infinity.", "You must reassemble the reality tether...", "Once you succeed you shall enter the Main World: Buttonia.", "You will be unable to return to this place for an indeterminate amount of time.", "I will be guiding you through this early stage.", "Hence, there will be times where your access to certain features will be restricted.", "Good luck, Player."], "green", "black", True, root), progression_increment], [progression_lvl < 5, progression_lvl < 1, progression_lvl < 1])
   layout.addWidget(container, 2, 1, 9, 9)
-  # Lock top rows
-  layout.setRowStretch(0, 0)
-  layout.setRowStretch(1, 0)
+  #rows
+  for i in range(9):
+    layout.setRowStretch(i, 0)
   
-  # Give content ALL remaining space
-  layout.setRowStretch(2,0)
-  layout.setRowStretch(3,0)
-  layout.setRowStretch(4,0)
-  layout.setRowStretch(5,0)
-  layout.setRowStretch(6,0)
-  layout.setRowStretch(7,0)
-  layout.setRowStretch(8,0)
-  
-  # Ensuring labels don't expand
   for lbl in (cash_l, multi_l, re_l):
       lbl.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
   
   # Columns
   layout.setColumnStretch(0, 0)
-  layout.setColumnStretch(1, 1)
-  layout.setColumnStretch(2, 1)
-  layout.setColumnStretch(3, 1)
-  layout.setColumnStretch(4, 1)
-  layout.setColumnStretch(5,1)
-  layout.setColumnStretch(6,1)
-  layout.setColumnStretch(7,1)
-  layout.setColumnStretch(8,1)
+  for i in range(8):
+      layout.setColumnStretch(i+1, 1)
   cash_increase()
   gem_increase()
   event_increase()

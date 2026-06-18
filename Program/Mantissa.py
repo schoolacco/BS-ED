@@ -1,11 +1,18 @@
-from typing import Self
+from __future__ import annotations
+from typing import Optional
 import math
 import sys
 class Mantissa:
-    def __init__(self, mantissa: int|float, exponent: int|float) -> Self:
+    '''Abstract representation of extremely large numbers.
+    Parameters:
+    ------------
+    Mantissa: Numerical value
+    Exponent: Value of exponent as a power of 10
+    '''
+    def __init__(self, mantissa: int|float, exponent: int|float) -> Mantissa:
         self.num = mantissa
         self.exp = exponent
-    def __mul__(a: int|float|Self, b: int|float|Self) -> Self:
+    def __mul__(a: int|float|Mantissa, b: int|float|Mantissa) -> Mantissa:
       # a and b are (mantissa, exponent) tuples
       if isinstance(a, (int,float)):
           a = Mantissa.float_to_mantissa(a)
@@ -19,7 +26,7 @@ class Mantissa:
           new_mantissa /= 10
           new_exponent += 1
       return Mantissa(new_mantissa, new_exponent)
-    def __add__(a: int|float|Self, b: int|float|Self) -> Self:
+    def __add__(a: int|float|Mantissa, b: int|float|Mantissa) -> Mantissa:
       # Ensure a has the bigger exponent
       if isinstance(a, (int,float)):
           a = Mantissa.float_to_mantissa(a)
@@ -38,27 +45,27 @@ class Mantissa:
         new_mantissa /= 10
         a.exp += 1
       return Mantissa(new_mantissa, a.exp)
-    def __iadd__(a: int|float|Self, b: int|float|Self) -> Self:
+    def __iadd__(a: int|float|Mantissa, b: int|float|Mantissa) -> Mantissa:
         total = a + b
         return total
-    def __round__(self: Self, ndigits: int|None=None) -> Self:
+    def __round__(self: Mantissa, ndigits: Optional[int]=None) -> Mantissa:
         self.num = round(self.num, ndigits)
         return self
-    def __ge__(self: Self, other: int|float|Self) -> bool:
+    def __ge__(self: Mantissa, other: int|float|Mantissa) -> bool:
         if other == math.inf: return False
         if isinstance(self, (int, float)):
             self = Mantissa.float_to_mantissa(self)
         if isinstance(other, (int, float)):
             other = Mantissa.float_to_mantissa(other)
         return True if self.exp > other.exp else True if self.exp == other.exp and self.num >= other.num else False
-    def __sub__(a: int|float|Self,b: int|float|Self) -> Self:
+    def __sub__(a: int|float|Mantissa,b: int|float|Mantissa) -> Mantissa:
         if isinstance(a, (int,float)):
           a = Mantissa.float_to_mantissa(a)
         if isinstance(b, (int,float)):
           b = Mantissa.float_to_mantissa(b)
         b.num = -b.num
         return a + b
-    def __truediv__(a: int|float|Self,b: int|float|Self) -> Self:
+    def __truediv__(a: int|float|Mantissa,b: int|float|Mantissa) -> Mantissa:
         if isinstance(a, (int,float)):
           a = Mantissa.float_to_mantissa(a)
         if isinstance(b, (int,float)):
@@ -69,11 +76,11 @@ class Mantissa:
             mantissa*= 10
             exp -= 1
         return Mantissa(mantissa, exp)
-    def __lt__(self: Self, other: int|float|Self) -> bool:
+    def __lt__(self: Mantissa, other: int|float|Mantissa) -> bool:
         return not self >= other
-    def __gt__(self: Self, other: int|float|Self) -> bool:
+    def __gt__(self: Mantissa, other: int|float|Mantissa) -> bool:
         return not self <= other
-    def __le__(self: Self, other: int|float|Self) -> bool:
+    def __le__(self: Mantissa, other: int|float|Mantissa) -> bool:
         if other == math.inf: return True
         if isinstance(self, (int, float)):
             self = Mantissa.float_to_mantissa(self)
@@ -90,12 +97,12 @@ class Mantissa:
             return int(self.num * (10** self.exp))
         else:
             return sys.maxsize
-    def to_string(self: Self) -> str:
+    def to_string(self: Mantissa) -> str:
        return f"{self.num:.2f}e+{self.exp}"
-    def to_dict(self: Self) -> dict:
+    def to_dict(self: Mantissa) -> dict:
         return {"__mantissa__": True, "number": self.num, "exponent": self.exp}
     @classmethod
-    def from_string(cls, string: str) -> Self:
+    def from_string(cls, string: str) -> Mantissa:
         segments = string.split("e")
         segments = [i.strip("+") for i in segments]
         for segment in segments:
@@ -108,15 +115,15 @@ class Mantissa:
             return None #Invalid input
         return cls(segments[1], int(segments[0]))
     @classmethod
-    def from_dict(cls, data: dict) -> Self:
+    def from_dict(cls, data: dict) -> Mantissa:
         return cls(data["number"], data["exponent"])
-    def to_float(self: Self) -> float | Self:
-        """Convert the Mantissa to a regular float. Warning: may overflow for huge exponents."""
+    def to_float(self: Mantissa) -> float | Mantissa:
+        """Convert the Mantissa to a regular float. If the exponent is too large then return the mantissa"""
         value =  self.num * (10 ** self.exp) if self.exp < 300 else self
         return value
     @staticmethod
-    def float_to_mantissa(value: float) -> Self:
-      """Converts a float or int into a Mantissa representation."""
+    def float_to_mantissa(value: float) -> Mantissa:
+      """Converts a float or int into a Mantissa."""
       if isinstance(value, Mantissa):
           return value
       if value == 0:
