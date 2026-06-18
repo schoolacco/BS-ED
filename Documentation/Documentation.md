@@ -132,17 +132,17 @@ Table of Contents
 
 | **Syllabus Requirement**                                                                  | **Template Section**     | **STATUS**                                 |
 |-------------------------------------------------------------------------------------------|--------------------------|--------------------------------------------|
-| Identifying problem, feasibility, and requirements                                        | Section 1.1 - 1.6        | <span class="progress">In Progress</span>  |
+| Identifying problem, feasibility, and requirements                                        | Section 1.1 - 1.6        | <span class="complete">Complete</span>     |
 | Stakeholder and client expectations and feedback                                          | Section 1.3, Section 6.1 | <span class="progress">In Progress</span>  |
 | Functional and non-functional requirements                                                | Section 1.4, 1.5         | <span class="complete">Complete</span>     |
 | Project constraints                                                                       | Section 1.6              | <span class="complete">Complete</span>     |
 | Planning methodology and Gantt chart                                                      | Section 2.1 - 2.3        | <span class="complete">Complete</span>     |
 | Tools and language justification                                                          | Section 2.2              | <span class="complete">Complete</span>     |
 | Communication with clients and feedback loops                                             | Section 2.4, 6.1         | <span class="incomplete">Incomplete</span> |
-| Context Diagram and DFDs                                                                  | Section 3.1, 3.2         | <span class="incomplete">Incomplete</span> |
-| Structure Chart and IPO                                                                   | Section 3.3, 3.4         | <span class="incomplete">Incomplete</span> |
-| Data Dictionary                                                                           | Section 3.5              | <span class="incomplete">Incomplete</span> |
-| UML Class Diagram (if applicable)                                                         | Section 3.6              | <span class="incomplete">Incomplete</span> |
+| Context Diagram and DFDs                                                                  | Section 3.1, 3.2         | <span class="complete">Complete</span>     |
+| Structure Chart and IPO                                                                   | Section 3.3, 3.4         | <span class="complete">Complete</span>     |
+| Data Dictionary                                                                           | Section 3.5              | <span class="complete">Complete</span>     |
+| UML Class Diagram (if applicable)                                                         | Section 3.6              | <span class="complete">Complete</span>     |
 | Code implementation and key features                                                      | Section 4.1 - 4.2        | <span class="incomplete">Incomplete</span> |
 | UI screenshots and explanation                                                            | Section 4.3              | <span class="incomplete">Incomplete</span> |
 | Version control and iterations (optional)                                                 | Section 4.4              | <span class="incomplete">Incomplete</span> |

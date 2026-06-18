@@ -29,6 +29,7 @@ try: #Environment handling
 except ImportError:
     pass
 Numeric = Union[int, float, Mantissa]
+sys.set_int_max_str_digits(2147483647)
 #TODO:
 # Offline geode rolls - possible
 # Greed puzzle - possible
@@ -84,7 +85,7 @@ for item in list(stat_increment["Stats"].keys()):
       cythrex_data[item] = {"tags": ["BS:ED", "Stats"], "lore": "TBA", "obtainment": "TBA"}
 MANTISSA_THRESHOLD = 1e300
 luck, crit_luck, geode_speed, bulk_roll = 1, 1, 1, 1
-voltaic_radar = True
+voltaic_radar = False
 db = supabase
 class UpgradeMenu(QDialog):
         instances = weakref.WeakSet()
@@ -1961,7 +1962,7 @@ if __name__ == "__main__":
           ("Purified Illusions (req: 1 Starglass)", lambda: load_check("PI")),
           ("Purified Illusions (req: 1 Shell Piece)", lambda: load_check("PI")),
       ]
-  }, 0, "Cash", "RH", voltaic_radar = voltaic_radar, bg="#797979", text_color="#ffffff")
+  }, 0, "Cash", "RH", voltaic_radar=voltaic_radar, bg="#797979", text_color="#ffffff")
   Realm(root, { #Crystal Beneaths
       "Multiplier": [
           ("8e71 Cash: 10Oc Multiplier", lambda: cost_button("Cash",8e71,"Multiplier", 1e28)),
@@ -2671,7 +2672,7 @@ if __name__ == "__main__":
       "Miscellanous": [
           ("Control Panel", lambda: open_control_panel(root))
       ]
-  }, 0, "Cash", "ETR", voltaic_radar = voltaic_radar)
+  }, 0, "Cash", "ETR", voltaic_radar=voltaic_radar)
   Realm(root, { #EO Emerald
       "Emerald": [
           ("3Qn Ruby: 5 Emerald", lambda: cost_button("Ruby",3e18, "Emerald", 5)),
@@ -2891,7 +2892,7 @@ if __name__ == "__main__":
          ("Spawn (req: 0 Cash)", lambda: load_check("S")),
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
-  }, 3, "Ion", "UW", voltaic_radar = voltaic_radar)
+  }, 3, "Ion", "UW", voltaic_radar=voltaic_radar)
   Realm(root, { #Smooth Depths
       "Diamond": [
           ("4.6No Sapphire: 700M Diamond", lambda: reset_button( 4.6e30, "Sapphire", 7e8, "Diamond")),
@@ -3526,7 +3527,7 @@ if __name__ == "__main__":
          ("Spawn (req: 0 Cash)", lambda: load_check("S")),
          ("Recover Hall (req: 0 Cash)", lambda: load_check("RH"))
       ]
-  }, 5, "Rebirths", "MG", voltaic_radar = voltaic_radar)
+  }, 5, "Rebirths", "MG", voltaic_radar=voltaic_radar)
   Realm(root, { #Stardustry
       "Metal": [
           ("15 Gold: 1 Metal", lambda: reset_button_special(15, "Gold", 1, "Metal", ["Gold"])),

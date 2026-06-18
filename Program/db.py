@@ -68,7 +68,7 @@ def delete_account(username: str):
         .eq("username", username) \
         .execute()
 
-def get_top_cash(limit=10):
+def get_top_cash(limit=10): #Would've been used for leaderboards, unimplemented
 
     res = supabase.table("accounts") \
         .select("username,cash_mantissa,cash_exponent") \

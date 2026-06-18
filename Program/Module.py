@@ -450,7 +450,7 @@ class VoltaicRandomiser:
 
   
       for i, item in enumerate(self.buttons):
-          btn: Button = item["btn"] #I admittedly haven't chcked if the logic still worksw tih the new button classes, if not, oh well
+          btn: Button = item["btn"] #I admittedly haven't checked if the logic still works with the new button classes, if not, oh well
           cmd = item["command"]
   
           if i in enable_set:
@@ -482,13 +482,12 @@ class Button(QPushButton):
         try:
           self.gradient = stat_gradients[(lambda b=[(re.sub(r'\)','', re.sub(r' \(Fetch\)', '', re.sub(r' \(Sets\)', '',item)))) for item in re.split(r'\s*[a-zA-Z]*\d+[a-zA-Z]*\s*', self.txt) if item]: b[len(b)-1])()]
         except KeyError as e:
-            print(e)
             self.gradient = None
             if "C0RR8PT10N" in re.sub(r'\)', '', re.sub(r'\(', '', self.text())).split(" "):
                 self.gradient = stat_gradients["C0RR8PT10N"]
             else:
               for item in ["TRU3_W0RLD"]: #Exceptions for stat that explicitly have numbers within their names, more will be added as I think of them (never)
-                if item in self.text().split(" "):
+                if item in [text.strip(")") for text in self.text().split(" ")]:
                     self.gradient = stat_gradients[item]
         
             self.setStyleSheet(
@@ -530,9 +529,7 @@ class Button(QPushButton):
           else:
             self.colors = [darken(colour, 0.5) for colour in self.colors]
           painter = QPainter(self)
-          painter.setRenderHints(
-              QPainter.Antialiasing | QPainter.SmoothPixmapTransform
-          )
+          painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
           
           # Convert angle to radians (0 deg is left-to-right, 90 deg is top-to-bottom)
           angle = math.radians(self.angle_deg)
@@ -1335,7 +1332,6 @@ def sky_high_check(x: np.ndarray[np.float64], y: np.ndarray[np.any], expr: str) 
         return False, "Graph must pass through the origin (0, 0)"
 
     return True, "Sky High Structuring complete, perhaps you are worthy of Esadrhium."
-
 
 #GUI
 class GameState: #This could be a data class... yeah I'm too lazy for that
@@ -2262,12 +2258,26 @@ class AuthWindow(QDialog):
 
 
 
+
+
+
+
+
+
+
 '''
 WARNING:
 The segment below was heavily based on "outsourcing" through the use of Artificial Intelligence
 Admittedly, the BossFight was never meant to make it into the main program, but here it is now
 You may ignore the segment entirely if you wish, as despite the massive amount of code it uses it is only used in one ultraspecific location
 '''
+
+
+
+
+
+
+
 
 
 
