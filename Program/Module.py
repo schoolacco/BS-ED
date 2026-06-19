@@ -194,11 +194,11 @@ class Realm:
     grid.setAlignment(Qt.AlignTop)
 
     scroll_area.setWidget(content_widget)
-    if "Unknown" in button_groups.keys():
+    if self == self.get_instance_by_id("VS"):
         parent.voltaic_random = VoltaicRandomiser(enable_count=50, interval_ms=20000, voltaic_radar=voltaic_radar, always_texts=["Spawn (req: 0 Cash)","Recover Hall (req: 0 Cash)"])
         num = 10 if voltaic_radar else 100
-        if random.randint(1,num) != 1:
-          del button_groups["Unknown"]
+        #if random.randint(1,num) != 1:
+        #  del button_groups["Unknown"]
     else:
       parent.voltaic_random = None
     # --- Populate columns and buttons ---
@@ -243,7 +243,7 @@ class Realm:
                 parent.voltaic_random.always_indices.add(index)
     if parent.voltaic_random:
         parent.voltaic_random.start()
-        button_groups["Unknown"] = [Button("", lambda: blinded(parent))]
+        #button_groups["Unknown"] = [Button("", lambda: blinded(parent))]
     return outer_container, scroll_area, content_widget
   @classmethod
   def get_instance_by_id(cls, id: str) -> Realm:
@@ -262,7 +262,6 @@ class Realm:
         return container, scroll_area, content, stat_increment
       else:
         return False
-
 class World(Realm):
   weakref.WeakSet()
   instances = weakref.WeakSet()
@@ -455,11 +454,13 @@ class VoltaicRandomiser:
           cmd = item["command"]
   
           if i in enable_set:
+              btn._voltaic_disabled = False
               btn.setEnabled(True)
               btn.clicked.disconnect()
               btn.clicked.connect(cmd)
   
           else:
+              btn._voltaic_disabled = True
               btn.setEnabled(False)
 class Button(QPushButton):
     '''Custom button class, made for  subworld that was never going to be added here'''
@@ -471,6 +472,7 @@ class Button(QPushButton):
         self.death = death
         self.text_colour = text_color
         self.hover = False
+        self._voltaic_disabled = False
         self.clicked.connect(self.execute) 
         self.setStyleSheet(
                 f"""
@@ -521,45 +523,53 @@ class Button(QPushButton):
         self.hover = False
         self.update()
     def paintEvent(self, event: QPaintEvent):
-        if self.gradient:
-          self.angle_deg = self.gradient["Angle"]
-          self.colors = [darken(colour, 0.6) for colour in self.gradient["Colours"]]
-          if self.isEnabled():
-            if self.hover:
-                self.colors = [darken(colour, 0.9) for colour in self.colors]
+        if not self._voltaic_disabled:
+          if self.gradient:
+            self.angle_deg = self.gradient["Angle"]
+            self.colors = [darken(colour, 0.6) for colour in self.gradient["Colours"]]
+            if self.isEnabled():
+              if self.hover:
+                  self.colors = [darken(colour, 0.9) for colour in self.colors]
+            else:
+              self.colors = [darken(colour, 0.5) for colour in self.colors]
+            painter = QPainter(self)
+            painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
+            
+            # Convert angle to radians (0 deg is left-to-right, 90 deg is top-to-bottom)
+            angle = math.radians(self.angle_deg)
+            cx = self.width() / 2
+            cy = self.height() / 2
+            
+            length = math.sqrt(self.width()**2 + self.height()**2) / 2
+            
+            x1 = cx - math.cos(angle) * length
+            y1 = cy - math.sin(angle) * length
+            x2 = cx + math.cos(angle) * length
+            y2 = cy + math.sin(angle) * length #Maths :D
+        
+            gradient = QLinearGradient(QPointF(x1, y1), QPointF(x2, y2))
+            stops = len(self.colors)
+            for i, col in enumerate(self.colors):
+                gradient.setColorAt(i / (stops - 1), QColor(col))
+            rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+            border_color = QColor(self.text_colour)   
+            painter.setPen(QPen(border_color, 1))
+            painter.setBrush(gradient)
+            painter.drawRect(rect)
+            
+            painter.setPen(QPen(QColor(self.text_colour)))
+            painter.setFont(self.font())
+            painter.drawText(self.rect(), Qt.AlignCenter, self.text())
+        
           else:
-            self.colors = [darken(colour, 0.5) for colour in self.colors]
-          painter = QPainter(self)
-          painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
-          
-          # Convert angle to radians (0 deg is left-to-right, 90 deg is top-to-bottom)
-          angle = math.radians(self.angle_deg)
-          cx = self.width() / 2
-          cy = self.height() / 2
-          
-          length = math.sqrt(self.width()**2 + self.height()**2) / 2
-          
-          x1 = cx - math.cos(angle) * length
-          y1 = cy - math.sin(angle) * length
-          x2 = cx + math.cos(angle) * length
-          y2 = cy + math.sin(angle) * length #Maths :D
-      
-          gradient = QLinearGradient(QPointF(x1, y1), QPointF(x2, y2))
-          stops = len(self.colors)
-          for i, col in enumerate(self.colors):
-              gradient.setColorAt(i / (stops - 1), QColor(col))
-          rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-          border_color = QColor(self.text_colour)   
-          painter.setPen(QPen(border_color, 1))
-          painter.setBrush(gradient)
-          painter.drawRect(rect)
-          
-          painter.setPen(QPen(QColor(self.text_colour)))
-          painter.setFont(self.font())
-          painter.drawText(self.rect(), Qt.AlignCenter, self.text())
-      
+              super().paintEvent(event)
         else:
-            super().paintEvent(event)
+            painter = QPainter(self)
+            painter.fillRect(self.rect(), "#000000")
+            border_color = QColor(self.text_colour)  
+            rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5) 
+            painter.setPen(QPen(border_color, 1))
+            painter.drawRect(rect)
 class RotatedLabel(QLabel):
     '''Perhaps the most under-utilised class in my program'''
     def __init__(self, text: str="", angle: int=0, parent: Optional[QObject]=None) -> RotatedLabel:
