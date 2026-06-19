@@ -27,6 +27,7 @@ import db
 from dataclasses import dataclass, field
 from session import validate_session, create_session
 from Mantissa import Mantissa
+from enum import Enum
 Numeric = Union[int, float, Mantissa]
 global_path_reference = Path(__file__).resolve().parent.parent
 general_stylesheet = open(f"{global_path_reference}/Program/general.qss", "r")
@@ -1091,251 +1092,9 @@ class CY47Window(QDialog):
 np.seterr(all="ignore")
 stylesheet = open(f"{global_path_reference}/Program/graphite.qss", "r")
 stylesheet = stylesheet.read()
-# Config
-
-TOLERANCE = 0.01  # Allowed error for match check
-MODE_NORMAL = "normal"
-MODE_SKY_HIGH = "sky_high"
-
-#Utility functions
-def preprocess_for_eval(expr: str) -> str:
-    expr = expr.replace(" ", "")
-    expr = expr.replace("^", "**")
-    #while "|" in expr:
-    #    expr = re.sub(r"\|([^|]+)\|", r"abs(\1)", expr)
-    funcs = "|".join(["sin","cos","tan","abs","pi","sinh","cosh","tanh","e", "sqrt", "exp"])
-    expr = re.sub(rf"(\d+(\.\d+)?)(?=(x|\(|{funcs})\b)", r"\1*", expr)
-    expr = re.sub(r"([x)])(\d+(\.\d+)?)", r"\1*\2", expr)
-    expr = re.sub(rf"([x)])(?=({funcs})\()", r"\1*", expr)
-    expr = re.sub(r"\)\(", r")*(", expr)
-    return expr
-def break_asymptotes(y: np.ndarray[np.any], threshold: int=10):
-    '''
-    Break any asymptotes by turning extremely large jumps into NaNs, y is an np array
-    '''
-    y = y.astype(float).copy()
-
-    # Break on non-finite values
-    y[~np.isfinite(y)] = np.nan
-
-    # Detect large jumps between consecutive points
-    dy = np.abs(np.diff(y))
-
-    # Insert NaNs AFTER large jumps
-    jump_indices = np.where(dy > threshold)[0] + 1
-    y[jump_indices] = np.nan
-
-    return y
-# What is/isn't allowed
-SAFE_ENV = {
-    "sin": np.sin, "cos": np.cos, "tan": np.tan,
-    "abs": np.abs, "pi": np.pi,
-    "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh,
-    "e": np.e, "sqrt": np.sqrt, "exp": np.exp, "ln": np.log,
-    "arcsin": np.arcsin, "arccos": np.arccos, "arctan": np.arctan,
-    "arcsinh": np.arcsinh, "arccosh": np.arccosh, "arctanh": np.arctanh,
-    "erf": sci.erf, "gamma": sci.gamma
-}
-
-def eval_expr(expr: str, x: np.ndarray[np.float64]) -> Any:
-    expr = preprocess_for_eval(expr)
-    env = SAFE_ENV.copy()
-    env["x"] = x
-    return eval(expr, {"__builtins__": {}}, env)
-
-# Random equations
-LINEAR_FUNCS = ["linear"]
-POLYNOMIAL_FUNCS = ["quadratic","cubic","quartic"]
-HYPERBOLAS = ["1/x","1/x^2","1/(x+a)^2"]
-TRIG_FUNCS = ["sin","cos","tan"]
-HYPERBOLIC_FUNCS = ["sinh","cosh","tanh"]
-OTHER_FUNCS = ["abs","sqrt","exp", "ln", "arcsin", "arccos", "arctan", "arcsinh", "arccosh", "arctanh", "erf", "gamma"]
-
-def random_constant(low: int=-5, high: int=5, allow_float: bool=True) -> float:
-    constant = 0
-    while constant == 0:
-      constant =  round(random.uniform(low, high), 1) if allow_float else random.randint(low, high)
-    return constant
-
-def generate_linear() -> str:
-    a = random.randint(-10,10)
-    b = random.randint(-10,10)
-    return f"{a}*x + {b}"
-
-def generate_polynomial() -> str:
-    degree = random.randint(2,4)
-    factors = [f"(x - {random.randint(-5,5)})" for _ in range(degree)]
-    a = random.choice([-3,-2,-1,1,2,3])
-    return f"{a}*{'*'.join(factors)}"
-
-def generate_hyperbola(chain: bool=True) -> str:
-    eq = "x"
-    for _ in range(random.randint(1,2) if chain else 1):
-        shift = random.choice([-1,1,2])
-        power = random.choice([1,2])
-        eq = f"1/({eq}+{shift})**{power}"
-    return eq
-
-def generate_trig(chained: bool=False) -> str:
-    func = random.choice(TRIG_FUNCS)
-    a = random.choice([-2,-1,1,2])
-    freq = random.randint(1,3)
-    shift = random.choice([-2,-1,1,2])
-    inner = "x"
-    if chained:
-        inner = f"{random.choice([lambda: f'x**{random.randint(2,4)}', lambda: generate_hyperbola(chain=True), lambda: generate_trig(chained=True)])()}"  # can chain with simple expressions
-    return f"{a}*{func}({freq}*{inner} + {shift})"
-
-def generate_hyper_trig(chained: bool=False) -> str:
-    func = random.choice(HYPERBOLIC_FUNCS)
-    a = random_constant(-2,2)
-    freq = random_constant(1,3)
-    shift = random_constant(-2,2)
-    inner = "x"
-    if chained:
-        inner = f"{random.choice([lambda: f'x**{random.randint(2,4)}',lambda: f'x{random.randint(-10,10)}', lambda: generate_trig(chained=True), lambda: generate_hyper_trig(chained=True), lambda: generate_hyperbola(chain=True)])()}"
-    return f"{a}*{func}({freq}*{inner} + {shift})"
-
-def generate_other_func(chained: bool=False) -> str:
-    func = random.choice(OTHER_FUNCS)
-    a = random_constant(-2,2)
-    inside = f"x + {random_constant(-2,2)}"
-    if chained:
-        inside = f"{random.choice([lambda:generate_trig(chained=True), lambda:generate_hyper_trig(chained=True), lambda: f'x**{random.randint(2,10)}', lambda: generate_hyperbola(chain=True), lambda:generate_other_func(chained=True)])()}"
-    return f"{a}*{func}({inside})"
-
-def generate_level_equation(level: int, bonus: bool=False) -> str:
-    """
-    Generates an equation according to the rules for levels 1-10.
-    If bonus=True, derivative/integral mode (not implemented).
-    """
-    terms = []
-
-    if level == 1:
-        # Linear only
-        return generate_linear()
-    elif level == 2:
-        # Quadratics–quartics
-        return generate_polynomial()
-    elif level == 3:
-        # Hyperbolas, can chain but no addition
-        return generate_hyperbola(chain=True)
-    elif level == 4:
-        # Trig & hyperbolic trig, addition allowed, no chaining
-        for _ in range(random.randint(2,4)):
-            terms.append(random.choice([generate_trig, generate_hyper_trig])(chained=False))
-        return " + ".join(terms)
-    elif level == 5:
-        # Linear + trig/hyperbolic trig, addition + chaining allowed
-        linear = generate_linear()
-        trig_term = random.choice([generate_trig, generate_hyper_trig])(chained=True)
-        return f"{linear} + {trig_term}"
-    elif level == 6:
-        # Trig/hyperbolic + powers + hyperbolas, chaining allowed, no linear or addition
-        choices = [lambda: generate_trig(chained=True), lambda: generate_hyper_trig(chained=True), lambda: generate_hyperbola(chain=True)]
-        return random.choice(choices)()
-    elif level == 7:
-        # Chaining of all prior content, no addition
-        equation = ""
-        while len(equation) < 20:
-          choices = [lambda: generate_trig(chained=True),
-                     lambda: generate_hyper_trig(chained=True)]
-          equation =  random.choice(choices)()
-        return equation
-    elif level == 8:
-        # Level 7 + other functions, chaining allowed
-        equation = ""
-        while len(equation) < 20:
-          choices = [lambda: generate_other_func(chained=True)]
-          equation =  random.choice(choices)()
-        return equation
-    elif level == 9:
-        # Addition of functions, no chaining
-        for _ in range(random.randint(4,8)):
-            choices = [generate_linear, generate_polynomial,
-                       lambda: generate_trig(chained=False),
-                       lambda: generate_hyper_trig(chained=False),
-                       generate_hyperbola, lambda: generate_other_func(chained=False)]
-            terms.append(random.choice(choices)())
-        return " + ".join(terms)
-    elif level == 10:
-        # Addition of chained + unchained functions
-        for _ in range(random.randint(8,15)):
-            choices = [generate_linear, generate_polynomial, generate_hyperbola,
-                       lambda: generate_trig(chained=True),
-                       lambda: generate_hyper_trig(chained=True),
-                       lambda: generate_other_func(chained=True)]
-            terms.append(random.choice(choices)())
-        return " + ".join(terms)
-    else:
-        return generate_linear()  # fallback
-
-# Check if a majority of points line up
-def check_match_numeric(target_expr: str, player_expr: str, x: np.ndarray[np.float64], tol: float=TOLERANCE) -> bool:
-    try:
-        y_target = np.array(eval_expr(target_expr, x), dtype=float)
-        y_player = np.array(eval_expr(player_expr, x), dtype=float)
-        y_target[~np.isfinite(y_target)] = np.nan
-        y_player[~np.isfinite(y_player)] = np.nan
-        error = np.nanmean(np.abs(y_target - y_player))
-        return error < tol
-    except Exception:
-        return False
-#(15/100^0.4) * x^0.4 + 0.85x
-#Sky high structuring rule checks
-def max_gradient_percentile(x: np.ndarray[np.float64], y: np.ndarray[np.any], percentile: int=95, xmin: int=0, xmax: int=100) -> float:
-    mask = (x >= xmin) & (x <= xmax) & np.isfinite(y)
-    if np.count_nonzero(mask) < 2:
-        return np.inf
-
-    dy_dx = np.gradient(y[mask], x[mask])
-    slopes = np.abs(dy_dx)
-
-    return np.nanpercentile(slopes, percentile)
-
-def reaches_height(x: np.ndarray[np.float64], y: np.ndarray[np.any], target: int=100, xmin: int=0, xmax: int=100) -> bool:
-    mask = (x >= xmin) & (x <= xmax) & np.isfinite(y)
-    if not np.any(mask):
-        return False
-    return np.nanmax(y[mask]) >= target
-
-def is_trivial_linear(x: np.ndarray[np.float64], y: np.ndarray[np.any], tol: float=1e-3) -> bool:
-    finite = np.isfinite(y)
-    if np.count_nonzero(finite) < 3:
-        return False
-
-    dx = np.diff(x[finite])
-    dy = np.diff(y[finite])
-
-    slopes = dy / dx
-    return np.all(np.abs(slopes - 1) < tol)
-
-def sky_high_check(x: np.ndarray[np.float64], y: np.ndarray[np.any], expr: str) -> tuple[bool, str]:
-    if not np.any(np.isfinite(y)):
-        return False, "Graph is empty"
-    
-    if is_trivial_linear(x, y):
-        return False, "Trivial linear solution (y = x) is not allowed"
-    
-    if max_gradient_percentile(x, y) > 1.01:
-        return False, "Gradient exceeded maximum angle (approx 45°)"
-
-    if not reaches_height(x, y):
-        return False, "Did not reach y = 100"
-    if len(expr) <= 12 or re.search(r"1\*", expr):
-        return False, "Trivial solutions are not allowed"
-    # Must touch origin
-    idx = np.argmin(np.abs(x - 0))
-    y_at_zero = y[idx]
-    
-    if not np.isfinite(y_at_zero) or abs(y_at_zero) > 1e-2:
-        return False, "Graph must pass through the origin (0, 0)"
-
-    return True, "Sky High Structuring complete, perhaps you are worthy of Esadrhium."
-
 #GUI
 class GameState: #This could be a data class... yeah I'm too lazy for that
-    def __init__(self, mode: str=MODE_NORMAL):
+    def __init__(self, mode: GraphPuzzle.Mode=0):
         self.points = 0
         self.level = 1
         self.unlocks = {"sky_high": False}
@@ -1432,7 +1191,7 @@ class BolicalWorld(QDialog):
             self.graph.title.setText(f"Bolical World | LEVEL {level}")
             self.stack.setCurrentWidget(self.graph)
         def start_structuring(self):
-            self.state.mode = MODE_SKY_HIGH
+            self.state.mode = self.Mode.MODE_SKY_HIGH
             self.graph.reset_sky_high()
             self.stack.setCurrentWidget(self.graph)
         def open_shop(self):
@@ -1574,6 +1333,26 @@ class GraphPuzzle(QWidget):
     game_state: GameState, the game state, I have nothing else to tell you
     parent    : Optional[QObject], the parent window, again, no elaboration is really needed
     '''
+    TOLERANCE = 0.01  # Allowed error for match check
+    class Mode(Enum):
+        MODE_NORMAL = 0
+        MODE_SKY_HIGH = 1
+    SAFE_ENV = {
+    "sin": np.sin, "cos": np.cos, "tan": np.tan,
+    "abs": np.abs, "pi": np.pi,
+    "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh,
+    "e": np.e, "sqrt": np.sqrt, "exp": np.exp, "ln": np.log,
+    "arcsin": np.arcsin, "arccos": np.arccos, "arctan": np.arctan,
+    "arcsinh": np.arcsinh, "arccosh": np.arccosh, "arctanh": np.arctanh,
+    "erf": sci.erf, "gamma": sci.gamma
+    }
+    LINEAR_FUNCS = ["linear"]
+    POLYNOMIAL_FUNCS = ["quadratic","cubic","quartic"]
+    HYPERBOLAS = ["1/x","1/x^2","1/(x+a)^2"]
+    TRIG_FUNCS = ["sin","cos","tan"]
+    HYPERBOLIC_FUNCS = ["sinh","cosh","tanh"]
+    OTHER_FUNCS = ["abs","sqrt","exp", "ln", "arcsin", "arccos", "arctan", "arcsinh", "arccosh", "arctanh", "erf", "gamma"]
+
     def __init__(self, game_state: GameState, parent: Optional[QObject]=None) -> GraphPuzzle:
         super().__init__(parent)
         self.state = game_state
@@ -1659,23 +1438,228 @@ class GraphPuzzle(QWidget):
         self.sky_lbl = QLabel()
         self.sky_lbl.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.sky_lbl)
-        if self.state.mode == MODE_SKY_HIGH:
+        if self.state.mode == self.MODE_SKY_HIGH:
             self.sky_lbl.setText("Sky High Structuring | Max slope ≤ 1 | Reach y = 100 between x = 0 and 100")
         else:
             self.sky_lbl.hide()
         layout.addWidget(self.next_button)
+    #Utility functions
+    def _preprocess_for_eval(self, expr: str) -> str:
+        expr = expr.replace(" ", "")
+        expr = expr.replace("^", "**")
+        #while "|" in expr:
+        #    expr = re.sub(r"\|([^|]+)\|", r"abs(\1)", expr)
+        funcs = "|".join(["sin","cos","tan","abs","pi","sinh","cosh","tanh","e", "sqrt", "exp"])
+        expr = re.sub(rf"(\d+(\.\d+)?)(?=(x|\(|{funcs})\b)", r"\1*", expr)
+        expr = re.sub(r"([x)])(\d+(\.\d+)?)", r"\1*\2", expr)
+        expr = re.sub(rf"([x)])(?=({funcs})\()", r"\1*", expr)
+        expr = re.sub(r"\)\(", r")*(", expr)
+        return expr
+    def _break_asymptotes(self, y: np.ndarray[np.any], threshold: int=10):
+        '''
+        Break any asymptotes by turning extremely large jumps into NaNs, y is an np array
+        '''
+        y = y.astype(float).copy()
+    
+        # Break on non-finite values
+        y[~np.isfinite(y)] = np.nan
+    
+        # Detect large jumps between consecutive points
+        dy = np.abs(np.diff(y))
+    
+        # Insert NaNs AFTER large jumps
+        jump_indices = np.where(dy > threshold)[0] + 1
+        y[jump_indices] = np.nan
+    
+        return y
+    # What is/isn't allowed
+    def _eval_expr(self, expr: str, x: np.ndarray[np.float64]) -> Any:
+        expr = self._preprocess_for_eval(expr)
+        env = self.SAFE_ENV.copy()
+        env["x"] = x
+        return eval(expr, {"__builtins__": {}}, env)
     def _style_axes(self): 
         self.ax.set_facecolor("black") 
         self.ax.grid(True, color="#003322", linewidth=0.5) 
         for spine in self.ax.spines.values(): 
             spine.set_color("#006644") 
         self.ax.tick_params(colors="#00aa66") 
-        if self.state.mode == MODE_SKY_HIGH:
+        if self.state.mode == self.Mode.MODE_SKY_HIGH:
             self.ax.set_xlim(0,100)
             self.ax.set_ylim(0,110)
         else:
             self.ax.set_xlim(-10,10) 
             self.ax.set_ylim(-10,10)
+    def _generate_level_equation(self, level: int, bonus: bool=False) -> str:
+      """
+      Generates an equation according to the rules for levels 1-10.
+      If bonus=True, derivative/integral mode (not implemented).
+      """
+      terms = []
+  
+      if level == 1:
+          # Linear only
+          return self._generate_linear()
+      elif level == 2:
+          # Quadratics–quartics
+          return self._generate_polynomial()
+      elif level == 3:
+          # Hyperbolas, can chain but no addition
+          return self._generate_hyperbola(chain=True)
+      elif level == 4:
+          # Trig & hyperbolic trig, addition allowed, no chaining
+          for _ in range(random.randint(2,4)):
+              terms.append(random.choice([self._generate_trig, self._generate_hyper_trig])(chained=False))
+          return " + ".join(terms)
+      elif level == 5:
+          # Linear + trig/hyperbolic trig, addition + chaining allowed
+          linear = self._generate_linear()
+          trig_term = random.choice([self._generate_trig, self._generate_hyper_trig])(chained=True)
+          return f"{linear} + {trig_term}"
+      elif level == 6:
+          # Trig/hyperbolic + powers + hyperbolas, chaining allowed, no linear or addition
+          choices = [lambda: self._generate_trig(chained=True), lambda: self._generate_hyper_trig(chained=True), lambda: self._generate_hyperbola(chain=True)]
+          return random.choice(choices)()
+      elif level == 7:
+          # Chaining of all prior content, no addition
+          equation = ""
+          while len(equation) < 20:
+            choices = [lambda: self._generate_trig(chained=True),
+                       lambda: self._generate_hyper_trig(chained=True)]
+            equation =  random.choice(choices)()
+          return equation
+      elif level == 8:
+          # Level 7 + other functions, chaining allowed
+          equation = ""
+          while len(equation) < 20:
+            choices = [lambda: self._generate_other_func(chained=True)]
+            equation =  random.choice(choices)()
+          return equation
+      elif level == 9:
+          # Addition of functions, no chaining
+          for _ in range(random.randint(4,8)):
+              choices = [self._generate_linear, self._generate_polynomial,
+                         lambda: self._generate_trig(chained=False),
+                         lambda: self._generate_hyper_trig(chained=False),
+                         self._generate_hyperbola, lambda: self._generate_other_func(chained=False)]
+              terms.append(random.choice(choices)())
+          return " + ".join(terms)
+      elif level == 10:
+          # Addition of chained + unchained functions
+          for _ in range(random.randint(8,15)):
+              choices = [self._generate_linear, self._generate_polynomial, self._generate_hyperbola,
+                         lambda: self._generate_trig(chained=True),
+                         lambda: self._generate_hyper_trig(chained=True),
+                         lambda: self._generate_other_func(chained=True)]
+              terms.append(random.choice(choices)())
+          return " + ".join(terms)
+      else:
+          return self._generate_linear()  # fallback
+    def _random_constant(self, low: int=-5, high: int=5, allow_float: bool=True) -> float:
+        constant = 0
+        while constant == 0:
+          constant =  round(random.uniform(low, high), 1) if allow_float else random.randint(low, high)
+        return constant    
+    def _generate_linear(self) -> str:
+        a = random.randint(-10,10)
+        b = random.randint(-10,10)
+        return f"{a}*x + {b}" 
+    def _generate_polynomial(self) -> str:
+        degree = random.randint(2,4)
+        factors = [f"(x - {random.randint(-5,5)})" for _ in range(degree)]
+        a = random.choice([-3,-2,-1,1,2,3])
+        return f"{a}*{'*'.join(factors)}"
+    def _generate_hyperbola(self, chain: bool=True) -> str:
+        eq = "x"
+        for _ in range(random.randint(1,2) if chain else 1):
+            shift = random.choice([-1,1,2])
+            power = random.choice([1,2])
+            eq = f"1/({eq}+{shift})**{power}"
+        return eq
+    def _generate_trig(self, chained: bool=False) -> str:
+        func = random.choice(self.TRIG_FUNCS)
+        a = random.choice([-2,-1,1,2])
+        freq = random.randint(1,3)
+        shift = random.choice([-2,-1,1,2])
+        inner = "x"
+        if chained:
+            inner = f"{random.choice([lambda: f'x**{random.randint(2,4)}', lambda: self._generate_hyperbola(chain=True), lambda: self._generate_trig(chained=True)])()}"  # can chain with simple expressions
+        return f"{a}*{func}({freq}*{inner} + {shift})"
+    def _generate_hyper_trig(self, chained: bool=False) -> str:
+        func = random.choice(self.HYPERBOLIC_FUNCS)
+        a = self._random_constant(-2,2)
+        freq = self._random_constant(1,3)
+        shift = self._random_constant(-2,2)
+        inner = "x"
+        if chained:
+            inner = f"{random.choice([lambda: f'x**{random.randint(2,4)}',lambda: f'x{random.randint(-10,10)}', lambda: self._generate_trig(chained=True), lambda: self._generate_hyper_trig(chained=True), lambda: self._generate_hyperbola(chain=True)])()}"
+        return f"{a}*{func}({freq}*{inner} + {shift})"
+    def _generate_other_func(self, chained: bool=False) -> str:
+        func = random.choice(self.OTHER_FUNCS)
+        a = self._random_constant(-2,2)
+        inside = f"x + {self._random_constant(-2,2)}"
+        if chained:
+            inside = f"{random.choice([lambda:self._generate_trig(chained=True), lambda:self._generate_hyper_trig(chained=True), lambda: f'x**{random.randint(2,10)}', lambda: self._generate_hyperbola(chain=True), lambda:self._generate_other_func(chained=True)])()}"
+        return f"{a}*{func}({inside})"
+    # Check if a majority of points line up
+    def _check_match_numeric(self, target_expr: str, player_expr: str, x: np.ndarray[np.float64], tol: float=TOLERANCE) -> bool:
+        try:
+            y_target = np.array(self._eval_expr(target_expr, x), dtype=float)
+            y_player = np.array(self._eval_expr(player_expr, x), dtype=float)
+            y_target[~np.isfinite(y_target)] = np.nan
+            y_player[~np.isfinite(y_player)] = np.nan
+            error = np.nanmean(np.abs(y_target - y_player))
+            return error < tol
+        except Exception:
+            return False
+    #(15/100^0.4) * x^0.4 + 0.85x
+    #Sky high structuring rule checks
+    def _max_gradient_percentile(self, x: np.ndarray[np.float64], y: np.ndarray[np.any], percentile: int=95, xmin: int=0, xmax: int=100) -> float:
+        mask = (x >= xmin) & (x <= xmax) & np.isfinite(y)
+        if np.count_nonzero(mask) < 2:
+            return np.inf
+    
+        dy_dx = np.gradient(y[mask], x[mask])
+        slopes = np.abs(dy_dx)
+    
+        return np.nanpercentile(slopes, percentile)
+    def _reaches_height(self, x: np.ndarray[np.float64], y: np.ndarray[np.any], target: int=100, xmin: int=0, xmax: int=100) -> bool:
+        mask = (x >= xmin) & (x <= xmax) & np.isfinite(y)
+        if not np.any(mask):
+            return False
+        return np.nanmax(y[mask]) >= target
+    def _is_trivial(self, x: np.ndarray[np.float64], y: np.ndarray[np.any], tol: float=1e-3) -> bool:
+        finite = np.isfinite(y)
+        if np.count_nonzero(finite) < 3:
+            return False
+    
+        dx = np.diff(x[finite])
+        dy = np.diff(y[finite])
+    
+        slopes = dy / dx
+        return np.all(np.abs(slopes - 1) < tol)
+    def _sky_high_check(self, x: np.ndarray[np.float64], y: np.ndarray[np.any], expr: str) -> tuple[bool, str]:
+        if not np.any(np.isfinite(y)):
+            return False, "Graph is empty"
+        
+        if self._is_trivial_linear(x, y):
+            return False, "Trivial linear solution (y = x) is not allowed"
+        
+        if self._max_gradient_percentile(x, y) > 1.01:
+            return False, "Gradient exceeded maximum angle (approx 45°)"
+    
+        if not self._reaches_height(x, y):
+            return False, "Did not reach y = 100"
+        if len(expr) <= 12 or re.search(r"1\*", expr):
+            return False, "Trivial solutions are not allowed"
+        # Must touch origin
+        idx = np.argmin(np.abs(x - 0))
+        y_at_zero = y[idx]
+        
+        if not np.isfinite(y_at_zero) or abs(y_at_zero) > 1e-2:
+            return False, "Graph must pass through the origin (0, 0)"
+    
+        return True, "Sky High Structuring complete, perhaps you are worthy of Esadrhium."
     def update_graph(self): 
         if self.solved: 
             return 
@@ -1686,29 +1670,29 @@ class GraphPuzzle(QWidget):
             self.canvas.draw_idle() 
             return 
         try: 
-          sanitized_expr = preprocess_for_eval(expr) 
-          x = self.x_sky if self.state.mode == MODE_SKY_HIGH else self.x_norm
-          y_player = eval_expr(sanitized_expr, x)
+          sanitized_expr = self._preprocess_for_eval(expr) 
+          x = self.x_sky if self.state.mode == self.Mode.MODE_SKY_HIGH else self.x_norm
+          y_player = self._eval_expr(sanitized_expr, x)
           y_player = np.array(y_player, dtype=float)
           y_player[~np.isfinite(y_player)] = np.nan
-          y_player = break_asymptotes(y_player)
+          y_player = self._break_asymptotes(y_player)
           
           self.player_line.set_data(x, y_player)
 
-          if self.state.mode == MODE_SKY_HIGH:
-             success, reason = sky_high_check(x, y_player, expr)
+          if self.state.mode == self.Mode.MODE_SKY_HIGH:
+             success, reason = self._sky_high_check(x, y_player, expr)
              self.sky_lbl.setText(reason)
              if success:
                  self.on_success()
-          elif check_match_numeric(self.target_equation, expr, self.x_norm): 
+          elif self._check_match_numeric(self.target_equation, expr, self.x_norm): 
               self.on_success() 
           self.canvas.draw_idle() 
         except Exception: 
             pass
     def go_back(self):
       if self.parent():
-          if self.state.mode == MODE_SKY_HIGH:
-              self.state.mode = MODE_NORMAL
+          if self.state.mode == self.Mode.MODE_SKY_HIGH:
+              self.state.mode = self.Mode.MODE_NORMAL
               self.parent().setCurrentWidget(self.parent().parent().menu)
           else:
               self.parent().setCurrentWidget(self.parent().parent().difficulty_select)
@@ -1727,19 +1711,19 @@ class GraphPuzzle(QWidget):
         if hasattr(self, "sky_lbl"):
             self.sky_lbl.hide()
         self.next_button.hide()
-        if self.state.mode == MODE_SKY_HIGH:
+        if self.state.mode == self.Mode.MODE_SKY_HIGH:
             return
         # Generate new equation
         global equation
-        equation = generate_level_equation(self.state.level)
-        equation = preprocess_for_eval(equation)
+        equation = self._generate_level_equation(self.state.level)
+        equation = self._preprocess_for_eval(equation)
 
         # Numeric evaluation
         self.target_equation = equation
-        self.y_target = eval_expr(self.target_equation, self.x_norm)
+        self.y_target = self._eval_expr(self.target_equation, self.x_norm)
         y_target = np.array(self.y_target, dtype=float)
         y_target[~np.isfinite(y_target)] = np.nan
-        y_target = break_asymptotes(y_target)
+        y_target = self._break_asymptotes(y_target)
         if not np.any(np.isfinite(y_target)):
             self.next_graph(skip=True)
             return
@@ -1755,7 +1739,7 @@ class GraphPuzzle(QWidget):
         self.ax.relim()
         self.ax.autoscale_view()
         self.ax.set_autoscale_on(False)
-        self.skip_btn.setDisabled(self.state.mode == MODE_SKY_HIGH)
+        self.skip_btn.setDisabled(self.state.mode == self.Mode.MODE_SKY_HIGH)
         self.canvas.draw_idle()
 
     def on_success(self):
@@ -1765,7 +1749,7 @@ class GraphPuzzle(QWidget):
         self.target_line.set_alpha(0.3)
 
         # Award points immediately
-        if self.state.mode == MODE_NORMAL:
+        if self.state.mode == self.Mode.MODE_NORMAL:
           self.state.points += self.points_per_level[self.state.level]
           self.success = QLabel(f"MATCH CONFIRMED! Points: {self.state.points}")
           self.success.setAlignment(Qt.AlignCenter)

@@ -30,7 +30,7 @@ def multi_button(cost, multi):
      multi_l.config(text=f"Multiplier: {stat_increment['Multiplier']-1}")
    else:
       pass
-def reset_button(cost, unit, reward):
+def reset_button(cost, unit, reward): #It almost feels as if nothing changed at all
    global cash_l, multi_l, re_l
    if unit > cost:
       stat_increment["Multiplier"] = 0
