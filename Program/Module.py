@@ -2006,6 +2006,7 @@ class Animation_Handler(QObject):
         self.block_index = 0 
         self.char_index = 0 
         self.timer = timer 
+        self._keys_pressed: set[Qt.Key] = set()
         self.func = end_function 
     def text_animator(self, label: QLabel): 
         if self.block_index < len(self.text_blocks): 
@@ -2013,7 +2014,8 @@ class Animation_Handler(QObject):
             
             if self.timer.interval() == 1000:
                 label.setText("")
-                self.timer.setInterval(100)
+                if Qt.Key_C not in self._keys_pressed:
+                  self.timer.setInterval(100)
                 self.char_index = 0
                 return
 
@@ -2021,7 +2023,8 @@ class Animation_Handler(QObject):
                 label.setText(label.text() + current_block[self.char_index]) 
                 self.char_index += 1 
             else: 
-                self.timer.setInterval(1000)
+                if Qt.Key_C not in self._keys_pressed:
+                  self.timer.setInterval(1000)
                 self.block_index += 1
         else: 
             self.timer.stop() 
@@ -2030,6 +2033,18 @@ class Animation_Handler(QObject):
         if self.func: 
             self.func() 
         self.dialog.close() 
+    def keyPressEvent(self, event: QKeyEvent):
+       if event.isAutoRepeat():
+            return
+       if event.key() == Qt.Key_C:
+           if self.timer.interval() > 10:
+             self.timer.setInterval(10)
+       self._keys_pressed.add(event.key())
+ 
+    def keyReleaseEvent(self, event: QKeyEvent):
+        if event.isAutoRepeat():
+            return
+        self._keys_pressed.discard(event.key())
 class ScanlineOverlay(QWidget):
     def __init__(self, parent=None) -> ScanlineOverlay:
         super().__init__(parent)
@@ -4418,6 +4433,7 @@ attacks = [
        ]
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = BolicalWorld(stat_data={"Stats": {"Graphite": 0, "Tesseract": 0, "Tetra": 0, "Master Tetra": 0}, "Keys": {"Bolical Points": 0, "Sky-High Structuring": False}})
+    #window = BolicalWorld(stat_data={"Stats": {"Graphite": 0, "Tesseract": 0, "Tetra": 0, "Master Tetra": 0}, "Keys": {"Bolical Points": 0, "Sky-High Structuring": False}})
+    window = Cutscene([*["Blah"]*20], "green", "black")
     window.show()
     sys.exit(app.exec())
