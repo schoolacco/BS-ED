@@ -19,7 +19,7 @@ import os
 import weakref
 from typing import Union, Optional
 import hmac
-from Module import Realm, GradientLabel, BootScreen, CY47Window, BolicalWorld, BadgesWindow, CollapsibleSection, World, Cutscene, find_key_path, find_value_path, multi_func, AuthWindow
+from Module import Realm, GradientLabel, BootScreen, CY47Window, BolicalWorld, BadgesWindow, CollapsibleSection, World, Cutscene, find_key_path, find_value_path, multi_func, AuthWindow, BossFight, attacks
 from geode import *
 from db import update_save, get_account, supabase
 from data import abs_stat_info, stat_gradients, cythrex_data, craftable_items, badge_data, def_upgrades, global_path_reference, def_stat_increment
@@ -957,10 +957,9 @@ def on_victory():
     stat_increment["Stats"]["DENIAL"] = 1 if val < 1 else val
     root.close()
 def boss_fight_check(amount: Numeric, unit: str):
-    return
     if stat_increment["Stats"][unit] >= amount:
-        #fight = BossFight(parent=root, attacks=attacks, end_ms=344000, end_function=on_victory, start_ms=0)
-        #fight.exec()
+        fight = BossFight(parent=root, attacks=attacks, end_ms=344000, end_function=on_victory, start_ms=0)
+        fight.exec()
         root.close()
 def craft(stat: str, amount: Numeric):
     if amount == None or amount < 1:
