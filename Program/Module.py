@@ -1,5 +1,6 @@
 from __future__ import annotations
 import math
+import copy
 from PySide6.QtWidgets import QMainWindow, QPushButton, QWidget, QScrollArea, QVBoxLayout, QHBoxLayout, QSizePolicy, QGridLayout, QLabel, QDialog, QFrame, QLineEdit, QLayout, QTextEdit, QListWidget, QTextBrowser, QStackedWidget, QApplication, QMessageBox
 from PySide6.QtGui import QColor, QFont, QPainter, QFontMetrics, QPainterPath, QPen, QLinearGradient, QPalette, QCloseEvent, QPixmap, QShowEvent, QPaintEvent, QEnterEvent, QKeyEvent, QBrush
 from PySide6.QtCore import Qt, QObject, QPointF, QTimer, Signal, QUrl, QRectF, QEvent, QThread, QRect
@@ -115,17 +116,40 @@ def find_key_path(nested_dict: dict, target_key_name: str, current_path: Optiona
         current_path = []
 
     for key, value in nested_dict.items():
-        new_path = current_path + [key]
+        if key not in ["Multis", "Recipe"]:
+          new_path = current_path + [key]
+  
+          if key == target_key_name:
+              # The key name matches target. Return the path up to this point.
+              return new_path
+          
+          elif isinstance(value, dict):
+              # Recursively search in nested dictionaries
+              found_path = find_key_path(value, target_key_name, new_path)
+              if found_path:
+                  return found_path
+    
+    # Key not found in this branch
+    return None
+def find_value_path(nested_dict: dict, target_value: Any, current_path: Optional[dict]=None) -> list:
+    """
+    Recursively searches for a specific value name in a nested dictionary
+    and returns the full path of keys to that value's location.
+    """
+    if current_path is None:
+        current_path = []
 
-        if key == target_key_name:
-            # The key name matches our target! Return the path up to this point.
-            return new_path
-        
-        elif isinstance(value, dict):
+    for key, value in nested_dict.items():
+        new_path = current_path + [key]
+        if isinstance(value, dict):
             # Recursively search in nested dictionaries
-            found_path = find_key_path(value, target_key_name, new_path)
+            found_path = find_value_path(value, target_value, new_path)
             if found_path:
                 return found_path
+        else:
+            if nested_dict[key] == target_value:
+                new_path = current_path + [key]
+                return new_path
     
     # Key not found in this branch
     return None
@@ -667,31 +691,6 @@ def resolve_search(query: str, index: dict) -> list:
               results.append(entry["name"])
               seen.add(key)
     return results
-
-def find_key_path(nested_dict: dict, target_key_name: str, current_path: Optional[list]=None) -> Optional[list]:
-    """
-    Recursively searches for a specific key name in a nested dictionary
-    and returns the full path of keys to that key's location.
-    """
-    if current_path is None:
-        current_path = []
-
-    for key, value in nested_dict.items():
-        if key not in ["Multis", "Recipe"]: # Don't take the wrong path
-          new_path = current_path + [key]
-
-          if key == target_key_name:
-              # The key name matches the target, return the path up to this point
-              return new_path
-          
-          elif isinstance(value, dict):
-              # Recursively search in nested dictionaries
-              found_path = find_key_path(value, target_key_name, new_path)
-              if found_path:
-                  return found_path
-    
-    # Key not found in this branch
-    return None
 class BootScreen(QDialog):
     finished = Signal()
     closed = Signal() #I don't even know if this is necessary anymore
@@ -1884,7 +1883,10 @@ class BadgesWindow(QDialog):
                button.setStyleSheet("""QPushButton {background-color: #1e1e1e;
                                     border: none;}""")
                button.setFocusPolicy(Qt.NoFocus)
-               label = GradientLabel(text, self.gradients[ref["Gradient"]]["Colours"], self.gradients[ref["Gradient"]]["Angle"], parent=button)
+               gradient = copy.deepcopy(self.gradients[ref["Gradient"]])
+               gradient["Colours"] = [darken(colour, 0.5) for colour in gradient["Colours"]] if not stat_increment["Badges"][id] else gradient["Colours"]
+               label = GradientLabel(text, gradient["Colours"], gradient["Angle"], parent=button)
+               gradient = None
                layout.addWidget(button)
                self.labels_reference[id] = label
      multi_layout = QVBoxLayout()

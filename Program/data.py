@@ -2493,162 +2493,162 @@ badge_data = {
                 "Byte": 1024
             }
         },
-      "Binary 1": {
-              "Display": "Boolean",
-              "Gradient": "Binary",
-              "Reqs": {
-                  "Binary": 1e6
-              },
-              "Consume": True,
-              "Multis": {
-                  "Byte": 2,
-                  "Binary": 2
-              }
-          },
-      "Script 1": {
-              "Display": "Initialisation",
-              "Gradient": "Script",
-              "Reqs": {
-                  "Script": 10
-              },
-              "Consume": True,
-              "Multis": {
-                  "Byte": 10,
-                  "Binary": 4,
-                  "Script": 1.5
-              }
-          },
-      "Script 2": {
-              "Display": "Programmatic Basics",
-              "Gradient": "Script",
-              "Reqs": {
-                  "Script": 1e6
-              },
-              "Consume": True,
-              "Multis": {
-                  "Byte": 100,
-                  "Script": 4
-              }
-          },
-      "Script 3": {
-              "Display": "Module",
-              "Gradient": "Script",
-              "Reqs": {
-                  "Script": 1e33
-              },
-              "Consume": True,
-              "Multis": {
-                  "Byte": 1e6,
-                  "Binary": 100,
-                  "Script": 100,
-                  "Language": 10
-              }
-          },
-      "Language 1": {
-              "Display": "Pseudocode",
-              "Gradient": "Language",
-              "Reqs": {
-                  "Language": 1
-              },
-              "Consume": True,
-              "Multis": {
-                  "Binary": 2,
-                  "Language": 1.1
-              }
-          },
-      "Language 2": {
-              "Display": "Python",
-              "Gradient": "Language",
-              "Reqs": {
-                  "Language": 10
-              },
-              "Consume": True,
-              "Multis": {
-                  "Byte": 10,
-                  "Binary": 4,
-                  "Script": 15,
-                  "Language": 2
-              }
-          },
-      "Language 3": {
-              "Display": "C",
-              "Gradient": "Language",
-              "Reqs": {
-                  "Language": 1000
-              },
-              "Consume": True,
-              "Multis": {
-                  "Byte": 15,
-                  "Binary": 6,
-                  "Language": 3
-              }
-          },
-      "Language 4": {
-              "Display": "C#",
-              "Gradient": "Language",
-              "Reqs": {
-                  "Language": 1e6
-              },
-              "Consume": True,
-              "Multis": {
-                  "Binary": 3.5,
-                  "Script": 20,
-                  "Language": 5
-              }
-          },
-      "Language 5": {
-              "Display": "Whose idea was it to make Javascript?",
-              "Gradient": "Language",
-              "Reqs": {
-                  "Language": 1e7
-              },
-              "Consume": True,
-              "Multis": {
-                  "Byte": 0.5,
-                  "Binary": 0.5,
-                  "Script": 0.5,
-                  "Language": 7
-              }
-          },
-      "Language 6": {
-              "Display": "C++",
-              "Gradient": "Language",
-              "Reqs": {
-                  "Language": 1e9
-              },
-              "Consume": True,
-              "Multis": {
-                  "Byte": 16,
-                  "Binary": 7,
-                  "Script": 21,
-                  "Language": 8
-              }
-          },
-      "Language 7": {
-              "Display": "Assembly",
-              "Gradient": "Language",
-              "Reqs": {
-                  "Language": 1
-              },
-              "Consume": True,
-              "Multis": {
-                  "Byte": 1e6,
-                  "Binary": 1e5,
-                  "Script": 0.2,
-                  "Language": 100
-              }
-          },
-      "RAM 1": {
-              "Display": "SSD",
-              "Gradient": "RAM",
-              "Reqs": {
-                  "RAM": 10
-              },
-              "Consume": True,
-              "Multis": {
-                  "RAM": 2
-              }
-          },
+        "Binary 1": {
+                "Display": "Boolean",
+                "Gradient": "Binary",
+                "Reqs": {
+                    "Binary": 1e6
+                },
+                "Consume": True,
+                "Multis": {
+                    "Byte": 2,
+                    "Binary": 2
+                }
+            },
+        "Script 1": {
+                "Display": "Initialisation",
+                "Gradient": "Script",
+                "Reqs": {
+                    "Script": 10
+                },
+                "Consume": True,
+                "Multis": {
+                    "Byte": 10,
+                    "Binary": 4,
+                    "Script": 1.5
+                }
+            },
+        "Script 2": {
+                "Display": "Programmatic Basics",
+                "Gradient": "Script",
+                "Reqs": {
+                    "Script": 1e6
+                },
+                "Consume": True,
+                "Multis": {
+                    "Byte": 100,
+                    "Script": 4
+                }
+            },
+        "Script 3": {
+                "Display": "Module",
+                "Gradient": "Script",
+                "Reqs": {
+                    "Script": 1e33
+                },
+                "Consume": True,
+                "Multis": {
+                    "Byte": 1e6,
+                    "Binary": 100,
+                    "Script": 100,
+                    "Language": 10
+                }
+            },
+        "Language 1": {
+                "Display": "Pseudocode",
+                "Gradient": "Language",
+                "Reqs": {
+                    "Language": 1
+                },
+                "Consume": True,
+                "Multis": {
+                    "Binary": 2,
+                    "Language": 1.1
+                }
+            },
+        "Language 2": {
+                "Display": "Python",
+                "Gradient": "Language",
+                "Reqs": {
+                    "Language": 10
+                },
+                "Consume": True,
+                "Multis": {
+                    "Byte": 10,
+                    "Binary": 4,
+                    "Script": 15,
+                    "Language": 2
+                }
+            },
+        "Language 3": {
+                "Display": "C",
+                "Gradient": "Language",
+                "Reqs": {
+                    "Language": 1000
+                },
+                "Consume": True,
+                "Multis": {
+                    "Byte": 15,
+                    "Binary": 6,
+                    "Language": 3
+                }
+            },
+        "Language 4": {
+                "Display": "C#",
+                "Gradient": "Language",
+                "Reqs": {
+                    "Language": 1e6
+                },
+                "Consume": True,
+                "Multis": {
+                    "Binary": 3.5,
+                    "Script": 20,
+                    "Language": 5
+                }
+            },
+        "Language 5": {
+                "Display": "Whose idea was it to make Javascript?",
+                "Gradient": "Language",
+                "Reqs": {
+                    "Language": 1e7
+                },
+                "Consume": True,
+                "Multis": {
+                    "Byte": 0.5,
+                    "Binary": 0.5,
+                    "Script": 0.5,
+                    "Language": 7
+                }
+            },
+        "Language 6": {
+                "Display": "C++",
+                "Gradient": "Language",
+                "Reqs": {
+                    "Language": 1e9
+                },
+                "Consume": True,
+                "Multis": {
+                    "Byte": 16,
+                    "Binary": 7,
+                    "Script": 21,
+                    "Language": 8
+                }
+            },
+        "Language 7": {
+                "Display": "Assembly",
+                "Gradient": "Language",
+                "Reqs": {
+                    "Language": 1
+                },
+                "Consume": True,
+                "Multis": {
+                    "Byte": 1e6,
+                    "Binary": 1e5,
+                    "Script": 0.2,
+                    "Language": 100
+                }
+            },
+        "RAM 1": {
+                "Display": "SSD",
+                "Gradient": "RAM",
+                "Reqs": {
+                    "RAM": 10
+                },
+                "Consume": True,
+                "Multis": {
+                    "RAM": 2
+                }
+            },
     },
     "Moonbase": 
         {

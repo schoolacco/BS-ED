@@ -19,7 +19,7 @@ import os
 import weakref
 from typing import Union, Optional
 import hmac
-from Module import Realm, GradientLabel, BootScreen, CY47Window, BolicalWorld, BadgesWindow, CollapsibleSection, World, Cutscene, find_key_path, multi_func, AuthWindow
+from Module import Realm, GradientLabel, BootScreen, CY47Window, BolicalWorld, BadgesWindow, CollapsibleSection, World, Cutscene, find_key_path, find_value_path, multi_func, AuthWindow
 from geode import *
 from db import update_save, get_account, supabase
 from data import abs_stat_info, stat_gradients, cythrex_data, craftable_items, badge_data, def_upgrades, global_path_reference, def_stat_increment
@@ -1311,11 +1311,12 @@ if __name__ == "__main__":
             self.stat_window.activateWindow()
   class AdminPanel(QDialog):
     def __init__(self, parent: Optional[QObject], player_state: dict) -> AdminPanel:
+        global badge_data
         super().__init__(parent)
         self.player = player_state
 
         self.setWindowTitle("ADMIN / DEVELOPER PANEL")
-        self.setFixedSize(360, 260)
+        self.setFixedSize(500, 375)
         self.setStyleSheet("background-color: black; color: green;")
 
         layout = QVBoxLayout(self)
@@ -1371,6 +1372,27 @@ if __name__ == "__main__":
         s_layout.addWidget(sub, 3, 1)
 
         layout.addWidget(stat_box)
+        
+        badge_box = QGroupBox("Badge Editor")
+        badge_box.setStyleSheet("QGroupBox { color: #00ff00; }")
+        b_layout = QGridLayout(badge_box)
+        self.badge_select = ExtendedComboBox()
+        #print([key if find_key_path(badge_data, key) == None else "" for key in self.player["Badges"].keys()])
+        self.badge_select.addItems(sorted([(lambda k=find_key_path(badge_data, key): badge_data[k[0]][k[1]]["Display"])() for key in self.player["Badges"].keys()]))
+        
+        self.badge_value = QLineEdit()
+        self.badge_value.setPlaceholderText("Enter integer value (0 = False, 1 = True)")
+        
+        badge_set = QPushButton("Set")
+        badge_set.clicked.connect(self.set_badge)
+        
+        b_layout.addWidget(QLabel("Badge:"), 0, 0)
+        b_layout.addWidget(self.badge_select, 0, 1)
+        b_layout.addWidget(QLabel("Value:"), 1, 0)
+        b_layout.addWidget(self.badge_value, 1, 1)
+        b_layout.addWidget(badge_set, 2, 1)
+        
+        layout.addWidget(badge_box)
 
         close = QPushButton("Close")
         close.clicked.connect(self.close)
@@ -1410,6 +1432,14 @@ if __name__ == "__main__":
           return
       stat = self.stat_select.currentText()
       self.player["Stats"][stat] = value
+    def set_badge(self):
+      value = self.get_value(self.badge_value)
+      if value is None:
+          return
+      value = True if int(value) == 1 else False
+      badge = self.badge_select.currentText()
+      badge = find_value_path(badge_data, badge)[1]
+      self.player["Badges"][badge] = value
     def modify_stat(self, direction: int):
         stat = self.stat_select.currentText()
         self.player["Stats"][stat] += self.get_value(self.stat_value) * direction
