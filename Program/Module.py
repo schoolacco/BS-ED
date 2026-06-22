@@ -4358,7 +4358,8 @@ attacks = [
                      delay_ms=264000 + (2000*i),
                      thickness=500,
                      color_warn="#55ff55",
-                     color_beam="#00ff00") for i in range(9)],
+                     color_beam="#00ff00",
+                     inverse=True) for i in range(9)],
         *rotating_beams(
             origin_x=0.5,
             origin_y=0.5,
