@@ -135,6 +135,7 @@ def find_value_path(nested_dict: dict, target_value: Any, current_path: Optional
     """
     Recursively searches for a specific value name in a nested dictionary
     and returns the full path of keys to that value's location.
+    Definitely not directly copy and pasted from find_key_path
     """
     if current_path is None:
         current_path = []

@@ -17,6 +17,7 @@ import colorama
 import webbrowser
 import os
 import weakref
+import re
 from typing import Union, Optional
 import hmac
 from Module import Realm, GradientLabel, BootScreen, CY47Window, BolicalWorld, BadgesWindow, CollapsibleSection, World, Cutscene, find_key_path, find_value_path, multi_func, AuthWindow, BossFight, attacks
@@ -1315,7 +1316,7 @@ if __name__ == "__main__":
         self.player = player_state
 
         self.setWindowTitle("ADMIN / DEVELOPER PANEL")
-        self.setFixedSize(500, 375)
+        self.setFixedSize(500, 500)
         self.setStyleSheet("background-color: black; color: green;")
 
         layout = QVBoxLayout(self)
@@ -1392,6 +1393,29 @@ if __name__ == "__main__":
         b_layout.addWidget(badge_set, 2, 1)
         
         layout.addWidget(badge_box)
+        
+        secret_box = QGroupBox("Flag Editor")
+        secret_box.setStyleSheet("QGroupBox { color: #00ff00; }")
+        f_layout = QGridLayout(secret_box)
+
+        self.secret_select = ExtendedComboBox()
+        self.secret_select.addItems(sorted([f"{key} ({type(self.player["Keys"][key]).__name__})" for key in self.player["Keys"].keys()]))
+        
+        self.secret_value = QLineEdit()
+        self.secret_value.setPlaceholderText("Enter integer value (0 = False, 1 = True)")
+
+        sec_set_abs = QPushButton("Set")
+
+        sec_set_abs.clicked.connect(self.set_flag)
+
+        f_layout.addWidget(QLabel("Flag:"), 0, 0)
+        f_layout.addWidget(self.secret_select, 0, 1)
+        f_layout.addWidget(QLabel("Value:"), 1, 0)
+        f_layout.addWidget(self.secret_value, 1, 1)
+
+        f_layout.addWidget(sec_set_abs, 2, 1)
+
+        layout.addWidget(secret_box)
 
         close = QPushButton("Close")
         close.clicked.connect(self.close)
@@ -1439,6 +1463,18 @@ if __name__ == "__main__":
       badge = self.badge_select.currentText()
       badge = find_value_path(badge_data, badge)[1]
       self.player["Badges"][badge] = value
+    def set_flag(self):
+      value = self.get_value(self.secret_value)
+      if value is None:
+          return
+      secret = self.secret_select.currentText()
+      type = "".join(re.findall(r'\(([^)]*)\)', secret)).strip()
+      secret = re.sub(r'\([^)]*\)', '', secret).strip()
+      if type == "bool":
+        value = True if int(value) == 1 else False
+      else:
+        value = int(value)
+      self.player["Keys"][secret] = value
     def modify_stat(self, direction: int):
         stat = self.stat_select.currentText()
         self.player["Stats"][stat] += self.get_value(self.stat_value) * direction
