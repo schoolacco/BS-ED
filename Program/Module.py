@@ -1464,7 +1464,7 @@ class GraphPuzzle(QWidget):
         expr = re.sub(rf"([x)])(?=({funcs})\()", r"\1*", expr)
         expr = re.sub(r"\)\(", r")*(", expr)
         return expr
-    def _break_asymptotes(self, y: np.ndarray[np.any], threshold: int=10):
+    def _break_asymptotes(self, y: np.ndarray[np.float64], threshold: int=10):
         '''
         Break any asymptotes by turning extremely large jumps into NaNs, y is an np array
         '''
@@ -1623,7 +1623,7 @@ class GraphPuzzle(QWidget):
             return False
     #(15/100^0.4) * x^0.4 + 0.85x
     #Sky high structuring rule checks
-    def _max_gradient_percentile(self, x: np.ndarray[np.float64], y: np.ndarray[np.any], percentile: int=95, xmin: int=0, xmax: int=100) -> float:
+    def _max_gradient_percentile(self, x: np.ndarray[np.float64], y: np.ndarray[np.float64], percentile: int=95, xmin: int=0, xmax: int=100) -> float:
         mask = (x >= xmin) & (x <= xmax) & np.isfinite(y)
         if np.count_nonzero(mask) < 2:
             return np.inf
@@ -1632,12 +1632,12 @@ class GraphPuzzle(QWidget):
         slopes = np.abs(dy_dx)
     
         return np.nanpercentile(slopes, percentile)
-    def _reaches_height(self, x: np.ndarray[np.float64], y: np.ndarray[np.any], target: int=100, xmin: int=0, xmax: int=100) -> bool:
+    def _reaches_height(self, x: np.ndarray[np.float64], y: np.ndarray[np.float64], target: int=100, xmin: int=0, xmax: int=100) -> bool:
         mask = (x >= xmin) & (x <= xmax) & np.isfinite(y)
-        if not np.any(mask):
+        if not Any(mask):
             return False
         return np.nanmax(y[mask]) >= target
-    def _is_trivial(self, x: np.ndarray[np.float64], y: np.ndarray[np.any], tol: float=1e-3) -> bool:
+    def _is_trivial(self, x: np.ndarray[np.float64], y: np.ndarray[np.float64], tol: float=1e-3) -> bool:
         finite = np.isfinite(y)
         if np.count_nonzero(finite) < 3:
             return False
@@ -1647,8 +1647,8 @@ class GraphPuzzle(QWidget):
     
         slopes = dy / dx
         return np.all(np.abs(slopes - 1) < tol)
-    def _sky_high_check(self, x: np.ndarray[np.float64], y: np.ndarray[np.any], expr: str) -> tuple[bool, str]:
-        if not np.any(np.isfinite(y)):
+    def _sky_high_check(self, x: np.ndarray[np.float64], y: np.ndarray[np.float64], expr: str) -> tuple[bool, str]:
+        if not Any(np.isfinite(y)):
             return False, "Graph is empty"
         
         if self._is_trivial_linear(x, y):
@@ -1733,7 +1733,7 @@ class GraphPuzzle(QWidget):
         y_target = np.array(self.y_target, dtype=float)
         y_target[~np.isfinite(y_target)] = np.nan
         y_target = self._break_asymptotes(y_target)
-        if not np.any(np.isfinite(y_target)):
+        if not Any(np.isfinite(y_target)):
             self.next_graph(skip=True)
             return
         if np.count_nonzero(np.isfinite(y_target)) < 10:
