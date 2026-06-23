@@ -3320,12 +3320,12 @@ class BossFight(QDialog):
  
         font2 = QFont("Arial", 20)
         painter.setFont(font2)
-        sub = "Somewhere something has changed. Pressed ESC to exit."
+        sub = "Somewhere something has changed. Pressed ESC to exit." if self.collisions_enabled else "Collisions were disabled"
         fm2 = painter.fontMetrics()
         tw2 = fm2.horizontalAdvance(sub)
         painter.drawText(W // 2 - tw2 // 2, H // 2 + 50, sub)
         if callable(self.end_function):
-            if not self.end_func_called:
+            if not self.end_func_called and self.collisions_enabled:
               self.end_func_called = True
               self.end_function()
 
