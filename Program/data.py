@@ -254,7 +254,8 @@ abs_stat_info = {
         "XP": {"Multis": {"Bacon": 24, "Rich": 5, "G$": 2.4}},
         "Collectibles": {"Multis": {"Tix": 1e6, "Pro": 5, "Server": 2, "XP": 2.3}},
         "Limiteds": {"Multis": {"Guest": 500, "Robloxian": 75, "Developer": 50, "Points": 3, "Collectibles": 2.5, "Sapphire": 2, "Diamond": 2, "Starlight": 2, "Ion": 2, "Uranium": 2, "Bismuth": 2, "Boracite": 2, "Nissonite": 2, "Orpiment": 2}},
-        "Badges": {"Multis": {"Robucks": Mantissa(3,303), "Studs": 1e36, "Oofs": 3e33, "Game": 3000, "Noob": 300, "Pro": 50, "G$": 1.1, "Limiteds": 3}} 
+        "Badges": {"Multis": {"Robucks": Mantissa(3,303), "Studs": 1e36, "Oofs": 3e33, "Game": 3000, "Noob": 300, "Pro": 50, "G$": 1.1, "Limiteds": 3}},
+        "Rogems": {"Multis": None}
     },
     "Secluded Oasis": {
         "Penny": {"Multis": None},
