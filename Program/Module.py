@@ -551,7 +551,7 @@ class Button(QPushButton):
     def _parse_text(self):
         def _match(text: str) -> str|None:
           stats = list(def_stat_increment["Stats"].keys())
-          text = re.sub(r'^\s*\d+(?:\.\d+)?[A-Za-z]*\s*', "", text, 1).strip(' :()"\'').strip()
+          text = re.compile(r'^\s*\d+(?:\.\d+)?(?:e(?:\d+(?:\.\d+)?|\([^()]*(?:\([^()]*\)[^()]*)*\)))?[A-Za-z]*\s*',re.IGNORECASE).sub("", text, 1).strip(' :()"\'').strip()
           p_stat = None
           for stat in stats:
               if text == stat or text.startswith(stat):
@@ -566,12 +566,12 @@ class Button(QPushButton):
             left, right = text.split(':', 1)
         else:
             left, right = text, ''
-        right_str = _match(right) if right else None
-        if right_str:
-            parsed_text = right_str
         left_str = _match(left) if left else None
         if left_str:
             parsed_text = left_str
+        right_str = _match(right) if right else None
+        if right_str:
+            parsed_text = right_str
         return parsed_text
     def paintEvent(self, event: QPaintEvent):
         if not self._voltaic_disabled:
