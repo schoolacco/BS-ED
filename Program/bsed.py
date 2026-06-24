@@ -86,7 +86,7 @@ for item in list(stat_increment["Stats"].keys()):
       cythrex_data[item] = {"tags": ["BS:ED", "Stats"], "lore": "TBA", "obtainment": "TBA"}
 MANTISSA_THRESHOLD = 1e300
 luck, crit_luck, geode_speed, bulk_roll = 1, 1, 1, 1
-voltaic_radar = False
+voltaic_radar = False 
 db = supabase
 class UpgradeMenu(QDialog):
         instances = weakref.WeakSet()
@@ -1029,7 +1029,7 @@ class InputWatch(QObject):
         except RuntimeError:
             pass
 class ExtendedComboBox(QComboBox):
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QObject]=None):
         super(ExtendedComboBox, self).__init__(parent)
 
         self.setFocusPolicy(Qt.StrongFocus)
@@ -1072,7 +1072,7 @@ class ExtendedComboBox(QComboBox):
         super(ExtendedComboBox, self).setModelColumn(column)
 #Source - https://stackoverflow.com/questions/4827207/how-do-i-filter-the-pyqt-qcombobox-items-based-on-the-text-input
 #Written by community member: Tamas Haver
-#Minor modifications have been made to adapt it to PySide6
+#Minor modificat ions have been made to adapt it to PySide6
 if __name__ == "__main__":
   app = QApplication(sys.argv)
   class StatMenu(QMainWindow):
@@ -1256,7 +1256,7 @@ if __name__ == "__main__":
         self.timer.stop()
         super().hideEvent(event)
   class MusicManager:
-      def __init__(self, offset_ms=0): #The improved music manager which may or may not be in the main program by the time you're reading this
+      def __init__(self, offset_ms: int=0): #The improved music manager which may or may not be in the main program by the time you're reading this
           self.audio_output = QAudioOutput()
           self.player = QMediaPlayer()
           self.player.setAudioOutput(self.audio_output)
@@ -1311,7 +1311,7 @@ if __name__ == "__main__":
             self.stat_window.raise_()
             self.stat_window.activateWindow()
   class AdminPanel(QDialog):
-    def __init__(self, parent: Optional[QObject], player_state: dict) -> AdminPanel:
+    def __init__(self, parent: Optional[QObject], player_state: dict) -> AdminPanel: 
         global badge_data
         super().__init__(parent)
         self.player = player_state

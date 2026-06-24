@@ -298,7 +298,7 @@ This section justifies the use of modelling tools to represent system structure,
 
 ![UML Class Diagram](Documentation_Assests/UML.png)
 
-**Explain** the class structure and relationships.
+In the off chance that the diagram did not clearly explains to you the full structure of all my classes and their relationships. What can be said is that most of the classes exist in their own bundled groups, such as that of the BossFight class and the many attack data classes, with the creation of one often leading to the creation or usage of others in that same group. All classes return to the Window, as the Window creates the main GUI of the program and hence all functions to create all the other classes come back to it. Almost every class inherents from PySide6's QObject class (or inherents from something else that inherents from the QObject class). A vast majority of the classes are optional, a majority exact solely for minigames or only have one use, hence many lack more specific and useful commands.
 
 # 4\. Producing and Implementing
 
@@ -340,6 +340,7 @@ Include annotated screenshots explaining how the user interacts with the system.
 
 ## 5.1 Testing Methods Used
 
+Many testing approaches were used during the creation and evaluation of this software solution, many examples of which can be seen in the 'Tests' folder and if \_\_name_\_ ==  "\_\_main__"
 Describe testing approaches, such as:
 
 - Unit testing
@@ -350,10 +351,49 @@ Describe testing approaches, such as:
 
 ## 5.2 Test Cases and Results
 
-| Test ID | Description   | Expected Result | Actual Result   | Pass/Fail |
-|---------|---------------|-----------------|-----------------|-----------|
-| TC01    | Valid login   | Success message | Success message | Pass      |
-| TC02    | Invalid login | Error message   | Error message   | Pass      |
+| Test ID | Description                                               | Expected Result                                                         | Actual Result                                                                | Pass/Fail              |
+|---------|-----------------------------------------------------------|-------------------------------------------------------------------------|------------------------------------------------------------------------------|------------------------|
+| CR01    | Crafting GUI                                              | Loads Crafting GUI                                                      | ScollArea is far too small                                                   | Fail                   |
+| CR02    | Crafting GUI                                              | Crafting logic works                                                    | ValueError :D                                                                | Fail                   |
+| CY01    | CY47 Page load                                            | Loads pages under new system as intended                                | ValueError                                                                   | Fail                   |
+| CY02    | CY47 Page load                                            | Loads pages under new system as intended                                | Pages load as intended                                                       | Pass                   |
+| DB00    | Database Load (before inital config)                      | Loads from database as expected                                         | I hate everything (this was several hours of debugging)                      | Fail                   |
+| DB00.1  | Database Load (before inital config)                      | Loads from database as expected                                         | Moving db into public did not fix issue                                      | Fail                   |
+| DB00.2  | Database Load (before inital config)                      | Loads from database as expected                                         | configuring API settings did not fix issue                                   | Fail                   |
+| DB01    | Database Load (after inital config)                       | Loads from database as expected                                         | Succeeds                                                                     | Pass                   |
+| DB02    | Database Load (after inital config)                       | Loads from database as expected                                         | SQLAlchemyError, Fails under School Wifi                                     | Fail                   |
+| DB02.1  | Database Load (afterinital config)                        | Loads from database as expected                                         | API issue                                                                    | Fail                   |
+| DB02.2  | Database Load (afterinital config)                        | Loads from database as expected                                         | Why is my API link not working                                               | Fail                   |
+| DB02.3  | Database Load (afterinital config)                        | Loads from database as expected                                         | Why does the supabase module automatically append text to the end of the URL | Fail                   |
+| DB03    | Database Load (after inital config)                       | Loads from database as expected                                         | Succeeds under School Wifi                                                   | Pass                   |
+| GL01    | Gluttony minigame test                                    | Decreases text by 1 every click, supports grouped strings through lists | Cannot support multiple strings                                              | Fail                   |
+| GL01    | Gluttony minigame test                                    | Decreases text by 1 every click, supports grouped strings through lists | Succeeds in both regards                                                     | Fail                   |
+| BR01    | Gradient Button                                           | Displays gradient from text                                             | Does not apply to recovery buttons                                           | Fail                   |
+| BR02    | Gradient Button                                           | Displays gradient from text                                             | Does not apply to stats that contain text                                    | Fail                   |
+| BR03    | Gradient Button                                           | Displays gradient from text                                             | Does not apply to badges                                                     | Fail, but satisfactory |
+| CY03    | Whitelist                                                 | Search whitelist works as intended                                      | Whitelist is useless                                                         | Fail                   |
+| CY04    | Whitelist                                                 | Search whitelist works as intended                                      | Only whitelisted results appear on search                                    | Pass                   |
+| MT01    | Music Offset                                              | Offset music correctly                                                  | Music is not offset on restart                                               | Fail                   |
+| MT02    | Music Offset                                              | Offset music correctly                                                  | No music is played                                                           | Fail                   |
+| MT03    | Music Offset                                              | Offset music correctly                                                  | Music plays as intended                                                      | Pass                   |
+| BF01    | Bossfight Circle Attack debug                             | Create circle attack with accurate hitbox                               | Square hitbox instead of circle                                              | Fail                   |
+| BF02    | Bossfight Circle Attack debug                             | Create circle attack with accurate hitbox                               | Circle does not appear                                                       | Fail                   |
+| BF03    | Bossfight Circle Attack debug                             | Create circle attack with accurate hitbox                               | Hitbox is everywhere the circle is not                                       | Fail                   |
+| BF04    | Bossfight Circle Attack debug                             | Create circle attack with accurate hitbox                               | Circular hitbox and circle created                                           | Pass                   |
+| MT04    | Music Offset                                              | Offset music correctly in main program                                  | Music does not play at all                                                   | Fail                   |
+| MT05    | Music Offset                                              | Offset music correctly in main program                                  | Music plays as intended                                                      | Pass                   |
+| BWR01   | Bolical World Refactor                                    | No change from original functionality                                   | ValueError                                                                   | Fail                   |
+| BWR02   | Bolical World Refactor                                    | No change from original functionality                                   | Getting correct graph freezes program                                        | Fail                   |
+| BWR03   | Bolical World Refactor                                    | No change from original functionality                                   | Features all work as intended                                                | Pass                   |
+| ADT06   | Badge debug                                               | Create option box with badge names                                      | Uses badge id instead of badge name                                          | Fail                   |
+| ADT07   | Badge debug                                               | Create option box with badge names                                      | Error, returned None value                                                   | Fail                   |
+| ADT08   | Badge debug                                               | Create option box with badge names                                      | KeyError                                                                     | Fail                   |
+| ADT09   | Badge debug                                               | Create option box with badge names                                      | Creates option box with badge names                                          | Pass                   |
+| ADT10   | Flag debug                                                | Sucessfully sets flag to bool or int value                              | set to int value only                                                        | Fail                   |
+| ADT11   | Flag debug                                                | Sucessfully sets flag to bool or int value                              | set to int/bool as expected                                                  | Pass                   |
+| BR04    | Welcome back to another 5 minute (hour) coding adventure! | Displays gradient from text                                             | Doesn't work for badges                                                      | Fail                   |
+| BR05    | Welcome back to another 5 minute (hour) coding adventure! | Displays gradient from text                                             | Doesn't work for anything                                                    | Fail                   |
+| BR06    | Welcome back to another 5 minute (hour) coding adventure! | Displays gradient from text                                             | Works for everything :D                                                      | Pass                   |
 
 ## 5.3 Evaluation Against Requirements
 

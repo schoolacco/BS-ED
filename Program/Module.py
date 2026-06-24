@@ -508,7 +508,8 @@ class Button(QPushButton):
                 """
             )
         try:
-          self.gradient = stat_gradients[(lambda b=[(re.sub(r'\)','', re.sub(r' \(Fetch\)', '', re.sub(r' \(Sets\)', '',item)))) for item in re.split(r'\s*[a-zA-Z]*\d+[a-zA-Z]*\s*', self.txt) if item]: b[len(b)-1])()]
+          #self.gradient = stat_gradients[(lambda b=[(re.sub(r'\)','', re.sub(r' \(Fetch\)', '', re.sub(r' \(Sets\)', '',item)))) for item in re.split(r'\s*[a-zA-Z]*\d+[a-zA-Z]*\s*', self.txt) if item]: b[len(b)-1])()]
+          self.gradient = stat_gradients[self._parse_text()]
         except KeyError as e:
             self.gradient = None
             if "C0RR8PT10N" in re.sub(r'\)', '', re.sub(r'\(', '', self.text())).split(" "):
@@ -547,6 +548,31 @@ class Button(QPushButton):
     def leaveEvent(self, event: QEvent):
         self.hover = False
         self.update()
+    def _parse_text(self):
+        def _match(text: str) -> str|None:
+          stats = list(def_stat_increment["Stats"].keys())
+          text = re.sub(r'^\s*\d+(?:\.\d+)?[A-Za-z]*\s*', "", text, 1).strip(' :()"\'').strip()
+          p_stat = None
+          for stat in stats:
+              if text == stat or text.startswith(stat):
+                  tail = text[len(stat):]
+                  if tail == '' or tail[0] in ' (:.':
+                      if p_stat is None or len(stat) > len(p_stat):
+                          p_stat = stat
+          return p_stat
+        text = self.text()
+        parsed_text = None
+        if ":" in text:
+            left, right = text.split(':', 1)
+        else:
+            left, right = text, ''
+        right_str = _match(right) if right else None
+        if right_str:
+            parsed_text = right_str
+        left_str = _match(left) if left else None
+        if left_str:
+            parsed_text = left_str
+        return parsed_text
     def paintEvent(self, event: QPaintEvent):
         if not self._voltaic_disabled:
           if self.gradient:
@@ -1201,7 +1227,7 @@ class BolicalWorld(QDialog):
             self.graph.title.setText(f"Bolical World | LEVEL {level}")
             self.stack.setCurrentWidget(self.graph)
         def start_structuring(self):
-            self.state.mode = self.Mode.MODE_SKY_HIGH
+            self.state.mode = GraphPuzzle.Mode.MODE_SKY_HIGH
             self.graph.reset_sky_high()
             self.stack.setCurrentWidget(self.graph)
         def open_shop(self):
@@ -1846,7 +1872,7 @@ class GraphPuzzle(QWidget):
     def closeEvent(self, event: QCloseEvent):
         self.parentwin.close()
         event.accept()
-class BadgesWindow(QDialog):
+class BadgesWindow(QDialog): 
  instances = weakref.WeakSet()
  def __init__(self, badge_data: dict, gradients: dict, stat_increment: dict, progress: int, parent: Optional[QObject]=None) -> BadgesWindow:
      super().__init__(parent)
@@ -1949,7 +1975,8 @@ class CollapsibleSection(QWidget):
 
         self.content.setVisible(self.button.isChecked())
 class HoldButton(Button):
-    '''A Hold Button, probably could've been used for the cost buttons, but I'm far too lazy to change the logic'''
+    '''A Hold Button, probably could've been used for the cost buttons, but I'm far too lazy to change the logic
+    Does NOT constantly trigger function, only triggers on release'''
     def __init__(self, text: str, hold_time: int, command: Callable, parent: Optional[QObject]=None, bg: str="black", text_color: str="white") -> HoldButton:
         super().__init__(text, parent, bg, text_color)
         self.time = hold_time
@@ -2000,7 +2027,7 @@ class HoverButton(Button):
 class Animation_Handler(QObject): 
     '''The text animation handler for my Cutscene class
     It used to just be called "Test", how informative'''
-    def __init__(self, dialog: QDialog, text_list: list[str], timer: QTimer, end_function: Callable | None = None) -> Animation_Handler: 
+    def __init__(self, dialog: QDialog, text_list: list[str], timer: QTimer, end_function: Optional[Callable]=None) -> Animation_Handler: 
         super().__init__(dialog) 
         self.dialog = dialog 
         self.text_blocks = text_list  
@@ -2041,21 +2068,18 @@ class Animation_Handler(QObject):
            if self.timer.interval() > 10:
              self.timer.setInterval(10)
        self._keys_pressed.add(event.key())
- 
     def keyReleaseEvent(self, event: QKeyEvent):
         if event.isAutoRepeat():
             return
         self._keys_pressed.discard(event.key())
 class ScanlineOverlay(QWidget):
-    def __init__(self, parent=None) -> ScanlineOverlay:
+    def __init__(self, parent: Optional[QObject]=None) -> ScanlineOverlay:
         super().__init__(parent)
-        # Allows clicks to pass through to the label underneath
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         
         self.bar_y = 0  # Initial vertical position of the bar
         self.bar_height = 80  # Thickness of the rolling bar
         
-        # Timer to drive the scanline animation (60 FPS))
         self.anim_timer = QTimer(self)
         self.anim_timer.timeout.connect(self.update_position)
         self.anim_timer.start(16)
@@ -2063,14 +2087,13 @@ class ScanlineOverlay(QWidget):
     def update_position(self):
         self.bar_y += 2.5  # Speed of the moving bar
         if self.bar_y > self.height():
-            self.bar_y = -self.bar_height  # Reset to top when it exits the bottom
-        self.update()  # Triggers paintEvent
+            self.bar_y = -self.bar_height 
+        self.update() 
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
-        # Create a semi-transparent green color (Alpha: 25)
         bar_color = QColor(0, 255, 0, 25) 
         painter.fillRect(0, self.bar_y, self.width(), self.bar_height, bar_color)
 class Cutscene(QDialog):
@@ -2244,14 +2267,14 @@ class AuthWindow(QDialog):
 
         self.start_worker("login", u, p)
 
-    def start_worker(self, mode, username, password, password2=None):
+    def start_worker(self, mode: str, username: str, password: str, password2: Optional[str]=None):
         self.worker = AuthWorker(mode, username, password, password2)
         self.worker.finished.connect(self.on_result)
         self.worker.start()
 
         self.central.currentWidget().status.setText("Working...")
 
-    def on_result(self, success, message):
+    def on_result(self, success: bool, message: str):
         self.central.currentWidget().status.setText(message)
 
         if success:
@@ -2298,9 +2321,9 @@ You may ignore the segment entirely if you wish, as despite the massive amount o
 
 
 
-class _PlayerPos:
-    _instance_x: Optional[_PlayerPos] = None
-    _instance_y: Optional[_PlayerPos] = None
+class PlayerPos:
+    _instance_x: Optional[PlayerPos] = None
+    _instance_y: Optional[PlayerPos] = None
  
     def __init__(self, axis: str) -> None:
         self._axis = axis  # "x" or "y"
@@ -2309,11 +2332,11 @@ class _PlayerPos:
         return f"PLAYER_{'X' if self._axis == 'x' else 'Y'}"
  
  
-PLAYER_X: _PlayerPos = _PlayerPos("x")
-PLAYER_Y: _PlayerPos = _PlayerPos("y")
+PLAYER_X: PlayerPos = PlayerPos("x")
+PLAYER_Y: PlayerPos = PlayerPos("y")
  
 # Type alias: any coordinate field can accept a plain float or a player pos.
-Coord = Union[float, _PlayerPos]
+Coord = Union[float, PlayerPos]
 
 @dataclass
 class BeamAttack:
@@ -2756,7 +2779,7 @@ class BossFight(QDialog):
         """
         Resolve coord to screen fraction to give player's current position
         """
-        if not isinstance(coord, _PlayerPos):
+        if not isinstance(coord, PlayerPos):
             return coord
         W, H = self.width(), self.height()
         if axis == "x":
