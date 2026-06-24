@@ -393,7 +393,9 @@ Describe testing approaches, such as:
 | ADT11   | Flag debug                                                | Sucessfully sets flag to bool or int value                              | set to int/bool as expected                                                  | Pass                   |
 | BR04    | Welcome back to another 5 minute (hour) coding adventure! | Displays gradient from text                                             | Doesn't work for badges                                                      | Fail                   |
 | BR05    | Welcome back to another 5 minute (hour) coding adventure! | Displays gradient from text                                             | Doesn't work for anything                                                    | Fail                   |
-| BR06    | Welcome back to another 5 minute (hour) coding adventure! | Displays gradient from text                                             | Works for everything :D                                                      | Pass                   |
+| BR06    | Welcome back to another 5 minute (hour) coding adventure! | Displays gradient from text                                             | Goes for left text first                                                     | Fail                   |
+| BR07    | Welcome back to another 5 minute (hour) coding adventure! | Displays gradient from text                                             | Doesn't work for scientific notation                                         | Fail                   |
+| BR08    | Welcome back to another 5 minute (hour) coding adventure! | Displays gradient from text                                             | Goes for left text first                                                     | Fail                   |
 
 ## 5.3 Evaluation Against Requirements
 
