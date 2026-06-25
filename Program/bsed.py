@@ -496,11 +496,9 @@ def Load(username: str = user):
 
     return Old_Load()
 def Save(username: Optional[str], collection: dict, upgrades: dict, secrets: dict, attempt=0):
-    global db, root
-    message_box = QMessageBox(root, "Synchronising", "", icon=QMessageBox.Icon.Information)
-    message_box.show()
+    global db
     if progression_lvl > 4:
-      message_box.setText(f"Attempting to synchronise simulation... (attempt {attempt + 1}/5)")
+      print(f"Saving... (attempt {attempt + 1}/5)")
       
       def local_save():
           try:
@@ -532,7 +530,7 @@ def Save(username: Optional[str], collection: dict, upgrades: dict, secrets: dic
               del collection["signature"]
   
           except Exception as e:
-              message_box.setText(f"Local save failed: {e}")
+              print("Local save failed:", e)
       local_save()
       if not db:
           local_save()
@@ -570,12 +568,11 @@ def Save(username: Optional[str], collection: dict, upgrades: dict, secrets: dic
               capsuled_singularity_exponent=cap_exponent
           )
   
-          message_box.setText("Cloud save successful.")
-          QTimer.singleShot(500, message_box.close())
+          print("Cloud save successful.")
           return
   
       except Exception as e:
-          message_box.setText(f"Cloud save failed: {e}")
+          print(f"Cloud save failed: {e}")
   
           if attempt >= 4:
               db = False
