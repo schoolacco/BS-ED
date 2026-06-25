@@ -1,5 +1,6 @@
 from Mantissa import Mantissa
 from pathlib import Path
+#import random
 global_path_reference = Path(__file__).resolve().parent.parent
 abs_stat_info = {
     "Pre-existence": {
@@ -4061,3 +4062,4 @@ for key, value in abs_stat_info.items():
 def_stat_increment = {"Stats": {key: 0 for cat, item in abs_stat_info.items() for g_cat, g_item in (item.items() if cat in ("Geode", "Afterlife Domain (Geode)") else [("", item)]) for key in g_item.keys()}, "Badges": {key: False  for badge in badge_data.values()  for key in badge.keys()}}
 abs_stat_info["Exclusive"]["Ivory"] = {"Multis": {item: 1.5 for item in def_stat_increment["Stats"].keys()}}
 def_stat_increment["Stats"]["Ivory"] = 0
+#print((lambda stat_list=list(def_stat_increment["Stats"].keys()): stat_list[random.randint(0,len(stat_list))])())

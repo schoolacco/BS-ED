@@ -299,10 +299,13 @@ def secret_input(input: str):
         print("You're on the right track!")
         secrets["Darkmatter_1"] = True
         print(colorama.Fore.BLACK, "RGltZW5zaW9uIGJyZWFr", colorama.Fore.RESET)
+    elif input == "0" and all((secrets[f"Darkmatter_{i+1}"] for i in range(3))) and stat_increment["Stats"]["Kanoite"] >= 1:
+        secrets["Darkmatter_4"] = True
+        print(colorama.Fore.BLACK, "Look where most have forgotten.", colorama.Fore.RESET)
     if area == "AT":
       if input == "God of Miners" and secrets["Darkmatter_1"] and secrets["Darkmatter_2"]:
           secrets["Darkmatter_3"] = True
-          print(colorama.Fore.BLACK, "Perhaps you are capable of seeing in the dark. Nethertheless the end is nigh. Corrupt thy soul, plague it with sin, and perhaps once more you may be capable of opening your eyes.", colorama.Fore.RESET)
+          print(colorama.Fore.BLACK, "Perhaps you are capable of seeing in the dark. Nethertheless the end is nigh. Corrupt thy soul, plague it with sin, and perhaps once more you may be capable of opening your eyes.", colorama.Fore.RESET) #If I had finished Kanoite it would've said something about the atrocities of History
     elif area == "WF":
       if input == "Andromeda":
           print("You feel as if the wormhole was beginning to reopen")
@@ -2685,11 +2688,11 @@ if __name__ == "__main__":
           ("100k Emerald: 4 Sapphire", lambda: cost_button( "Emerald", 100000, "Sapphire", 4)),
       ],
       "Discount": [
-          ("1e50 Gems: 1 Mortalstone", lambda: cost_button( "Gems", 1e50, "Mortalstone", 1)),
-          ("1M Lollipop: 1 Baryte", lambda: cost_button("Lollipop", 1e6, "Baryte", 1)),
-          ("100k Plasma: 1 TRU3_W0RLD", lambda: cost_button("Plasma", 100000, "TRU3_W0RLD", 1)),
-          ("1e303030 Stone: 1 Dezyp", lambda: cost_button( "Stone", Mantissa(1,303030), "Dezyp", 1)),
-          ("10M Dezyp: 1 Podrillium", lambda: cost_button("Dezyp", 1e7, "Podrillium", 1)),
+          ("100k Daisy: 1 Sercense", lambda: cost_button( "Daisy", 100000, "Sercense", 1)),
+          ("1M Giant Clover: 1 Megabursite", lambda: cost_button("Giant Clover", 1e6, "Megabursite", 1)),
+          ("10 Uranopolycrase: 1 Plutonerite", lambda: cost_button("Uranopolycrase", 10, "Plutonerite", 1)),
+          ("10 eulogy to the dead god: 1 Sigil of The Unknown", lambda: cost_button( "eulogy to the dead god", 10, "Sigil of the Unknown", 1)),
+          ("9.99k Dezpy: 1 eulogy to the dead god", lambda: cost_button("Dezyp", 9999, "eulogy to the dead god", 1)),
       ],
       "Geodes": [
           ("Ruby Geode: 100k Ruby", lambda btn: Geode_roll(btn, ruby_geode, luck, (1-(upgrades[world]["geode_speed"]["effect"]*upgrades[world]["geode_speed"]["current_lvl"])), bulk_roll)),
