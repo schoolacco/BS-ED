@@ -1687,7 +1687,7 @@ stat_gradients = {
     "Yalkènzar": {"Colours": "#ffff40,#ffff40,#ffff40,#ffff40,#ffff40,#ff22ff,#ff22ff,#ff22ff,#ff22ff,#ff22ff".split(","), "Angle": 180},
     "Imperium": {"Colours": "#eddc1f,#fbb766".split(","), "Angle": 180},
     "Electron": {"Colours": "#063147,#000305,#00a9fe,#0078b3".split(","), "Angle": 90},
-    "Byte": {"Colours": "#0b8101,#0b8101,#000000,#0b8101,#0b8101".split(","), "Angle": 18},
+    "Byte": {"Colours": "#0b8101,#0b8101,#095101,#0b8101,#0b8101".split(","), "Angle": 18},
     "Binary": {"Colours": "#0c7500,#000000,#0c7500,#000000,#0c7500,#000000,#0c7500,#000000".split(","), "Angle": 70},
     "Script": {"Colours": "#ffffff,#ff8800,#ff8800,#804d00,#d09f2c,#804d00,#ff8800,#ff8800,#ffffff".split(","), "Angle": 9},
     "Language": {"Colours": "#cccc00,#cccc00,#000000,#0000cc,#0000cc".split(","), "Angle": 109},

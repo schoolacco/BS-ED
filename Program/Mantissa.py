@@ -1,7 +1,8 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Union
 import math
 import sys
+Numeric = Union[int,float,"Mantissa"]
 class Mantissa:
     '''Abstract representation of extremely large numbers.
     Parameters:
@@ -12,7 +13,7 @@ class Mantissa:
     def __init__(self, mantissa: int|float, exponent: int|float) -> Mantissa:
         self.num = mantissa
         self.exp = exponent
-    def __mul__(a: int|float|Mantissa, b: int|float|Mantissa) -> Mantissa:
+    def __mul__(a: Numeric, b: Numeric) -> Mantissa:
       # a and b are (mantissa, exponent) tuples
       if isinstance(a, (int,float)):
           a = Mantissa.float_to_mantissa(a)
@@ -26,7 +27,7 @@ class Mantissa:
           new_mantissa /= 10
           new_exponent += 1
       return Mantissa(new_mantissa, new_exponent)
-    def __add__(a: int|float|Mantissa, b: int|float|Mantissa) -> Mantissa:
+    def __add__(a: Numeric, b: Numeric) -> Mantissa:
       # Ensure a has the bigger exponent
       if isinstance(a, (int,float)):
           a = Mantissa.float_to_mantissa(a)
@@ -45,27 +46,27 @@ class Mantissa:
         new_mantissa /= 10
         a.exp += 1
       return Mantissa(new_mantissa, a.exp)
-    def __iadd__(a: int|float|Mantissa, b: int|float|Mantissa) -> Mantissa:
+    def __iadd__(a: Numeric, b: Numeric) -> Mantissa:
         total = a + b
         return total
     def __round__(self: Mantissa, ndigits: Optional[int]=None) -> Mantissa:
         self.num = round(self.num, ndigits)
         return self
-    def __ge__(self: Mantissa, other: int|float|Mantissa) -> bool:
+    def __ge__(self: Mantissa, other: Numeric) -> bool:
         if other == math.inf: return False
         if isinstance(self, (int, float)):
             self = Mantissa.float_to_mantissa(self)
         if isinstance(other, (int, float)):
             other = Mantissa.float_to_mantissa(other)
         return True if self.exp > other.exp else True if self.exp == other.exp and self.num >= other.num else False
-    def __sub__(a: int|float|Mantissa,b: int|float|Mantissa) -> Mantissa:
+    def __sub__(a: Numeric,b: Numeric) -> Mantissa:
         if isinstance(a, (int,float)):
           a = Mantissa.float_to_mantissa(a)
         if isinstance(b, (int,float)):
           b = Mantissa.float_to_mantissa(b)
         b.num = -b.num
         return a + b
-    def __truediv__(a: int|float|Mantissa,b: int|float|Mantissa) -> Mantissa:
+    def __truediv__(a: Numeric,b: Numeric) -> Mantissa:
         if isinstance(a, (int,float)):
           a = Mantissa.float_to_mantissa(a)
         if isinstance(b, (int,float)):
@@ -76,11 +77,11 @@ class Mantissa:
             mantissa*= 10
             exp -= 1
         return Mantissa(mantissa, exp)
-    def __lt__(self: Mantissa, other: int|float|Mantissa) -> bool:
+    def __lt__(self: Mantissa, other: Numeric) -> bool:
         return not self >= other
-    def __gt__(self: Mantissa, other: int|float|Mantissa) -> bool:
+    def __gt__(self: Mantissa, other: Numeric) -> bool:
         return not self <= other
-    def __le__(self: Mantissa, other: int|float|Mantissa) -> bool:
+    def __le__(self: Mantissa, other: Numeric) -> bool:
         if other == math.inf: return True
         if isinstance(self, (int, float)):
             self = Mantissa.float_to_mantissa(self)
