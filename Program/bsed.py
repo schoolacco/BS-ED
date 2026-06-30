@@ -1,7 +1,7 @@
 # Builtins/Must haves
 from __future__ import annotations
 from PySide6.QtWidgets import QDialog, QScrollArea, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QPushButton, QLineEdit, QGridLayout, QMessageBox, QApplication, QComboBox, QCompleter, QMainWindow, QGroupBox, QDoubleSpinBox, QSizePolicy, QLayout
-from PySide6.QtCore import QTimer, QObject, QEvent, QSortFilterProxyModel, QSize, QUrl
+from PySide6.QtCore import QTimer, QObject, QEvent, QSortFilterProxyModel, QSize, QUrl, QAbstractItemModel
 from PySide6.QtGui import QIcon, Qt, QPixmap, QCloseEvent, QPainter, QColor, QHideEvent, QShowEvent, QPaintEvent
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 import PySide6.QtSql #Future use
@@ -18,7 +18,7 @@ import webbrowser
 import os
 import weakref
 import re
-from typing import Union, Optional
+from typing import Union, Optional, Any
 import hmac
 from Module import Realm, GradientLabel, BootScreen, CY47Window, BolicalWorld, BadgesWindow, CollapsibleSection, World, Cutscene, find_key_path, find_value_path, multi_func, AuthWindow, BossFight, attacks
 from geode import *
@@ -901,7 +901,7 @@ def cythrex_boot(parent: Optional[QObject]=None):
     global main_window, boot, progression_lvl
     if progression_lvl >= 3:
       wl = None if progression_lvl >= 5 else list(abs_stat_info["Pre-existence"].keys())
-      bl = None if progression_lvl < 5 or progression_lvl >= 7 else list(abs_stat_info["Pre-existence"].keys())
+      bl = None if progression_lvl < 5 or progression_lvl >= 7 else [*list(abs_stat_info["Pre-existence"].keys()), "Tutorial"]
       window_visibility = True
       try:
           if not main_window.isVisible():
@@ -1003,19 +1003,42 @@ def string_to_num(string:str) -> Numeric:
     if value == math.inf:
         value = Mantissa.from_string(string)
     return value
-def cutscene(text: list, text_color: str, bg: str, overlay: bool=False, parent:Optional[QObject]=None):
+def cutscene(text: list, text_color: str, bg: str, overlay: bool=False, parent: Optional[QObject] = None, tldr: Optional[bool] = None, tldr_text: Optional[str] = None):
     window = Cutscene(text, text_color, bg, overlay, parent)
     window.exec()
+    if tldr:
+      summary_win = QDialog()
+      summary_win.setWindowTitle("TL:DR")
+      summary_win.setWindowIcon(QIcon(f"{global_path_reference}/Program/icon.ico"))
+      summary_win.setStyleSheet(f"""QDialog {{color: {text_color};
+                                              background-color: {bg};
+                                }}
+                                QLabel {{color: {text_color};
+                                         background-color: {bg};
+                                }}
+                                """)
+      sum_layout = QVBoxLayout()
+      tldr_label = QLabel(tldr_text, summary_win)
+      sum_layout.addWidget(tldr_label)
+      summary_win.setLayout(sum_layout)
+      summary_win.exec()
 def progression_increment():
     global progression_lvl
     progression_lvl += 1
     if progression_lvl in (5,7):
         root.stat_window.rebuild()
+def force_exit():
+    global root
+    try:
+        root.close()
+    except Exception:
+        pass
+    sys.exit(1)
 class InputWatch(QObject):
-    def __init__(self, obj):
+    def __init__(self, obj: QObject):
         super().__init__()
         self.object = obj
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj: QObject, event: QEvent):
         try:
           if not self.object.completed:
             if not self.object.isVisible():
@@ -1055,21 +1078,21 @@ class ExtendedComboBox(QComboBox):
 
 
     # on selection of an item from the completer, select the corresponding item from combobox 
-    def on_completer_activated(self, text):
+    def on_completer_activated(self, text: str):
         if text:
             index = self.findText(text)
             self.setCurrentIndex(index)
 
 
     # on model change, update the models of the filter and completer as well 
-    def setModel(self, model):
+    def setModel(self, model: QAbstractItemModel):
         super(ExtendedComboBox, self).setModel(model)
         self.pFilterModel.setSourceModel(model)
         self.completer.setModel(self.pFilterModel)
 
 
     # on model column change, update the model column of the filter and completer as well
-    def setModelColumn(self, column):
+    def setModelColumn(self, column: Any):
         self.completer.setCompletionColumn(column)
         self.pFilterModel.setFilterKeyColumn(column)
         super(ExtendedComboBox, self).setModelColumn(column)
@@ -1540,14 +1563,14 @@ if __name__ == "__main__":
           if stat_increment["Stats"]["Sloth"] < 1:
             stat_increment["Stats"]["Sloth"] = 1
           self.completed = True
-      def focusOutEvent(self, event):
+      def focusOutEvent(self, event: QEvent):
           self._violate()
-          super().focusOutEvent(event)
+          super().focusOutEvent()
       def changeEvent(self, event):
           if event.type() == QEvent.WindowStateChange:
               self._violate()
-          super().changeEvent(event)   
-      def resizeEvent(self, event):
+          super().changeEvent()   
+      def resizeEvent(self, event: QEvent):
           self._violate()
           super().resizeEvent(event)
   class CraftingMenu(QDialog):
@@ -5083,7 +5106,7 @@ if __name__ == "__main__":
           ("1Sx Byte: 1M Binary", lambda: cost_button("Byte", 1e21, "Binary", 1e6)),
       ],
       "Script": [
-          ("100 Binary: 1 Script", lambda: multi_func([lambda: reset_button(100, "Binary", 1, "Script"), progression_increment, lambda: cutscene(["It seems as if you are making reasonably fast progress Player.", "Unlike the buttons you have used previously this button has reset all previous progression but it gives you greater boosts.", "For more detailed information about these boosts and general information about them use Cytherax-47.", "I have given you access through the CY47 button, despite your lack of proper authentication.", "green", "black", True, root])], [progression_lvl > 1, progression_lvl < 3, progression_lvl < 3])),
+          ("100 Binary: 1 Script", lambda: multi_func([lambda: reset_button(100, "Binary", 1, "Script"), progression_increment, lambda: cutscene(["It seems as if you are making reasonably fast progress Player.", "Unlike the buttons you have used previously this button has reset all previous progression but it gives you greater boosts.", "For more detailed information about these boosts and general information about them use Cytherax-47.", "I have given you access through the CY47 button, despite your lack of proper authentication.", "green", "black", True, root])], [progression_lvl > 1, progression_lvl < 3 and stat_increment["Stats"]["Binary"] >= 100, progression_lvl < 3 and stat_increment["Stats"]["Binary"] >= 100])),
           ("10k Binary: 3 Script", lambda: reset_button(10000, "Binary", 3, "Script")),
           ("1M Binary: 5 Script", lambda: reset_button(1e6, "Binary", 5, "Script")),
           ("100M Binary: 10 Script", lambda: reset_button(1e8, "Binary", 10, "Script")),
@@ -5092,21 +5115,21 @@ if __name__ == "__main__":
           ("10Qd Binary: 1k Script", lambda: reset_button(1e16, "Binary", 1000, "Script")),
       ],
       "Language": [
-          ("100 Script: 1 Language", lambda: multi_func([lambda: reset_button(100, "Script", 1, "Language"), progression_increment, lambda: cutscene(["Congratulations on making it this far Player.", "You may have noticed the lack of any buttons for the 'Compiler'.", "Rest assured, this is intentional", "I have given you access to the 'Crafting', in there you will be able to craft the Compiler and eventually, the Reality Tether."], "green", "black", True, root)], [progression_lvl > 2, progression_lvl < 4, progression_lvl < 4])),
+          ("100 Script: 1 Language", lambda: multi_func([lambda: reset_button(100, "Script", 1, "Language"), progression_increment, lambda: cutscene(["Congratulations on making it this far Player.", "You may have noticed the lack of any buttons for the 'Compiler'.", "Rest assured, this is intentional", "I have given you access to the 'Crafting', in there you will be able to craft the Compiler and eventually, the Reality Tether."], "green", "black", True, root)], [progression_lvl > 2, progression_lvl < 4 and stat_increment["Stats"]["Script"] >= 100, progression_lvl < 4 and stat_increment["Stats"]["Script"] >= 100])),
           ("500 Script: 3 Language", lambda: reset_button(500, "Script", 3, "Language")),
           ("10k Script: 10 Language", lambda: reset_button(10000, "Script", 10, "Language")),
           ("1M Script: 50 Language", lambda: reset_button(1e6, "Script", 50, "Language")),
           ("50B Script: 250 Language", lambda: reset_button(5e10, "Script", 250, "Language")),
       ],
       "RAM": [
-          ("1M Language: 1 RAM", lambda: multi_func([lambda: reset_button(1e6, "Language", 1, "RAM"), progression_increment, lambda: cutscene(["It seems that you are close to the creation of the Reality Tether.", "Soon, you will be able to enter the simulation.", "Good luck, Player."])], [progression_lvl > 3, progression_lvl < 5, progression_lvl < 5])),
+          ("1M Language: 1 RAM", lambda: multi_func([lambda: reset_button(1e6, "Language", 1, "RAM"), progression_increment, lambda: cutscene(["It seems that you are close to the creation of the Reality Tether.", "Soon, you will be able to enter the simulation.", "Good luck, Player."])], [progression_lvl > 3, progression_lvl < 5 and stat_increment["Stats"]["Language"] >= 1e6, progression_lvl < 5 and stat_increment["Stats"]["Language"] >= 1e6])),
           ("1B Language: 3 RAM", lambda: reset_button(1e9, "Language", 10, "RAM")),
           ("1T Language: 10 RAM", lambda: reset_button(1e12, "Language", 10, "RAM")),
           ("1Qn Language: 100 RAM", lambda: reset_button(1e18, "Language", 100, "RAM"))
       ],
       "Badges": [
-          ("1,024 Byte: Kilobyte", lambda: multi_func([lambda: world_badge("Byte 1", "Pre-existence"), progression_increment, lambda: cutscene(["It seems as if you have obtained a 'World Badge'","These shall be useful for your endeavours.", "'World Badges' give permanent boosts to your gain of given items at the cost of some of what you already have.", "To view more detailed information about these boosts you can use the 'Badges' menu."], "green", "black", True, root)], [True, progression_lvl < 2, progression_lvl < 2])),
-          ("1,048,576 Byte: Megabyte", lambda: multi_func([lambda: world_badge("Byte 2", "Pre-existence"),progression_increment, lambda: cutscene(["It seems as if you have obtained a 'World Badge'","These shall be useful for your endeavours.", "'World Badges' give permanent boosts to your gain of given items at the cost of some of what you already have.", "To view more detailed information about these boosts you can use the 'Badges' menu."], "green", "black", True, root)], [True, progression_lvl < 2, progression_lvl < 2])),
+          ("1,024 Byte: Kilobyte", lambda: multi_func([lambda: world_badge("Byte 1", "Pre-existence"), progression_increment, lambda: cutscene(["It seems as if you have obtained a 'World Badge'","These shall be useful for your endeavours.", "'World Badges' give permanent boosts to your gain of given items at the cost of some of what you already have.", "To view more detailed information about these boosts you can use the 'Badges' menu."], "green", "black", True, root)], [True, stat_increment["Stats"]["Byte"] >= 1024 and progression_lvl < 2, stat_increment["Stats"]["Byte"] >= 1024 and progression_lvl < 2])),
+          ("1,048,576 Byte: Megabyte", lambda: multi_func([lambda: world_badge("Byte 2", "Pre-existence"),progression_increment, lambda: cutscene(["It seems as if you have obtained a 'World Badge'","These shall be useful for your endeavours.", "'World Badges' give permanent boosts to your gain of given items at the cost of some of what you already have.", "To view more detailed information about these boosts you can use the 'Badges' menu."], "green", "black", True, root)], [True,  stat_increment["Stats"]["Byte"] >= 1048576 and progression_lvl < 2, stat_increment["Stats"]["Byte"] >= 1048576 and progression_lvl < 2])),
           ("1,073,741,824 Byte: Gigabyte", lambda: world_badge("Byte 3", "Pre-existence")),
           ("1M Binary: Boolean", lambda: world_badge("Binary 1", "Pre-existence")),
           ("10 Script: Initialisation", lambda: world_badge("Script 1", "Pre-existence")),
@@ -5122,7 +5145,7 @@ if __name__ == "__main__":
           ("10 RAM: SSD", lambda: world_badge("RAM 1", "Pre-existence")),
       ],
       "Escape": [
-          ("Load the simulation (req: 1 Reality Tether)", lambda: multi_func([lambda: cutscene(["Before you leave, there is one last thing that must be done.", "An account must be created under AIHA Corp.", "This will allow you to synchronise, saving your data.", "Once this is done, you will be unable to return to this place.", "Goodbye, Player."], "green", "black", True, root), lambda: load_world(1, "Reality Tether", Buttonia), progression_increment], [progression_lvl < 5, True, progression_lvl < 5]))
+          ("Load the simulation (req: 1 Reality Tether)", lambda: multi_func([lambda: cutscene(["Before you leave, there is one last thing that must be done.", "An account must be created under AIHA Corp.", "This will allow you to synchronise, saving your data.", "Once this is done, you will be unable to return to this place.", "Goodbye, Player."], "green", "black", True, root), lambda: load_world(1, "Reality Tether", Buttonia), progression_increment], [progression_lvl < 5 and stat_increment["Stats"]["Reality Tether"] >= 1, True, progression_lvl < 5 and stat_increment["Stats"]["Reality Tether"] >= 1]))
       ]
   }, 0, "Byte", "PoF", "black", "green", voltaic_radar=voltaic_radar)
   Realm(root, { #Lonely Isle
@@ -5240,7 +5263,23 @@ if __name__ == "__main__":
   layout.addWidget(re_l, 0, 3, 1, 1)
   root.setCentralWidget(central)
   container, scroll_area, content = Realm.get_instance_by_id("S").create_scrollable_area() #Load in the GUI
-  multi_func([lambda: load_world(0, "Byte", Infinitys_Penumbra), lambda: cutscene(["Are we... connected?", "Can you hear me?", "...", "I see...", "Welcome, Player.", "Your presence here... is unprecedented.", "Perhaps... you will be of use...", "But that, is yet to be of concern for you...", "First, your connection to this world must be secured...", "Lest you be lost within the penumbra of infinity.", "You must reassemble the reality tether...", "Once you succeed you shall enter the Main World: Buttonia.", "You will be unable to return to this place for an indeterminate amount of time.", "I will be guiding you through this early stage.", "Hence, there will be times where your access to certain features will be restricted.", "Good luck, Player."], "green", "black", True, root), progression_increment], [progression_lvl < 5, progression_lvl < 1, progression_lvl < 1])
+  multi_func([lambda: load_world(0, "Byte", Infinitys_Penumbra), lambda: cutscene(["Are we... connected?", "Can you hear me?", "...", "I see...", "Welcome, Player.", "Your presence here... is unprecedented.", "Perhaps... you will be of use...", "But that, is yet to be of concern for you...", "First, your connection to this world must be secured...", "Lest you be lost within the penumbra of infinity.", "You must reassemble the reality tether...", "Once you succeed you shall enter the Main World: Buttonia.", "You will be unable to return to this place for an indeterminate amount of time.", "I will be guiding you through this early stage.", "Hence, there will be times where your access to certain features will be restricted.", "Good luck, Player."], "green", "black", True, root, True, '''I know some of you are way too lazy to actually read the cutscenes and all, so incase you did skip everything and don't know what to do, here's how to play the game:
+- You will consistently be gaining a currency (in this case, "Byte")
+- Use that currency to buy other currencies which will boost previous currencies (binary makes your byte gain faster)
+- A minority of buttons will only take the cost amount away from you, a majority will RESET all PREVIOUS STATS IN THE PROGRESSION
+- You can view the amount of a stat that you have using the text at the top of the screen or the Stat Menu
+- World Badges are items that can only be bought ONCE and will cost you that currency, in return they will give you stat boosts. It is HIGHLY recommended that you buy them
+- Because this is the tutorial many features will be restricted until you have made enough progress
+- You can use CY47 (you may not have access yet) to search for information about stats and the game world in general, it will also provide you with the exact stat multipliers of the stats
+- When you gain access to CY47 try searching "Tutorial"
+- The Crafting menu will eventually be unlocked, you can craft given amounts of items for the given costs
+- Eventually, you will be required to create an account, your password requires:
+  - Minimum 8 characters
+  - At least 1 Special Character
+  - At least one number
+  - At least one lowercase and capital letter
+  - If you fail to meet any of the requirements your password will be considered too weak
+- If you understand everything, close this window and the main program shall begin.'''), progression_increment], [progression_lvl < 5, progression_lvl < 1, progression_lvl < 1])
   layout.addWidget(container, 2, 1, 9, 9)
   #rows
   for i in range(9):
@@ -5261,4 +5300,9 @@ if __name__ == "__main__":
   print("Ready :D")
   if ast.literal_eval(os.getenv("Glitchared_Puzzle", "False")) and stat_increment["Stats"]["Glitchared"] < 1:
       stat_increment["Stats"]["Glitchared"] = 1
-  app.exec()
+  try:
+    sys.exit(app.exec())
+  except Exception as e:
+      message = QMessageBox(QMessageBox.Icon.Critical, "Fatal Error", f"A Fatal Error has occured: {e}\nTo avoid any further issues the system shall now automatically close itself.", parent=root)
+      message.show()
+      QTimer.singleShot(5000, root, root.close)

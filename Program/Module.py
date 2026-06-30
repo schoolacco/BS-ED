@@ -90,6 +90,13 @@ def documents() -> str:
     # Fallback
     return Path.home()
 DOCUMENTS_PATH = documents()
+def serialize(obj: Mantissa) -> dict:
+    if isinstance(obj, Mantissa):
+        return obj.to_dict()
+    elif isinstance(obj, dict):
+        return {k: serialize(v) for k, v in obj.items()}
+    else:
+        return obj
 def blinded(parent: QMainWindow) -> str:
     if not os.path.exists(str(DOCUMENTS_PATH)+"\\toodarktosee"):
       print("Traceback (most recent call last):")
@@ -881,7 +888,10 @@ class CY47Window(QDialog):
             self.build_page(self.meta_data[page]["raw_text"])
         elif command.startswith("exec:"):
             command = command.split(":", 1)[1]
-            exec(command)
+            try:
+              exec(command)
+            except NameError:
+                pass
     def clear_page(self):
       if self.current_page is not None:
           self._clear_layout(self.current_page)
@@ -1526,7 +1536,7 @@ class GraphPuzzle(QWidget):
         else:
             self.ax.set_xlim(-10,10) 
             self.ax.set_ylim(-10,10)
-    def _generate_level_equation(self, level: int, bonus: bool=False) -> str:
+    def _generate_level_equation(self, level: int, bonus: Optional[bool]=False) -> str:
       """
       Generates an equation according to the rules for levels 1-10.
       If bonus=True, derivative/integral mode (not implemented).
@@ -1732,7 +1742,7 @@ class GraphPuzzle(QWidget):
               self.parent().setCurrentWidget(self.parent().parent().menu)
           else:
               self.parent().setCurrentWidget(self.parent().parent().difficulty_select)
-    def next_graph(self, skip: bool=False):
+    def next_graph(self, skip: Optional[bool]=False):
         """Generate next graph. If skip=True, no points are awarded"""
         # Award points if not skipped and puzzle solved
         # Clear old UI state
@@ -1760,7 +1770,7 @@ class GraphPuzzle(QWidget):
         y_target = np.array(self.y_target, dtype=float)
         y_target[~np.isfinite(y_target)] = np.nan
         y_target = self._break_asymptotes(y_target)
-        if not Any(np.isfinite(y_target)):
+        if not any(np.isfinite(y_target)):
             self.next_graph(skip=True)
             return
         if np.count_nonzero(np.isfinite(y_target)) < 10:
@@ -2019,59 +2029,74 @@ class HoverButton(Button):
     def __init__(self, text: str, function: Callable, bg: str="black", text_color: str="white") -> HoverButton:
         super().__init__(text, bg, text_color)
         self.func = function
-    def enterEvent(self, event):
+    def enterEvent(self, event: QEnterEvent):
         super().enterEvent(event)
         self._on_hover()
     def _on_hover(self):
         self.func()
-class Animation_Handler(QObject): 
+class Animation_Handler(QObject):
     '''The text animation handler for my Cutscene class
     It used to just be called "Test", how informative'''
-    def __init__(self, dialog: QDialog, text_list: list[str], timer: QTimer, end_function: Optional[Callable]=None) -> Animation_Handler: 
-        super().__init__(dialog) 
-        self.dialog = dialog 
-        self.text_blocks = text_list  
-        self.block_index = 0 
-        self.char_index = 0 
-        self.timer = timer 
+    def __init__(self, dialog: QDialog, text_list: list[str], timer: QTimer, end_function: Optional[Callable] = None):
+        super().__init__(dialog)
+        self.dialog = dialog
+        self.text_blocks = text_list
+        self.block_index = 0
+        self.char_index = 0
+        self.timer = timer
         self._keys_pressed: set[Qt.Key] = set()
-        self.func = end_function 
-    def text_animator(self, label: QLabel): 
-        if self.block_index < len(self.text_blocks): 
-            current_block = self.text_blocks[self.block_index]
-            
-            if self.timer.interval() == 1000:
-                label.setText("")
-                if Qt.Key_C not in self._keys_pressed:
-                  self.timer.setInterval(100)
-                self.char_index = 0
-                return
+        self.func = end_function
+        self._pausing = False
+        self.normal_interval = 100
+        self.pause_interval = 1000
+        self.fast_interval = 10
 
-            if self.char_index < len(current_block): 
-                label.setText(label.text() + current_block[self.char_index]) 
-                self.char_index += 1 
-            else: 
-                if Qt.Key_C not in self._keys_pressed:
-                  self.timer.setInterval(1000)
-                self.block_index += 1
-        else: 
-            self.timer.stop() 
-            self._on_end() 
-    def _on_end(self): 
-        if self.func: 
-            self.func() 
-        self.dialog.close() 
-    def keyPressEvent(self, event: QKeyEvent):
-       if event.isAutoRepeat():
+    def _current_interval(self) -> int:
+        if Qt.Key_C in self._keys_pressed:
+            return self.fast_interval
+        return self.pause_interval if self._pausing else self.normal_interval
+
+    def text_animator(self, label: QLabel):
+        if self.block_index >= len(self.text_blocks):
+            self.timer.stop()
+            self._on_end()
             return
-       if event.key() == Qt.Key_C:
-           if self.timer.interval() > 10:
-             self.timer.setInterval(10)
-       self._keys_pressed.add(event.key())
+
+        if self._pausing:
+            label.setText("")
+            self.char_index = 0
+            self._pausing = False
+            self.timer.setInterval(self._current_interval())
+            return
+
+        current_block = self.text_blocks[self.block_index]
+        if self.char_index < len(current_block):
+            label.setText(label.text() + current_block[self.char_index])
+            self.char_index += 1
+            self.timer.setInterval(self._current_interval())
+        else:
+            self._pausing = True
+            self.block_index += 1
+            self.timer.setInterval(self._current_interval())
+
+    def _on_end(self):
+        if self.func:
+            self.func()
+        self.dialog.close()
+
+    def keyPressEvent(self, event: QKeyEvent):
+        if event.isAutoRepeat():
+            return
+        self._keys_pressed.add(event.key())
+        if event.key() == Qt.Key_C:
+            self.timer.setInterval(self._current_interval())
+
     def keyReleaseEvent(self, event: QKeyEvent):
         if event.isAutoRepeat():
             return
         self._keys_pressed.discard(event.key())
+        if event.key() == Qt.Key_C:
+            self.timer.setInterval(self._current_interval())
 class ScanlineOverlay(QWidget):
     def __init__(self, parent: Optional[QObject]=None) -> ScanlineOverlay:
         super().__init__(parent)
@@ -2090,7 +2115,7 @@ class ScanlineOverlay(QWidget):
             self.bar_y = -self.bar_height 
         self.update() 
 
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
@@ -2151,7 +2176,7 @@ class AuthWorker(QThread):
                 success = db.create_account(
                     self.username,
                     hashed,
-                    self.save_blob
+                    serialize(self.save_blob)
                 )
 
                 if success:
@@ -3038,7 +3063,7 @@ class BossFight(QDialog):
                     if phb.intersects(proj_rect):
                         self._alive = False
  
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         W, H = self.width(), self.height()
@@ -4458,7 +4483,11 @@ attacks = [
        ]
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    #window = BolicalWorld(stat_data={"Stats": {"Graphite": 0, "Tesseract": 0, "Tetra": 0, "Master Tetra": 0}, "Keys": {"Bolical Points": 0, "Sky-High Structuring": False}})
-    window = Cutscene([*["Blah"]*20], "green", "black")
-    window.show()
+    user = validate_session()
+    if not user:
+     root = AuthWindow("Login")
+     root.show()
+    else:
+     print(f"Hello {user}!")
+     sys.exit()
     sys.exit(app.exec())

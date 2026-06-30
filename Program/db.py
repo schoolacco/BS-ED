@@ -1,8 +1,14 @@
 import os
 import dotenv
-from supabase import create_client, Client
 from data import global_path_reference
 dotenv.load_dotenv(f"{global_path_reference}/Program/bsed.env", override=True)
+try:
+  from supabase import create_client, Client
+  SUPABASE_URL = os.getenv("URL")
+  SUPABASE_KEY = os.getenv("KEY")
+  supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+except ImportError:
+    supabase = None
 
 SUPABASE_URL = os.getenv("URL")
 SUPABASE_KEY = os.getenv("KEY")

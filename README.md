@@ -1,6 +1,7 @@
 # Dependencies
 
 To install the necessary dependecies type:
+
 ```bash
 pip install -r requirements.txt
 ```
