@@ -1797,7 +1797,6 @@ class GraphPuzzle(QWidget):
         self.target_line.set_alpha(0.3)
 
         # Award points immediately)
-        print(self.Mode.MODE_NORMAL == self.state.mode)
         if self.state.mode == self.Mode.MODE_NORMAL:
           self.state.points += self.points_per_level[self.state.level]
           self.success = QLabel(f"MATCH CONFIRMED! Points: {self.state.points}")
